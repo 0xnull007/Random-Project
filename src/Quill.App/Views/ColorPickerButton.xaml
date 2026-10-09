@@ -1,0 +1,21 @@
+<UserControl x:Class="Quill.App.Views.ColorPickerButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid>
+    <ToggleButton x:Name="Toggle" Style="{StaticResource Quill.CommandToggle}" MinWidth="34" Padding="4,0">
+      <Grid>
+        <TextBlock x:Name="Glyph" Text="A" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,5" />
+        <Border x:Name="Indicator" Height="4" VerticalAlignment="Bottom" CornerRadius="1" Background="Black" />
+      </Grid>
+    </ToggleButton>
+    <Popup x:Name="Flyout" PlacementTarget="{Binding ElementName=Toggle}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
+           IsOpen="{Binding IsChecked, ElementName=Toggle, Mode=TwoWay}">
+      <Border Background="{DynamicResource Quill.FlyoutBackground}" BorderBrush="{DynamicResource Quill.FlyoutBorder}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="4,2,8,10">
+        <Border.Effect>
+          <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3" />
+        </Border.Effect>
+        <StackPanel x:Name="Palette" TextElement.Foreground="{DynamicResource Quill.FlyoutForeground}" />
+      </Border>
+    </Popup>
+  </Grid>
+</UserControl>

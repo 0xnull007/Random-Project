@@ -47,10 +47,25 @@ public static class PopupThemeFix
     public static void AttachAll(DependencyObject root)
     {
         ArgumentNullException.ThrowIfNull(root);
+        PublishFlyoutBrushes();
         foreach (ComboBox combo in Descendants<ComboBox>(root))
         {
             Attach(combo);
         }
+    }
+
+    /// <summary>Exposes the palette to our own popups (color pickers) as dynamic resources.</summary>
+    private static void PublishFlyoutBrushes()
+    {
+        if (Application.Current is null)
+        {
+            return;
+        }
+
+        Palette palette = CurrentPalette();
+        Application.Current.Resources["Quill.FlyoutBackground"] = palette.Background;
+        Application.Current.Resources["Quill.FlyoutBorder"] = Frozen(ReferenceEquals(palette, Dark) ? 0xFF3F3F3Fu : 0xFFD0D0D0u);
+        Application.Current.Resources["Quill.FlyoutForeground"] = palette.Foreground;
     }
 
     /// <summary>The palette the application window resolved: light text means the dark theme is active.</summary>

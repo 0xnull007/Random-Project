@@ -23,6 +23,18 @@
     <KeyBinding Modifiers="Ctrl" Key="P" Command="{Binding PrintCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Z" Command="{Binding UndoCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Y" Command="{Binding RedoCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="OemPeriod" Command="{Binding GrowFontCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="OemComma" Command="{Binding ShrinkFontCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="OemCloseBrackets" Command="{Binding NudgeFontCommand}" CommandParameter="1" />
+    <KeyBinding Modifiers="Ctrl" Key="OemOpenBrackets" Command="{Binding NudgeFontCommand}" CommandParameter="-1" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="OemPlus" Command="{Binding ToggleSuperscriptCommand}" />
+    <KeyBinding Modifiers="Ctrl+Alt" Key="D1" Command="{Binding ApplyHeadingCommand}" CommandParameter="1" />
+    <KeyBinding Modifiers="Ctrl+Alt" Key="D2" Command="{Binding ApplyHeadingCommand}" CommandParameter="2" />
+    <KeyBinding Modifiers="Ctrl+Alt" Key="D3" Command="{Binding ApplyHeadingCommand}" CommandParameter="3" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="N" Command="{Binding ApplyHeadingCommand}" CommandParameter="0" />
+    <KeyBinding Modifiers="Ctrl" Key="D1" Command="{Binding SetLineSpacingCommand}" CommandParameter="1.0" />
+    <KeyBinding Modifiers="Ctrl" Key="D2" Command="{Binding SetLineSpacingCommand}" CommandParameter="2.0" />
+    <KeyBinding Modifiers="Ctrl" Key="D5" Command="{Binding SetLineSpacingCommand}" CommandParameter="1.5" />
     <KeyBinding Modifiers="Ctrl" Key="OemPlus" Command="{Binding ZoomInCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Add" Command="{Binding ZoomInCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="OemMinus" Command="{Binding ZoomOutCommand}" />
@@ -56,7 +68,7 @@
       </TabItem>
 
       <TabItem Header="Home">
-        <StackPanel Orientation="Horizontal">
+        <WrapPanel Orientation="Horizontal">
           <Button Style="{StaticResource Quill.CommandButton}" Content="Cut" Click="OnCut" ToolTip="Cut (Ctrl+X)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Copy" Click="OnCopy" ToolTip="Copy (Ctrl+C)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Paste" Click="OnPaste" ToolTip="Paste (Ctrl+V)" />
@@ -67,11 +79,21 @@
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="64"
                     ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}"
                     ToolTip="Font size" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2191;" Command="{Binding GrowFontCommand}" ToolTip="Grow font (Ctrl+Shift+&gt;)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2193;" Command="{Binding ShrinkFontCommand}" ToolTip="Shrink font (Ctrl+Shift+&lt;)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsBold}" FontWeight="Bold" Content="B" ToolTip="Bold (Ctrl+B)" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsItalic}" FontStyle="Italic" Content="I" ToolTip="Italic (Ctrl+I)" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsUnderline}" ToolTip="Underline (Ctrl+U)">
             <TextBlock Text="U" TextDecorations="Underline" />
           </ToggleButton>
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsStrikethrough}" ToolTip="Strikethrough">
+            <TextBlock Text="S" TextDecorations="Strikethrough" />
+          </ToggleButton>
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsSuperscript}" Content="x&#xB2;" ToolTip="Superscript (Ctrl+Shift+Plus)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsSubscript}" Content="x&#x2082;" ToolTip="Subscript" />
+          <views:ColorPickerButton x:Name="FontColorPicker" GlyphText="A" ToggleToolTip="Font color" CurrentColor="{Binding FontColor}" ColorSelected="OnFontColorSelected" />
+          <views:ColorPickerButton x:Name="HighlightPicker" IsHighlight="True" GlyphText="ab" ToggleToolTip="Text highlight color" CurrentColor="{Binding HighlightSwatch}" ColorSelected="OnHighlightSelected" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignLeft}" Content="&#x2630;" ToolTip="Align left (Ctrl+L)" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignCenter}" Content="&#x2261;" ToolTip="Center (Ctrl+E)" />
@@ -83,16 +105,23 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E4;" Command="{Binding DecreaseIndentCommand}" ToolTip="Decrease indent (Shift+Tab at the start of a list item)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E5;" Command="{Binding IncreaseIndentCommand}" ToolTip="Increase indent (Tab at the start of a list item)" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <TextBlock Text="&#x2195;" VerticalAlignment="Center" Margin="2,0" ToolTip="Line spacing" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="62" ItemsSource="{Binding LineSpacingChoices}" SelectedItem="{Binding LineSpacingValue}" ToolTip="Line spacing (Ctrl+1, Ctrl+2, Ctrl+5)" />
+          <TextBlock Text="Before" VerticalAlignment="Center" Margin="6,0,2,0" FontSize="11" Opacity="0.8" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="54" ItemsSource="{Binding ParagraphSpacingChoices}" SelectedItem="{Binding SpaceBeforePoints}" ToolTip="Space before paragraph (pt)" />
+          <TextBlock Text="After" VerticalAlignment="Center" Margin="6,0,2,0" FontSize="11" Opacity="0.8" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="54" ItemsSource="{Binding ParagraphSpacingChoices}" SelectedItem="{Binding SpaceAfterPoints}" ToolTip="Space after paragraph (pt)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150"
                     ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
-                    ToolTip="Paragraph style" />
+                    ToolTip="Paragraph style (Ctrl+Alt+1/2/3 headings, Ctrl+Shift+N normal)" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21B6;" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21B7;" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Find" Command="ApplicationCommands.Find" ToolTip="Find (Ctrl+F)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Replace" Command="ApplicationCommands.Replace" ToolTip="Find and replace (Ctrl+H)" />
-        </StackPanel>
+        </WrapPanel>
       </TabItem>
 
       <TabItem Header="Insert">

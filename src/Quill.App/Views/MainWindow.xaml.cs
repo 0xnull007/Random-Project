@@ -62,6 +62,18 @@ public partial class MainWindow : Window
 
     private void OnSelectAll(object sender, RoutedEventArgs e) => ViewModel.Session.SelectAll();
 
+    private void OnFontColorSelected(object? sender, string value)
+    {
+        ViewModel.SetFontColor(value);
+        Editor.Focus();
+    }
+
+    private void OnHighlightSelected(object? sender, string value)
+    {
+        ViewModel.SetHighlight(value);
+        Editor.Focus();
+    }
+
     private void OnEditHeader(object sender, RoutedEventArgs e)
     {
         Editor.EditHeader();

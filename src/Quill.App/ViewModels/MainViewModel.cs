@@ -84,6 +84,34 @@ public sealed partial class MainViewModel : ObservableObject
     public partial bool IsUnderline { get; set; }
 
     [ObservableProperty]
+    public partial bool IsStrikethrough { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsSuperscript { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsSubscript { get; set; }
+
+    [ObservableProperty]
+    public partial Color FontColor { get; set; }
+
+    [ObservableProperty]
+    public partial Color HighlightSwatch { get; set; }
+
+    [ObservableProperty]
+    public partial double LineSpacingValue { get; set; }
+
+    [ObservableProperty]
+    public partial double SpaceBeforePoints { get; set; }
+
+    [ObservableProperty]
+    public partial double SpaceAfterPoints { get; set; }
+
+    public IReadOnlyList<double> LineSpacingChoices { get; } = [1.0, 1.08, 1.15, 1.5, 2.0, 2.5, 3.0];
+
+    public IReadOnlyList<double> ParagraphSpacingChoices { get; } = [0, 3, 6, 8, 10, 12, 18, 24];
+
+    [ObservableProperty]
     public partial Alignment Alignment { get; set; }
 
     [ObservableProperty]
@@ -489,6 +517,128 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    partial void OnIsStrikethroughChanged(bool value)
+    {
+        if (!_syncingFormat)
+        {
+            Session.ApplyRunFormat(new RunProperties { Strikethrough = value });
+        }
+    }
+
+    partial void OnIsSuperscriptChanged(bool value)
+    {
+        if (!_syncingFormat)
+        {
+            Session.ApplyRunFormat(new RunProperties { VerticalAlignment = value ? VerticalTextAlignment.Superscript : VerticalTextAlignment.Baseline });
+        }
+    }
+
+    partial void OnIsSubscriptChanged(bool value)
+    {
+        if (!_syncingFormat)
+        {
+            Session.ApplyRunFormat(new RunProperties { VerticalAlignment = value ? VerticalTextAlignment.Subscript : VerticalTextAlignment.Baseline });
+        }
+    }
+
+    partial void OnLineSpacingValueChanged(double value)
+    {
+        if (!_syncingFormat && value > 0)
+        {
+            Session.ApplyParagraphFormat(new ParagraphProperties { LineSpacing = LineSpacing.Multiple(value) });
+        }
+    }
+
+    partial void OnSpaceBeforePointsChanged(double value)
+    {
+        if (!_syncingFormat && value >= 0)
+        {
+            Session.ApplyParagraphFormat(new ParagraphProperties { SpaceBefore = Twips.FromPoints(value) });
+        }
+    }
+
+    partial void OnSpaceAfterPointsChanged(double value)
+    {
+        if (!_syncingFormat && value >= 0)
+        {
+            Session.ApplyParagraphFormat(new ParagraphProperties { SpaceAfter = Twips.FromPoints(value) });
+        }
+    }
+
+    /// <summary>Applies a font color from the picker: "auto" or an RRGGBB hex string.</summary>
+    public void SetFontColor(string value)
+    {
+        DocColor color = value == "auto" ? DocColor.Auto : DocColor.Parse(value);
+        Session.ApplyRunFormat(new RunProperties { Color = color });
+        RefreshFormatState();
+    }
+
+    /// <summary>Applies a highlight from the picker by <see cref="HighlightColor"/> name.</summary>
+    public void SetHighlight(string name)
+    {
+        if (Enum.TryParse(name, out HighlightColor highlight))
+        {
+            Session.ApplyRunFormat(new RunProperties { Highlight = highlight });
+            RefreshFormatState();
+        }
+    }
+
+    private static readonly double[] FontSizeSteps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
+
+    [RelayCommand]
+    private void ToggleStrikethrough() => IsStrikethrough = !IsStrikethrough;
+
+    [RelayCommand]
+    private void ToggleSuperscript() => IsSuperscript = !IsSuperscript;
+
+    [RelayCommand]
+    private void ToggleSubscript() => IsSubscript = !IsSubscript;
+
+    [RelayCommand]
+    private void GrowFont() => StepFont(1);
+
+    [RelayCommand]
+    private void ShrinkFont() => StepFont(-1);
+
+    [RelayCommand]
+    private void NudgeFont(string delta) => ApplyFontSize(Math.Clamp(FontSize + double.Parse(delta, System.Globalization.CultureInfo.InvariantCulture), 1, 400));
+
+    /// <summary>Word's Ctrl+Shift+> and Ctrl+Shift+< steps through the standard sizes.</summary>
+    private void StepFont(int direction)
+    {
+        double current = FontSize;
+        double next = direction > 0
+            ? FontSizeSteps.FirstOrDefault(s => s > current + 0.01, Math.Min(400, current + 2))
+            : FontSizeSteps.LastOrDefault(s => s < current - 0.01, Math.Max(1, current - 2));
+        ApplyFontSize(next);
+    }
+
+    private void ApplyFontSize(double points)
+    {
+        Session.ApplyRunFormat(new RunProperties { FontSize = HalfPoints.FromPoints(points) });
+        RefreshFormatState();
+    }
+
+    [RelayCommand]
+    private void ApplyHeading(string level)
+    {
+        string styleId = level switch
+        {
+            "1" => DefaultStyleSheet.Heading1Id,
+            "2" => DefaultStyleSheet.Heading2Id,
+            "3" => DefaultStyleSheet.Heading3Id,
+            _ => StyleSheet.NormalStyleId,
+        };
+        if (Session.Document.Styles.Contains(styleId))
+        {
+            Session.SetParagraphStyle(styleId);
+            RefreshFormatState();
+        }
+    }
+
+    [RelayCommand]
+    private void SetLineSpacing(string factor) => LineSpacingValue = double.Parse(factor, System.Globalization.CultureInfo.InvariantCulture);
+
     partial void OnFontFamilyChanged(string value)
     {
         if (!_syncingFormat && !string.IsNullOrWhiteSpace(value))
@@ -532,11 +682,20 @@ public sealed partial class MainViewModel : ObservableObject
             IsBold = formats.Count > 0 && formats.All(f => f.Bold);
             IsItalic = formats.Count > 0 && formats.All(f => f.Italic);
             IsUnderline = formats.Count > 0 && formats.All(f => f.Underline != UnderlineStyle.None);
+            IsStrikethrough = formats.Count > 0 && formats.All(f => f.Strikethrough);
+            IsSuperscript = formats.Count > 0 && formats.All(f => f.VerticalAlignment == VerticalTextAlignment.Superscript);
+            IsSubscript = formats.Count > 0 && formats.All(f => f.VerticalAlignment == VerticalTextAlignment.Subscript);
             ResolvedRunProperties caret = formats.Count > 0 ? formats[0] : Session.CaretFormat();
             FontFamily = caret.FontFamily;
             FontSize = caret.FontSize.ToPoints();
             ResolvedParagraphProperties paragraph = Session.CaretParagraphFormat();
             Alignment = paragraph.Alignment;
+            LineSpacingValue = paragraph.LineSpacing.Rule == LineSpacingRule.Auto ? Math.Round(paragraph.LineSpacing.Factor, 2) : 0;
+            SpaceBeforePoints = Math.Round(paragraph.SpaceBefore.ToPoints(), 1);
+            SpaceAfterPoints = Math.Round(paragraph.SpaceAfter.ToPoints(), 1);
+            DocColor color = caret.Color;
+            FontColor = color.IsAuto ? Colors.Black : Color.FromRgb(color.R, color.G, color.B);
+            HighlightSwatch = Quill.Layout.Wpf.FontCatalog.Shared.GetHighlightBrush(caret.Highlight)?.Color ?? Colors.Yellow;
             Paragraph current = Session.Document.GetParagraph(Session.Selection.Active);
             CurrentStyle = ParagraphStyles.FirstOrDefault(s => s.Id == (current.StyleId ?? Session.Document.Styles.DefaultParagraphStyleId));
             bool? listKind = Session.ListKind(current);
