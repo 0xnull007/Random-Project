@@ -1,0 +1,35 @@
+<Window x:Class="Quill.App.Views.PictureSizeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Picture Size"
+        Width="340" SizeToContent="Height"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20,16,20,16">
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition />
+        <RowDefinition />
+      </Grid.RowDefinitions>
+      <TextBlock Text="Width:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,6" />
+      <TextBox x:Name="WidthBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,6" HorizontalContentAlignment="Right" TextChanged="OnWidthChanged" />
+      <TextBlock x:Name="WidthUnit" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,6" />
+      <TextBlock Text="Height:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0" />
+      <TextBox x:Name="HeightBox" Grid.Row="1" Grid.Column="1" HorizontalContentAlignment="Right" TextChanged="OnHeightChanged" />
+      <TextBlock x:Name="HeightUnit" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0" />
+    </Grid>
+    <CheckBox x:Name="LockAspect" Content="Lock aspect ratio" IsChecked="True" Margin="0,10,0,0" />
+    <TextBlock x:Name="OriginalText" Margin="0,8,0,0" Opacity="0.75" />
+    <TextBlock x:Name="ErrorText" Foreground="#FFD13438" Margin="0,6,0,0" Visibility="Collapsed" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button x:Name="OriginalButton" Content="Original Size" Width="110" Click="OnOriginal" Margin="0,0,8,0" />
+      <Button Content="OK" Width="90" IsDefault="True" Click="OnOk" Margin="0,0,8,0" />
+      <Button Content="Cancel" Width="90" IsCancel="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

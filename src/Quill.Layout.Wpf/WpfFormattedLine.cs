@@ -122,7 +122,32 @@ public sealed class WpfFormattedLine : IFormattedLine
         }
 
         target.DrawTextSegments(GetSegments(), origin);
+        foreach (ImagePlacement placement in GetImages())
+        {
+            if (placement.Data is { } data)
+            {
+                RectD b = placement.Bounds;
+                target.DrawImage(data, new RectD(origin.X + b.X, origin.Y + b.Y, b.Width, b.Height));
+            }
+        }
     }
+
+    /// <summary>Pictures on the line, positioned where WPF placed them (boxes stand on the baseline).</summary>
+    public IEnumerable<ImagePlacement> GetImages()
+    {
+        int position = _layoutStart;
+        foreach (TextSpan<TextRun> span in _line.GetTextRunSpans())
+        {
+            if (span.Value is ImageEmbeddedObject image && image.Run.Image is { } inline)
+            {
+                double x = _line.GetDistanceFromCharacterHit(new CharacterHit(position, 0));
+                yield return new ImagePlacement(inline, image.Run.ImageData, new RectD(x, _line.Baseline - image.Height, image.Width, image.Height));
+            }
+
+            position += span.Length;
+        }
+    }
+
 
     /// <summary>
     /// Words with their exact x positions as WPF placed them, so a PDF target reproduces wrapping, justification

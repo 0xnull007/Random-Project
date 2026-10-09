@@ -4,6 +4,9 @@ using DocumentFormat.OpenXml.Packaging;
 using Quill.Core.Model;
 using Quill.Core.Text;
 using Quill.Core.Units;
+using A = DocumentFormat.OpenXml.Drawing;
+using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
+using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 using static Quill.Docx.OoxmlValues;
 
@@ -24,6 +27,7 @@ public static class DocxWriter
         MainDocumentPart main = package.AddMainDocumentPart();
         var body = new W.Body();
         main.Document = new W.Document(body);
+        var bodyContext = new PartContext(new WriterState(document.Images), main, main);
 
         StyleDefinitionsPart stylesPart = main.AddNewPart<StyleDefinitionsPart>();
         stylesPart.Styles = BuildStyles(document.Styles);
@@ -46,13 +50,13 @@ public static class DocxWriter
         for (int s = 0; s < document.Sections.Count; s++)
         {
             Section section = document.Sections[s];
-            W.SectionProperties sectPr = BuildSectionProperties(main, section, s);
+            W.SectionProperties sectPr = BuildSectionProperties(bodyContext, section, s);
             bool last = s == document.Sections.Count - 1;
 
             var blocks = new List<OpenXmlElement>();
             foreach (Block block in section.Body)
             {
-                blocks.Add(BuildBlock(main, block));
+                blocks.Add(BuildBlock(bodyContext, block));
             }
 
             if (last)
@@ -117,10 +121,10 @@ public static class DocxWriter
 
     // ------------------------------------------------------------------ blocks
 
-    private static OpenXmlElement BuildBlock(MainDocumentPart main, Block block) => block switch
+    private static OpenXmlElement BuildBlock(PartContext context, Block block) => block switch
     {
-        Paragraph paragraph => BuildParagraph(paragraph),
-        OpaqueBlock opaque => BuildOpaque(main, opaque),
+        Paragraph paragraph => BuildParagraph(context, paragraph),
+        OpaqueBlock opaque => BuildOpaque(context.Main, opaque),
         _ => throw new NotSupportedException($"Unknown block type {block.GetType().Name}."),
     };
 
@@ -136,7 +140,7 @@ public static class DocxWriter
         }
     }
 
-    private static W.Paragraph BuildParagraph(Paragraph paragraph)
+    private static W.Paragraph BuildParagraph(PartContext context, Paragraph paragraph)
     {
         var result = new W.Paragraph();
         W.ParagraphProperties? pPr = BuildParagraphProperties(paragraph);
@@ -169,6 +173,13 @@ public static class DocxWriter
                     break;
                 }
 
+                case InlineImage image:
+                    if (context.AddImage(image.ImageId) is { } relationshipId)
+                    {
+                        result.Append(BuildPictureRun(image, relationshipId, context.NextPictureId()));
+                    }
+
+                    break;
                 case Field field:
                 {
                     var simple = new W.SimpleField { Instruction = " " + field.Instruction + " " };
@@ -436,7 +447,7 @@ public static class DocxWriter
 
     // ------------------------------------------------------------------ sections
 
-    private static W.SectionProperties BuildSectionProperties(MainDocumentPart main, Section section, int sectionIndex)
+    private static W.SectionProperties BuildSectionProperties(PartContext context, Section section, int sectionIndex)
     {
         SectionProperties p = section.Properties;
         var sectPr = new W.SectionProperties();
@@ -445,11 +456,12 @@ public static class DocxWriter
         {
             if (section.Headers.Get(variant) is { } header)
             {
-                HeaderPart part = main.AddNewPart<HeaderPart>();
+                HeaderPart part = context.Main.AddNewPart<HeaderPart>();
+                var headerContext = new PartContext(context.State, context.Main, part);
                 var element = new W.Header();
-                element.Append(header.Select(b => BuildBlock(main, b)));
+                element.Append(header.Select(b => BuildBlock(headerContext, b)));
                 part.Header = element;
-                sectPr.Append(new W.HeaderReference { Type = VariantTo(variant), Id = main.GetIdOfPart(part) });
+                sectPr.Append(new W.HeaderReference { Type = VariantTo(variant), Id = context.Main.GetIdOfPart(part) });
             }
         }
 
@@ -457,11 +469,12 @@ public static class DocxWriter
         {
             if (section.Footers.Get(variant) is { } footer)
             {
-                FooterPart part = main.AddNewPart<FooterPart>();
+                FooterPart part = context.Main.AddNewPart<FooterPart>();
+                var footerContext = new PartContext(context.State, context.Main, part);
                 var element = new W.Footer();
-                element.Append(footer.Select(b => BuildBlock(main, b)));
+                element.Append(footer.Select(b => BuildBlock(footerContext, b)));
                 part.Footer = element;
-                sectPr.Append(new W.FooterReference { Type = VariantTo(variant), Id = main.GetIdOfPart(part) });
+                sectPr.Append(new W.FooterReference { Type = VariantTo(variant), Id = context.Main.GetIdOfPart(part) });
             }
         }
 
@@ -507,6 +520,95 @@ public static class DocxWriter
         }
 
         return sectPr;
+    }
+
+    // ------------------------------------------------------------------ pictures
+
+    private static W.Run BuildPictureRun(InlineImage image, string relationshipId, uint pictureId)
+    {
+        long cx = Math.Max(1, image.Width.ToEmu());
+        long cy = Math.Max(1, image.Height.ToEmu());
+        string name = "Picture " + pictureId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var inline = new DW.Inline(
+            new DW.Extent { Cx = cx, Cy = cy },
+            new DW.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+            new DW.DocProperties { Id = pictureId, Name = name },
+            new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
+            new A.Graphic(
+                new A.GraphicData(
+                    new PIC.Picture(
+                        new PIC.NonVisualPictureProperties(
+                            new PIC.NonVisualDrawingProperties { Id = 0U, Name = name },
+                            new PIC.NonVisualPictureDrawingProperties()),
+                        new PIC.BlipFill(
+                            new A.Blip { Embed = relationshipId },
+                            new A.Stretch(new A.FillRectangle())),
+                        new PIC.ShapeProperties(
+                            new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = cx, Cy = cy }),
+                            new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })))
+                { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }))
+        {
+            DistanceFromTop = 0U,
+            DistanceFromBottom = 0U,
+            DistanceFromLeft = 0U,
+            DistanceFromRight = 0U,
+        };
+        var run = new W.Run();
+        AppendRunProperties(run, image.Properties, image.StyleId);
+        run.Append(new W.Drawing(inline));
+        return run;
+    }
+
+    /// <summary>State shared by every part of one package: the picture bytes and the running drawing id.</summary>
+    private sealed class WriterState(ImageStore images)
+    {
+        private uint _nextPictureId;
+
+        public ImageStore Images { get; } = images;
+
+        public uint NextPictureId() => ++_nextPictureId;
+    }
+
+    /// <summary>The part being written (body, a header or a footer); pictures become image parts related to it.</summary>
+    private sealed class PartContext(WriterState state, MainDocumentPart main, OpenXmlPart part)
+    {
+        private readonly Dictionary<string, string> _relationshipIds = new(StringComparer.Ordinal);
+
+        public WriterState State { get; } = state;
+
+        public MainDocumentPart Main { get; } = main;
+
+        public uint NextPictureId() => State.NextPictureId();
+
+        /// <summary>Adds the picture to this part once and returns its relationship id; null when the document has no such picture.</summary>
+        public string? AddImage(string imageId)
+        {
+            if (_relationshipIds.TryGetValue(imageId, out string? existing))
+            {
+                return existing;
+            }
+
+            if (State.Images.Get(imageId) is not { } data)
+            {
+                return null;
+            }
+
+            ImagePart imagePart = part switch
+            {
+                MainDocumentPart m => m.AddImagePart(data.ContentType),
+                HeaderPart h => h.AddImagePart(data.ContentType),
+                FooterPart f => f.AddImagePart(data.ContentType),
+                _ => throw new NotSupportedException("Pictures can only be written into the body, headers and footers."),
+            };
+            using (var stream = new MemoryStream(data.Bytes, writable: false))
+            {
+                imagePart.FeedData(stream);
+            }
+
+            string id = part.GetIdOfPart(imagePart);
+            _relationshipIds[imageId] = id;
+            return id;
+        }
     }
 
     // ------------------------------------------------------------------ numbering

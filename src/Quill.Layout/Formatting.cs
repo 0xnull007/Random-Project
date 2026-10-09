@@ -19,15 +19,19 @@ public enum RunKind
     ColumnBreak,
     Field,
     Hidden,
+    Image,
 }
 
 /// <summary>A span of the paragraph's flat text with uniform resolved formatting.</summary>
-public readonly record struct RunSpan(int Start, int Length, ResolvedRunProperties Properties, RunKind Kind, string? FieldText = null)
+public readonly record struct RunSpan(int Start, int Length, ResolvedRunProperties Properties, RunKind Kind, string? FieldText = null, InlineImage? Image = null, ImageData? ImageData = null)
 {
     public int End => Start + Length;
 
     public bool IsText => Kind == RunKind.Text;
 }
+
+/// <summary>Where an inline picture landed on a line, relative to the line origin.</summary>
+public readonly record struct ImagePlacement(InlineImage Image, ImageData? Data, RectD Bounds);
 
 /// <summary>Values substituted for fields while laying out one page.</summary>
 public sealed record FieldValues(string Page, string NumPages, string SectionPages)
@@ -84,7 +88,8 @@ public sealed record ParagraphLayoutInput(
         double columnWidth,
         Twips defaultTabStop,
         double pixelsPerDip,
-        FlowDirection flowDirection = FlowDirection.LeftToRight)
+        FlowDirection flowDirection = FlowDirection.LeftToRight,
+        ImageStore? images = null)
     {
         ArgumentNullException.ThrowIfNull(paragraph);
         ArgumentNullException.ThrowIfNull(resolver);
@@ -101,10 +106,13 @@ public sealed record ParagraphLayoutInput(
                 Break => RunKind.ColumnBreak,
                 Field => RunKind.Field,
                 _ when properties.Hidden => RunKind.Hidden,
+                InlineImage => RunKind.Image,
                 _ => RunKind.Text,
             };
             string? fieldText = span.Inline is Field field ? fields.Resolve(field) : null;
-            runs.Add(new RunSpan(span.Start, span.Length, properties, kind, fieldText));
+            InlineImage? image = span.Inline as InlineImage;
+            runs.Add(new RunSpan(span.Start, span.Length, properties, kind, fieldText, image, image is null ? null : images?.Get(image.ImageId)));
+
         }
 
         return new ParagraphLayoutInput(
@@ -180,6 +188,9 @@ public interface IFormattedLine : IDisposable
 
     /// <summary>The line's visible text split into words with layout positions, for non-WPF render targets.</summary>
     IEnumerable<TextSegment> GetSegments();
+
+    /// <summary>Inline pictures on this line with their boxes, for non-WPF render targets.</summary>
+    IEnumerable<ImagePlacement> GetImages();
 }
 
 /// <summary>A minimal vector drawing surface. Text is drawn through <see cref="IFormattedLine.Draw"/>.</summary>
@@ -197,4 +208,7 @@ public interface IRenderTarget
 
     /// <summary>Draws text segments produced by <see cref="IFormattedLine.GetSegments"/> at <paramref name="origin"/>.</summary>
     void DrawTextSegments(IEnumerable<TextSegment> segments, PointD origin);
+
+    /// <summary>Draws an encoded picture into <paramref name="bounds"/>.</summary>
+    void DrawImage(ImageData image, RectD bounds);
 }

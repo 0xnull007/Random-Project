@@ -561,7 +561,7 @@ public sealed class Paginator
                 + (marker is { } m ? "|" + m.Text : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {
-                ParagraphLayoutInput input = ParagraphLayoutInput.Create(paragraph, _resolver, fields, width, _document.Settings.DefaultTabStop, _options.PixelsPerDip);
+                ParagraphLayoutInput input = ParagraphLayoutInput.Create(paragraph, _resolver, fields, width, _document.Settings.DefaultTabStop, _options.PixelsPerDip, images: _document.Images);
                 IFormattedLine? markerLine = null;
                 double markerX = 0;
                 if (marker is { Text.Length: > 0 } listMarker)

@@ -43,6 +43,7 @@ internal sealed class ParagraphTextSource : TextSource
         {
             RunKind.LineBreak or RunKind.PageBreak or RunKind.ColumnBreak => new TextEndOfLine(1, properties),
             RunKind.Hidden => new TextHidden(remaining),
+            RunKind.Image => new ImageEmbeddedObject(run, properties),
             _ => new TextCharacters(Text, textSourceCharacterIndex, remaining, properties),
         };
     }

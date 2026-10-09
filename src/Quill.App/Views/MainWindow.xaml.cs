@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Win32;
+using Quill.App.Imaging;
 using Quill.App.ViewModels;
 using Quill.Core.Editing;
 using Quill.Core.Model;
@@ -52,30 +55,82 @@ public partial class MainWindow : Window
 
     private void OnDragOver(object sender, DragEventArgs e)
     {
-        e.Effects = DroppedDocx(e) is not null ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Effects = DroppedFile(e) is not null ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
 
+    /// <summary>Dropping a .docx opens it; dropping a picture inserts it at the caret.</summary>
     private void OnDrop(object sender, DragEventArgs e)
     {
-        if (DroppedDocx(e) is { } path && ViewModel.ConfirmDiscard())
+        if (DroppedFile(e) is { } path)
         {
-            ViewModel.OpenFile(path);
+            if (ImageFiles.IsPictureFile(path))
+            {
+                InsertPictureFile(path);
+            }
+            else if (ViewModel.ConfirmDiscard())
+            {
+                ViewModel.OpenFile(path);
+            }
+
             Editor.Focus();
         }
 
         e.Handled = true;
     }
 
-    private static string? DroppedDocx(DragEventArgs e)
+    private static string? DroppedFile(DragEventArgs e)
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
         {
-            return files.FirstOrDefault(f => f.EndsWith(".docx", StringComparison.OrdinalIgnoreCase));
+            return files.FirstOrDefault(f => f.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) || ImageFiles.IsPictureFile(f));
         }
 
         return null;
     }
+
+    private void OnInsertPicture(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Filter = ImageFiles.Filter, Title = "Insert Picture" };
+        if (dialog.ShowDialog(this) == true)
+        {
+            InsertPictureFile(dialog.FileName);
+        }
+
+        Editor.Focus();
+    }
+
+    private void InsertPictureFile(string path)
+    {
+        try
+        {
+            Editor.InsertImage(ImageFiles.Load(path));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException or ArgumentException or InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            MessageBox.Show(this, "Could not insert the picture." + Environment.NewLine + Environment.NewLine + ex.Message, "Quill", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnPictureSize(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        if (session.SelectedImage() is not (_, { } image))
+        {
+            MessageBox.Show(this, "Click a picture first, then choose Picture Size.", "Quill", MessageBoxButton.OK, MessageBoxImage.Information);
+            Editor.Focus();
+            return;
+        }
+
+        var dialog = new PictureSizeWindow(image, session.Document.Images.Get(image.ImageId)) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            session.ResizeImage(dialog.ResultWidth, dialog.ResultHeight);
+        }
+
+        Editor.Focus();
+    }
+
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {

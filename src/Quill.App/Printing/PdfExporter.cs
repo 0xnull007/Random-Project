@@ -34,6 +34,7 @@ public static class PdfExporter
         pdf.Info.Creator = "Quill";
 
         var fonts = new PdfFontCache();
+        using var images = new PdfImageCache();
         foreach (PageLayout page in layout.Pages)
         {
             PdfPage pdfPage = pdf.AddPage();
@@ -41,7 +42,7 @@ public static class PdfExporter
             pdfPage.Height = XUnitPt.FromPoint(page.Size.Height * PointsPerDip);
             using XGraphics gfx = XGraphics.FromPdfPage(pdfPage, XGraphicsUnit.Point);
             gfx.ScaleTransform(PointsPerDip); // draw in DIPs, exactly as the layout computed them
-            PageRenderer.DrawContent(page, new PdfRenderTarget(gfx, fonts));
+            PageRenderer.DrawContent(page, new PdfRenderTarget(gfx, fonts, images));
         }
 
         string directory = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
@@ -57,6 +58,53 @@ public static class PdfExporter
             {
                 File.Delete(temp);
             }
+        }
+    }
+
+    /// <summary>Decodes each picture once per export; pictures WPF cannot decode are drawn as placeholders.</summary>
+    internal sealed class PdfImageCache : IDisposable
+    {
+        private readonly Dictionary<ImageData, XImage?> _images = new(ReferenceEqualityComparer.Instance);
+
+        public XImage? Get(ImageData data)
+        {
+            if (_images.TryGetValue(data, out XImage? cached))
+            {
+                return cached;
+            }
+
+            XImage? image = null;
+            try
+            {
+                image = XImage.FromStream(new MemoryStream(data.Bytes, writable: false));
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                try
+                {
+                    if (ImageCache.Get(data) is { } bitmap)
+                    {
+                        image = XImage.FromBitmapSource(bitmap);
+                    }
+                }
+                catch (Exception inner) when (inner is not OutOfMemoryException)
+                {
+                    image = null;
+                }
+            }
+
+            _images[data] = image;
+            return image;
+        }
+
+        public void Dispose()
+        {
+            foreach (XImage? image in _images.Values)
+            {
+                image?.Dispose();
+            }
+
+            _images.Clear();
         }
     }
 
@@ -97,11 +145,13 @@ public static class PdfExporter
     {
         private readonly XGraphics _gfx;
         private readonly PdfFontCache _fonts;
+        private readonly PdfImageCache _images;
         private readonly Stack<XGraphicsState> _states = new();
 
-        public PdfRenderTarget(XGraphics gfx, PdfFontCache fonts)
+        public PdfRenderTarget(XGraphics gfx, PdfFontCache fonts, PdfImageCache images)
         {
             _gfx = gfx;
+            _images = images;
             _fonts = fonts;
         }
 
@@ -175,6 +225,19 @@ public static class PdfExporter
 
                 XFont font = _fonts.Get(p.FontFamily, emSize, style);
                 _gfx.DrawString(segment.Text, font, new XSolidBrush(ToColor(p.Color)), new XPoint(origin.X + segment.X, baseline), XStringFormats.BaseLineLeft);
+            }
+        }
+
+        public void DrawImage(ImageData image, RectD bounds)
+        {
+            ArgumentNullException.ThrowIfNull(image);
+            if (_images.Get(image) is { } picture)
+            {
+                _gfx.DrawImage(picture, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+            }
+            else
+            {
+                _gfx.DrawRectangle(new XPen(XColors.Gray, 1), XBrushes.LightGray, bounds.X, bounds.Y, bounds.Width, bounds.Height);
             }
         }
 

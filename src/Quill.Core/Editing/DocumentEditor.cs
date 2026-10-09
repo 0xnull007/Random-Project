@@ -222,8 +222,43 @@ public static class DocumentEditor
             paragraphs.Add(paragraph.WithInlines(InlineOps.Slice(paragraph, start, end)));
         }
 
-        return new DocumentFragment(paragraphs.ToImmutable());
+        ImmutableArray<Paragraph> extracted = paragraphs.ToImmutable();
+        return new DocumentFragment(extracted, CollectImages(document, extracted));
     }
+
+    private static ImmutableDictionary<string, ImageData>? CollectImages(Document document, ImmutableArray<Paragraph> paragraphs)
+    {
+        ImmutableDictionary<string, ImageData>.Builder? images = null;
+        foreach (Paragraph paragraph in paragraphs)
+        {
+            foreach (Inline inline in paragraph.Inlines)
+            {
+                if (inline is InlineImage image && document.Images.Get(image.ImageId) is { } data)
+                {
+                    images ??= ImmutableDictionary.CreateBuilder<string, ImageData>(StringComparer.Ordinal);
+                    images[image.ImageId] = data;
+                }
+            }
+        }
+
+        return images?.ToImmutable();
+    }
+
+    /// <summary>Adds the fragment's pictures to the document store (ids already present are kept as they are).</summary>
+    private static Document WithFragmentImages(Document document, DocumentFragment fragment)
+    {
+        ImageStore store = document.Images;
+        foreach ((string id, ImageData data) in fragment.Images)
+        {
+            if (store.Get(id) is null)
+            {
+                store = store.With(id, data);
+            }
+        }
+
+        return ReferenceEquals(store, document.Images) ? document : document.WithImages(store);
+    }
+
 
     /// <summary>
     /// Inserts a fragment at <paramref name="at"/>. The first fragment paragraph joins the target paragraph
@@ -238,6 +273,7 @@ public static class DocumentEditor
             return EditResult.NoOp(document, Selection.Caret(at));
         }
 
+        document = WithFragmentImages(document, fragment);
         Paragraph target = RequireParagraph(document, at);
         ValidateOffset(target, at.Offset);
         (ImmutableArray<Inline> head, ImmutableArray<Inline> tail) = InlineOps.Split(target, at.Offset);
@@ -245,6 +281,7 @@ public static class DocumentEditor
         int index = at.Block.TopIndex;
 
         if (fragment.IsSingleParagraph)
+
         {
             Paragraph only = fragment.Paragraphs[0];
             Paragraph updated = target.WithInlines(InlineOps.Concat(head, only.Inlines, tail));

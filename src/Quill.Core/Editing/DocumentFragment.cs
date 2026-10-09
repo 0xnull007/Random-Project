@@ -12,12 +12,17 @@ public sealed class DocumentFragment
 {
     public static readonly DocumentFragment Empty = new(ImmutableArray<Paragraph>.Empty);
 
-    public DocumentFragment(ImmutableArray<Paragraph> paragraphs)
+    public DocumentFragment(ImmutableArray<Paragraph> paragraphs, ImmutableDictionary<string, ImageData>? images = null)
     {
         Paragraphs = paragraphs.IsDefault ? ImmutableArray<Paragraph>.Empty : paragraphs;
+        Images = images ?? ImmutableDictionary<string, ImageData>.Empty;
     }
 
     public ImmutableArray<Paragraph> Paragraphs { get; }
+
+    /// <summary>Bytes of the pictures referenced by the paragraphs, so a paste into another document keeps them.</summary>
+    public ImmutableDictionary<string, ImageData> Images { get; }
+
 
     public bool IsEmpty => Paragraphs.IsEmpty || (Paragraphs.Length == 1 && Paragraphs[0].IsEmpty);
 

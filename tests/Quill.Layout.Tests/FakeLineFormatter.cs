@@ -38,6 +38,9 @@ internal sealed class FakeLineFormatter : ILineFormatter
                     case RunKind.Hidden:
                         widths[i] = 0;
                         break;
+                    case RunKind.Image:
+                        widths[i] = run.Image?.Width.ToDips() ?? CharWidth;
+                        break;
                     default:
                         isBreak[i] = true;
                         breaks[i] = run.Kind switch { RunKind.PageBreak => BreakKind.Page, RunKind.ColumnBreak => BreakKind.Column, _ => null };
@@ -169,6 +172,8 @@ internal sealed class FakeLineFormatter : ILineFormatter
         }
 
         public IEnumerable<TextSegment> GetSegments() => [];
+
+        public IEnumerable<ImagePlacement> GetImages() => [];
 
         public void Dispose() => IsDisposed = true;
     }

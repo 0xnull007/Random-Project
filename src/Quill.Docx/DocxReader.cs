@@ -5,6 +5,8 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using Quill.Core.Model;
 using Quill.Core.Units;
+using A = DocumentFormat.OpenXml.Drawing;
+using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 using static Quill.Docx.OoxmlValues;
 
@@ -20,6 +22,9 @@ public sealed class DocxReader
     private readonly HashSet<string> _warned = new(StringComparer.Ordinal);
     private ThemeInfo _theme = ThemeInfo.Default;
     private MainDocumentPart? _main;
+    private OpenXmlPart? _part;
+    private readonly ImmutableDictionary<string, ImageData>.Builder _images = ImmutableDictionary.CreateBuilder<string, ImageData>(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _imageIdsByUri = new(StringComparer.Ordinal);
 
     private DocxReader()
     {
@@ -46,6 +51,7 @@ public sealed class DocxReader
     {
         using WordprocessingDocument package = WordprocessingDocument.Open(stream, false);
         _main = package.MainDocumentPart ?? throw new InvalidDataException("The file has no main document part.");
+        _part = _main;
         _theme = ThemeInfo.From(_main.ThemePart);
         StyleSheet styles = ReadStyles(_main.StyleDefinitionsPart);
         DocumentSettings settings = ReadSettings(_main.DocumentSettingsPart);
@@ -61,7 +67,7 @@ public sealed class DocxReader
             Created = package.PackageProperties.Created,
             Modified = package.PackageProperties.Modified,
         };
-        return new LoadResult(new Document(sections, styles, settings, metadata, lists), _warnings);
+        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable())), _warnings);
     }
 
     // ------------------------------------------------------------------ sections and stories
@@ -100,19 +106,30 @@ public sealed class DocxReader
         return sections.ToImmutable();
     }
 
-    private ImmutableList<Block> ReadStory(OpenXmlElement? container)
+    /// <summary>Reads a header or footer; pictures inside it are related to <paramref name="part"/>, not to the main part.</summary>
+    private ImmutableList<Block> ReadStory(OpenXmlElement? container, OpenXmlPart part)
     {
-        var blocks = ImmutableList.CreateBuilder<Block>();
-        if (container is not null)
+        OpenXmlPart? previous = _part;
+        _part = part;
+        try
         {
-            foreach (OpenXmlElement element in container.ChildElements)
+            var blocks = ImmutableList.CreateBuilder<Block>();
+            if (container is not null)
             {
-                ReadBlock(element, blocks);
+                foreach (OpenXmlElement element in container.ChildElements)
+                {
+                    ReadBlock(element, blocks);
+                }
             }
-        }
 
-        return EnsureParagraph(blocks.ToImmutable());
+            return EnsureParagraph(blocks.ToImmutable());
+        }
+        finally
+        {
+            _part = previous;
+        }
     }
+
 
     private void ReadBlock(OpenXmlElement element, ImmutableList<Block>.Builder blocks)
     {
@@ -204,7 +221,7 @@ public sealed class DocxReader
         {
             if (reference.Id?.Value is { } id && _main!.GetPartById(id) is HeaderPart part)
             {
-                headers = headers.With(VariantFrom(reference.Type?.InnerText), ReadStory(part.Header));
+                headers = headers.With(VariantFrom(reference.Type?.InnerText), ReadStory(part.Header, part));
             }
         }
 
@@ -213,7 +230,7 @@ public sealed class DocxReader
         {
             if (reference.Id?.Value is { } id && _main!.GetPartById(id) is FooterPart part)
             {
-                footers = footers.With(VariantFrom(reference.Type?.InnerText), ReadStory(part.Footer));
+                footers = footers.With(VariantFrom(reference.Type?.InnerText), ReadStory(part.Footer, part));
             }
         }
 
@@ -342,9 +359,14 @@ public sealed class DocxReader
                     break;
                 case W.RunProperties or W.LastRenderedPageBreak or W.AnnotationReferenceMark or W.ContinuationSeparatorMark or W.SeparatorMark:
                     break;
-                case W.Drawing or W.Picture or W.EmbeddedObject:
-                    Warn("Images and drawings are not shown in this version and will be dropped on save.");
+                case W.Drawing drawing:
+                    Flush();
+                    ReadDrawing(drawing, builder, properties, styleId);
                     break;
+                case W.Picture or W.EmbeddedObject:
+                    Warn("Legacy (VML) pictures and embedded objects are not supported and were dropped.");
+                    break;
+
                 case W.FootnoteReference or W.EndnoteReference:
                     Warn("Footnotes and endnotes are not supported and were dropped.");
                     break;
@@ -357,6 +379,43 @@ public sealed class DocxReader
         }
 
         Flush();
+    }
+
+    /// <summary>Reads an inline (or, flattened, a floating) picture: the blip's relationship points at an image part.</summary>
+    private void ReadDrawing(W.Drawing drawing, InlineBuilder builder, RunProperties properties, string? styleId)
+    {
+        DW.Extent? extent = drawing.Descendants<DW.Extent>().FirstOrDefault();
+        A.Blip? blip = drawing.Descendants<A.Blip>().FirstOrDefault();
+        string? relationshipId = blip?.Embed?.Value;
+        if (relationshipId is null || extent?.Cx?.Value is not { } cx || extent.Cy?.Value is not { } cy)
+        {
+            Warn("Drawings that are not pictures (shapes, charts, diagrams) are not supported and were dropped.");
+            return;
+        }
+
+        if (_part is null || !_part.TryGetPartById(relationshipId, out OpenXmlPart? referenced) || referenced is not ImagePart imagePart)
+        {
+            Warn("A picture's data was missing from the file and the picture was dropped.");
+            return;
+        }
+
+        string key = imagePart.Uri.ToString();
+        if (!_imageIdsByUri.TryGetValue(key, out string? imageId))
+        {
+            using Stream stream = imagePart.GetStream(FileMode.Open, FileAccess.Read);
+            using var memory = new MemoryStream();
+            stream.CopyTo(memory);
+            imageId = ImageStore.MakeId(_images.Count + 1);
+            _images[imageId] = new ImageData(memory.ToArray(), imagePart.ContentType);
+            _imageIdsByUri[key] = imageId;
+        }
+
+        if (drawing.GetFirstChild<DW.Anchor>() is not null)
+        {
+            Warn("Floating pictures are placed in the text in this version.");
+        }
+
+        builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId));
     }
 
     // ------------------------------------------------------------------ properties

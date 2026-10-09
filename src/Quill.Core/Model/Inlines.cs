@@ -114,3 +114,34 @@ public sealed class Field : Inline
 
     public override string ToString() => $"Field({Instruction})";
 }
+
+/// <summary>An inline picture, displayed at <see cref="Width"/> by <see cref="Height"/>. Occupies one character; the bytes live in the document's <see cref="ImageStore"/>.</summary>
+public sealed class InlineImage : Inline
+{
+    public InlineImage(string imageId, Units.Twips width, Units.Twips height, RunProperties? properties = null, string? styleId = null)
+        : base(styleId, properties)
+    {
+        ArgumentNullException.ThrowIfNull(imageId);
+        ImageId = imageId;
+        Width = width;
+        Height = height;
+    }
+
+    public string ImageId { get; }
+
+    public Units.Twips Width { get; }
+
+    public Units.Twips Height { get; }
+
+    public override int Length => 1;
+
+    public InlineImage WithSize(Units.Twips width, Units.Twips height) => new(ImageId, width, height, Properties, StyleId);
+
+    public override InlineImage WithProperties(RunProperties properties) => new(ImageId, Width, Height, properties, StyleId);
+
+    public override InlineImage WithStyle(string? styleId) => new(ImageId, Width, Height, Properties, styleId);
+
+    internal override void AppendFlatText(System.Text.StringBuilder builder) => builder.Append(Paragraph.ObjectReplacementChar);
+
+    public override string ToString() => $"Image({ImageId} {Width}x{Height})";
+}

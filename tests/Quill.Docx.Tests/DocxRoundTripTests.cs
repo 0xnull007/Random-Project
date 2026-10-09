@@ -275,7 +275,7 @@ public class DocxRoundTripTests
         Assert.Equal(new Twips(11906), doc.Sections[1].Properties.PageWidth);
         Assert.Equal(["inside content control", "<OpaqueBlock(tbl)>", "last"], doc.Sections[1].Body.Select(b => b is Paragraph p ? p.FlatText : $"<{b}>"));
 
-        Assert.Contains(result.Warnings, w => w.Message.Contains("Images", StringComparison.Ordinal));
+        Assert.Contains(result.Warnings, w => w.Message.Contains("pictures", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Warnings, w => w.Message.Contains("Tables", StringComparison.Ordinal));
         Assert.True(result.HasLossyContent);
     }

@@ -5,9 +5,12 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Quill.App.Imaging;
 using Quill.Core.Editing;
 using Quill.Core.Text;
+using Quill.Core.Units;
 using Quill.Layout;
 using Quill.Layout.Wpf;
 
@@ -284,7 +287,36 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         session.InsertInline(field);
     }
 
+    /// <summary>Inserts a picture at the caret, shrunk proportionally when it is wider than the text column.</summary>
+    public void InsertImage(PictureSource picture)
+    {
+        EditingSession? session = Session;
+        if (session is null || IsReadOnly)
+        {
+            return;
+        }
+
+        Core.Model.SectionProperties props = session.Document.Sections[session.Selection.Story.SectionIndex].Properties;
+        var column = new Twips(Math.Max(144, props.PageWidth.Value - props.MarginLeft.Value - props.MarginRight.Value - props.Gutter.Value));
+        (Twips width, Twips height) = ImageFiles.FitWithin(picture.Width, picture.Height, column);
+        session.InsertImage(picture.Data, width, height);
+    }
+
+    private bool TryInsertBitmap(BitmapSource bitmap)
+    {
+        try
+        {
+            InsertImage(ImageFiles.FromBitmap(bitmap));
+            return true;
+        }
+        catch (Exception ex) when (ex is NotSupportedException or InvalidOperationException or ArgumentException or IOException or COMException)
+        {
+            return false;
+        }
+    }
+
     private int CurrentPageIndex()
+
     {
         if (Session is { } session && _layout.Find(session.Selection.Active) is { } found)
         {
@@ -379,7 +411,38 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         return false;
     }
 
+    /// <summary>A click inside a picture selects the whole picture, like Word, so Picture Size and Delete apply to it.</summary>
+    private void TrySelectPictureAt(EditingSession session, Point viewPoint)
+    {
+        if (session.SelectedImage() is not ({ } start, _) || _layout.Find(start) is not ({ } page, { } fragment))
+        {
+            return;
+        }
+
+        int lineIndex = fragment.Layout.LineIndexOf(start.Offset);
+        if (lineIndex < fragment.FirstLine || lineIndex > fragment.LastLine)
+        {
+            return;
+        }
+
+        PointD origin = fragment.LineOrigin(lineIndex);
+        Rect pageRect = PageRect(page.Index);
+        Point doc = ToDocument(viewPoint);
+        double x = doc.X - pageRect.X - origin.X;
+        double y = doc.Y - pageRect.Y - origin.Y;
+        foreach (RectD box in fragment.Layout.Lines[lineIndex].GetTextBounds(start.Offset, 1))
+        {
+            if (x >= box.X && x <= box.X + box.Width && y >= box.Y && y <= box.Y + box.Height)
+            {
+                session.MoveCaret(start, extend: false);
+                session.MoveCaret(start.WithOffset(start.Offset + 1), extend: true);
+                return;
+            }
+        }
+    }
+
     /// <summary>Moves the caret, ignoring an extension that would cross into another story (which a selection cannot span).</summary>
+
     private static void SafeMove(EditingSession session, TextPosition position, bool extend, CaretAffinity affinity = CaretAffinity.Downstream)
     {
         if (extend && position.Story != session.Selection.Story)
@@ -1160,9 +1223,15 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 break;
             default:
                 SafeMove(session, hit.Position, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift), hit.Affinity);
+                if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+                {
+                    TrySelectPictureAt(session, viewPoint);
+                }
+
                 _dragging = true;
                 CaptureMouse();
                 break;
+
         }
 
         e.Handled = true;
@@ -1538,9 +1607,11 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         string? text = null;
         string? rtf = null;
+        BitmapSource? bitmap = null;
         try
         {
             IDataObject? data = Clipboard.GetDataObject();
+
             if (data is null)
             {
                 return;
@@ -1555,11 +1626,22 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             {
                 rtf = data.GetData(DataFormats.Rtf) as string;
             }
+
+            if (!plainTextOnly && rtf is null && data.GetDataPresent(DataFormats.Bitmap))
+            {
+                bitmap = Clipboard.GetImage();
+            }
         }
         catch (COMException)
         {
             return;
         }
+
+        if (bitmap is not null && TryInsertBitmap(bitmap))
+        {
+            return;
+        }
+
 
         if (!plainTextOnly && text is not null && _lastCopied is { } last && string.Equals(last.Text, text, StringComparison.Ordinal))
         {

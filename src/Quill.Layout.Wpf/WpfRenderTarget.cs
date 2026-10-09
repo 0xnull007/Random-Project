@@ -72,5 +72,11 @@ public sealed class WpfRenderTarget : IRenderTarget
         }
     }
 
+    public void DrawImage(ImageData image, RectD bounds)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        ImageEmbeddedObject.DrawInto(Context, image, ToRect(bounds));
+    }
+
     private static Rect ToRect(RectD rect) => new(rect.X, rect.Y, Math.Max(0, rect.Width), Math.Max(0, rect.Height));
 }

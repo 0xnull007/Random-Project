@@ -173,8 +173,63 @@ public sealed class EditingSession
         PendingFormat = null;
     }
 
+    /// <summary>Adds the picture to the document and inserts it at the caret as one undo step.</summary>
+    public void InsertImage(ImageData image, Twips width, Twips height)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        (Document working, TextPosition at, ChangeSet? deletion) = DeleteSelectionIfAny();
+        string id = working.Images.NewId();
+        working = working.WithImages(working.Images.With(id, image));
+        EditResult result = DocumentEditor.InsertInline(working, at, new InlineImage(id, width, height));
+        Commit(WithDeletion(result, deletion), EditKind.Other, startsNewGroup: true);
+        PendingFormat = null;
+    }
+
+    /// <summary>The picture the selection covers exactly, or the one touching a collapsed caret (before it first), if any.</summary>
+    public (TextPosition Start, InlineImage Image)? SelectedImage()
+    {
+        TextRange range = Selection.Range;
+        if (!range.IsWithinOneParagraph || Document.TryGetParagraph(range.Start) is not { } paragraph)
+        {
+            return null;
+        }
+
+        int length = range.End.Offset - range.Start.Offset;
+        if (length == 1)
+        {
+            return ImageAt(paragraph, range.Start);
+        }
+
+        if (length != 0)
+        {
+            return null;
+        }
+
+        return ImageAt(paragraph, range.Start.WithOffset(range.Start.Offset - 1)) ?? ImageAt(paragraph, range.Start);
+    }
+
+    /// <summary>Changes the size of the picture <see cref="SelectedImage"/> finds and leaves it selected.</summary>
+    public void ResizeImage(Twips width, Twips height)
+    {
+        if (SelectedImage() is not ({ } at, { } image) || (image.Width == width && image.Height == height))
+        {
+            return;
+        }
+
+        TextPosition end = at.WithOffset(at.Offset + 1);
+        EditResult deleted = DocumentEditor.DeleteRange(Document, new TextRange(at, end));
+        EditResult inserted = DocumentEditor.InsertInline(deleted.Document, at, image.WithSize(width, height));
+        Commit(inserted with { Change = inserted.Change.Union(deleted.Change), Selection = new Selection(at, end) }, EditKind.Other, startsNewGroup: true);
+    }
+
+    private static (TextPosition Start, InlineImage Image)? ImageAt(Paragraph paragraph, TextPosition at) =>
+        at.Offset >= 0 && paragraph.TryGetInlineAt(at.Offset, out InlineSpan span) && span.Inline is InlineImage image
+            ? (at.WithOffset(span.Start), image)
+            : null;
+
     public void Backspace()
     {
+
         if (!Selection.IsCollapsed)
         {
             DeleteSelection(EditKind.Backspace);

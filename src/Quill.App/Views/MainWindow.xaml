@@ -142,6 +142,9 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Picture..." Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Picture Size..." Click="OnPictureSize" ToolTip="Change the size of the selected picture" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Close Header/Footer" Click="OnCloseHeaderFooter" ToolTip="Return to the document body (Esc)" />
         </StackPanel>
       </TabItem>

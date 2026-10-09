@@ -79,3 +79,28 @@ public class ListLayoutTests
         Assert.NotSame(((ParagraphFragment)before.Pages[0].Body[1]).Layout, ((ParagraphFragment)after.Pages[0].Body[0]).Layout);
     }
 }
+
+public class ImageLayoutTests
+{
+    [Fact]
+    public void Images_take_their_width_on_the_line()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(140),
+            PageHeight = Twips.FromDips(400),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        var image = new InlineImage("img", Twips.FromDips(60), Twips.FromDips(30));
+        var paragraph = new Paragraph([new Run("ab "), image, new Run(" cdef")]);
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(paragraph))), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        ParagraphFragment fragment = layout.Pages[0].Body.OfType<ParagraphFragment>().Single();
+        // Column is 100 wide: "ab " (30) + image (60) + the following space (hangs) fit; "cdef" wraps.
+        Assert.Equal(2, fragment.Layout.LineCount);
+        Assert.Equal(5, fragment.Layout.Lines[0].End);
+    }
+}
