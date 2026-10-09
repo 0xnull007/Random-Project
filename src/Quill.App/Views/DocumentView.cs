@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -1252,7 +1253,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 CutSelection();
                 break;
             case Key.V when ctrl:
-                PasteFromClipboard();
+                PasteFromClipboard(plainTextOnly: shift);
                 break;
             case Key.Z when ctrl:
                 session.Undo();
@@ -1352,9 +1353,20 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         DocumentFragment fragment = session.Copy();
         string text = fragment.ToPlainText();
+        var data = new DataObject();
+        data.SetText(text);
         try
         {
-            Clipboard.SetText(text);
+            data.SetData(DataFormats.Rtf, RichTextConverter.ToRtf(fragment, session.Resolver, session.Document.Lists));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException)
+        {
+            // Plain text still goes on the clipboard.
+        }
+
+        try
+        {
+            Clipboard.SetDataObject(data, true);
             _lastCopied = (text, fragment);
         }
         catch (COMException)
@@ -1375,7 +1387,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         session.DeleteSelection();
     }
 
-    public void PasteFromClipboard()
+    /// <summary>Pastes with formatting when the clipboard carries our own copy or RTF (from Word and most editors); otherwise plain text.</summary>
+    public void PasteFromClipboard(bool plainTextOnly = false)
     {
         EditingSession? session = Session;
         if (session is null)
@@ -1383,28 +1396,57 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
-        string text;
+        string? text = null;
+        string? rtf = null;
         try
         {
-            if (!Clipboard.ContainsText())
+            IDataObject? data = Clipboard.GetDataObject();
+            if (data is null)
             {
                 return;
             }
 
-            text = Clipboard.GetText();
+            if (data.GetDataPresent(DataFormats.UnicodeText))
+            {
+                text = data.GetData(DataFormats.UnicodeText) as string;
+            }
+
+            if (!plainTextOnly && data.GetDataPresent(DataFormats.Rtf))
+            {
+                rtf = data.GetData(DataFormats.Rtf) as string;
+            }
         }
         catch (COMException)
         {
             return;
         }
 
-        if (_lastCopied is { } last && string.Equals(last.Text, text, StringComparison.Ordinal))
+        if (!plainTextOnly && text is not null && _lastCopied is { } last && string.Equals(last.Text, text, StringComparison.Ordinal))
         {
             session.Paste(last.Fragment);
+            return;
         }
-        else
+
+        if (rtf is not null)
         {
-            session.InsertPlainText(text.Replace("\t", "\t", StringComparison.Ordinal));
+            try
+            {
+                DocumentFragment fragment = RichTextConverter.FromRtf(rtf);
+                if (!fragment.IsEmpty)
+                {
+                    session.Paste(fragment);
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Unreadable RTF from another app: fall back to its plain text.
+            }
+        }
+
+        if (!string.IsNullOrEmpty(text))
+        {
+            session.InsertPlainText(text);
         }
     }
 
