@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand FindPreviousCommand = new("FindPrevious", typeof(MainWindow));
     public static readonly RoutedCommand GoToPageCommand = new("GoToPage", typeof(MainWindow));
     public static readonly RoutedCommand WordCountCommand = new("WordCount", typeof(MainWindow));
+    public static readonly RoutedCommand ShortcutsCommand = new("Shortcuts", typeof(MainWindow));
 
     private FindReplaceWindow? _findWindow;
 
@@ -303,7 +304,51 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnProperties(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        var dialog = new DocumentPropertiesWindow(
+            session.Document.Metadata,
+            ViewModel.DocumentPath,
+            ViewModel.DocumentName,
+            DocumentStatistics.Compute(session.Document),
+            Editor.PageCount)
+        {
+            Owner = this,
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            session.SetMetadata(dialog.Result);
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnShortcutsCommand(object sender, ExecutedRoutedEventArgs e) => OnShortcuts(sender, e);
+
+    private void OnShortcuts(object sender, RoutedEventArgs e)
+    {
+        new ShortcutsWindow { Owner = this }.ShowDialog();
+        Editor.Focus();
+    }
+
+    private void OnAbout(object sender, RoutedEventArgs e)
+    {
+        Version version = typeof(App).Assembly.GetName().Version ?? new Version(0, 1);
+        MessageBox.Show(
+            this,
+            "Quill " + version.ToString(3) + Environment.NewLine + Environment.NewLine
+            + "A paged word processor for Windows 11." + Environment.NewLine
+            + "Built with .NET " + Environment.Version.ToString(2) + " and WPF; .docx via the Open XML SDK; PDF via PDFsharp." + Environment.NewLine + Environment.NewLine
+            + "Settings and logs: " + Quill.App.Settings.AppSettings.Directory,
+            "About Quill",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+        Editor.Focus();
+    }
+
     private void OnPrintPreview(object sender, RoutedEventArgs e)
+
     {
         var preview = new PrintPreviewWindow(ViewModel.Session.Document, ViewModel.DocumentName) { Owner = this };
         preview.ShowDialog();

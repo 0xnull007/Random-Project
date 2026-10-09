@@ -516,7 +516,20 @@ public sealed class EditingSession
         PendingFormat = null;
     }
 
+    /// <summary>Replaces the document properties (title, author...) as an undoable step.</summary>
+    public void SetMetadata(DocumentMetadata metadata)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        if (metadata == Document.Metadata)
+        {
+            return;
+        }
+
+        Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
+    }
+
     // ----- Change case -----
+
 
     /// <summary>Changes the case of the selection, or of the word at the caret when nothing is selected.</summary>
     public void ChangeCase(CaseChange change)

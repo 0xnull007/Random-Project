@@ -69,6 +69,9 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>File name without extension, used for window titles and print jobs.</summary>
     public string DocumentName => _documentName;
 
+    /// <summary>Full path of the open file, or null for a new document.</summary>
+    public string? DocumentPath => _documentPath;
+
     public ObservableCollection<double> FontSizes { get; }
 
     public ObservableCollection<RecentFile> RecentFiles { get; }

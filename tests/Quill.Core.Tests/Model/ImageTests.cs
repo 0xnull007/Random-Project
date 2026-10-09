@@ -81,3 +81,19 @@ public class ImageTests
         Assert.Equal("image/jpeg", ImageData.ContentTypeFor("photo.JPG"));
     }
 }
+
+public class MetadataTests
+{
+    [Fact]
+    public void Setting_properties_is_undoable_and_marks_the_document_dirty()
+    {
+        var session = new EditingSession(WithParagraphs("x"), new UndoStack(time: new FakeTime()));
+        Assert.False(session.IsDirty);
+        session.SetMetadata(session.Document.Metadata with { Title = "Report", Author = "Me" });
+        Assert.Equal("Report", session.Document.Metadata.Title);
+        Assert.True(session.IsDirty);
+        session.Undo();
+        Assert.Null(session.Document.Metadata.Title);
+        Assert.False(session.IsDirty);
+    }
+}
