@@ -350,6 +350,67 @@ public sealed class EditingSession
         PendingFormat = null;
     }
 
+    // ----- Find and replace -----
+
+    /// <summary>Replaces a range with text that takes the formatting of the first replaced character; the new text is selected afterwards.</summary>
+    public void ReplaceRange(TextRange range, string replacement)
+    {
+        ArgumentNullException.ThrowIfNull(replacement);
+        if (!Document.IsValid(range.Start) || !Document.IsValid(range.End))
+        {
+            return;
+        }
+
+        (string? styleId, RunProperties properties) = TypingFormat(Document, new Selection(range.Start, range.End));
+        EditResult deleted = DocumentEditor.DeleteRange(Document, range);
+        Document document = deleted.Document;
+        ChangeSet change = deleted.Change;
+        if (replacement.Length > 0)
+        {
+            EditResult inserted = DocumentEditor.InsertText(document, range.Start, replacement, properties, styleId);
+            document = inserted.Document;
+            change = change.Union(inserted.Change);
+        }
+
+        Selection selection = replacement.Length > 0
+            ? new Selection(range.Start, range.Start.WithOffset(range.Start.Offset + replacement.Length))
+            : Selection.Caret(range.Start);
+        Commit(new EditResult(document, selection, change), EditKind.Other, startsNewGroup: true);
+        PendingFormat = null;
+    }
+
+    /// <summary>Replaces every match as one undo step and returns how many were replaced.</summary>
+    public int ReplaceAll(string query, string replacement, SearchOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(replacement);
+        IReadOnlyList<TextRange> matches = TextSearch.FindAll(Document, query, options);
+        if (matches.Count == 0)
+        {
+            return 0;
+        }
+
+        // Replace from the last match backwards so earlier offsets stay valid.
+        Document document = Document;
+        for (int i = matches.Count - 1; i >= 0; i--)
+        {
+            TextRange match = matches[i];
+            (string? styleId, RunProperties properties) = TypingFormat(document, new Selection(match.Start, match.End));
+            document = DocumentEditor.DeleteRange(document, match).Document;
+            if (replacement.Length > 0)
+            {
+                document = DocumentEditor.InsertText(document, match.Start, replacement, properties, styleId).Document;
+            }
+        }
+
+        Selection selection = document.IsValid(Selection.Anchor) && document.IsValid(Selection.Active)
+            ? Selection
+            : Selection.Caret(matches[0].Start);
+        Commit(new EditResult(document, selection, ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
+        PendingFormat = null;
+        return matches.Count;
+    }
+
     // ----- Undo -----
 
     public bool Undo()

@@ -27,7 +27,15 @@
     <KeyBinding Modifiers="Ctrl" Key="Add" Command="{Binding ZoomInCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="OemMinus" Command="{Binding ZoomOutCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Subtract" Command="{Binding ZoomOutCommand}" />
+    <KeyBinding Key="F3" Command="{x:Static views:MainWindow.FindNextCommand}" />
+    <KeyBinding Key="F3" Modifiers="Shift" Command="{x:Static views:MainWindow.FindPreviousCommand}" />
   </Window.InputBindings>
+  <Window.CommandBindings>
+    <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
+    <CommandBinding Command="ApplicationCommands.Replace" Executed="OnReplace" />
+    <CommandBinding Command="{x:Static views:MainWindow.FindNextCommand}" Executed="OnFindNext" />
+    <CommandBinding Command="{x:Static views:MainWindow.FindPreviousCommand}" Executed="OnFindPrevious" />
+  </Window.CommandBindings>
 
   <DockPanel>
     <!-- One compact command bar (Word's "simplified ribbon"): tabs on top, a single row of controls below. -->
@@ -76,6 +84,9 @@
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Find" Command="ApplicationCommands.Find" ToolTip="Find (Ctrl+F)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Replace" Command="ApplicationCommands.Replace" ToolTip="Find and replace (Ctrl+H)" />
         </StackPanel>
       </TabItem>
 

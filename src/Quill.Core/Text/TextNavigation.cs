@@ -299,6 +299,9 @@ public static class Words
         return (start, end);
     }
 
+    /// <summary>True for letters, digits and the apostrophes that join words; used for whole-word matching.</summary>
+    public static bool IsWordCharacter(char c) => Classify(c) == CharClass.Word;
+
     private static int SkipClass(string text, int i, CharClass cls)
     {
         while (i < text.Length && Classify(text[i]) == cls)

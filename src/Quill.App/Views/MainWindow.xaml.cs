@@ -1,13 +1,20 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Input;
 using Quill.App.ViewModels;
 using Quill.Core.Editing;
 using Quill.Core.Model;
+using Quill.Core.Text;
 
 namespace Quill.App.Views;
 
 public partial class MainWindow : Window
 {
+    public static readonly RoutedCommand FindNextCommand = new("FindNext", typeof(MainWindow));
+    public static readonly RoutedCommand FindPreviousCommand = new("FindPrevious", typeof(MainWindow));
+
+    private FindReplaceWindow? _findWindow;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -36,7 +43,14 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
-    private void OnClosing(object? sender, CancelEventArgs e) => e.Cancel = !ViewModel.ConfirmDiscard();
+    private void OnClosing(object? sender, CancelEventArgs e)
+    {
+        e.Cancel = !ViewModel.ConfirmDiscard();
+        if (!e.Cancel)
+        {
+            _findWindow?.ForceClose();
+        }
+    }
 
     private void OnExit(object sender, RoutedEventArgs e) => Close();
 
@@ -77,6 +91,29 @@ public partial class MainWindow : Window
         Editor.InsertField(Field.NumPages());
         Editor.Focus();
     }
+
+    private FindReplaceWindow FindWindow => _findWindow ??= new FindReplaceWindow(ViewModel.Session) { Owner = this };
+
+    /// <summary>Short single-paragraph selections pre-fill the Find box, like Word.</summary>
+    private string? SelectedTextForSearch()
+    {
+        Selection selection = ViewModel.Session.Selection;
+        if (selection.IsCollapsed || !selection.Range.IsWithinOneParagraph)
+        {
+            return null;
+        }
+
+        string text = DocumentEditor.ExtractFragment(ViewModel.Session.Document, selection.Range).ToPlainText();
+        return text.Length is > 0 and <= 100 && !text.Contains('\n', StringComparison.Ordinal) ? text : null;
+    }
+
+    private void OnFind(object sender, ExecutedRoutedEventArgs e) => FindWindow.ShowFind(SelectedTextForSearch());
+
+    private void OnReplace(object sender, ExecutedRoutedEventArgs e) => FindWindow.ShowReplace(SelectedTextForSearch());
+
+    private void OnFindNext(object sender, ExecutedRoutedEventArgs e) => FindWindow.FindNext(backwards: false);
+
+    private void OnFindPrevious(object sender, ExecutedRoutedEventArgs e) => FindWindow.FindNext(backwards: true);
 
     private void OnPrintPreview(object sender, RoutedEventArgs e)
     {
