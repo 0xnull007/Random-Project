@@ -57,13 +57,13 @@ public sealed class EditingSession
 
     public void MarkSaved() => _savedDocument = Document;
 
-    /// <summary>Replaces everything (open file / new document) and resets undo history.</summary>
-    public void LoadDocument(Document document)
+    /// <summary>Replaces everything (open file / new document) and resets undo history. A recovered document starts out dirty.</summary>
+    public void LoadDocument(Document document, bool isDirty = false)
     {
         ArgumentNullException.ThrowIfNull(document);
         _undo.Clear();
         PendingFormat = null;
-        _savedDocument = document;
+        _savedDocument = isDirty ? Document.CreateNew() : document;
         ApplyState(document, Selection.Caret(TextNavigation.StoryStart(document, StoryId.Body(0))), ChangeSet.Structural());
     }
 

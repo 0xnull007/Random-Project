@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ViewModel.RestoreWindowState(this);
         Loaded += OnLoaded;
         Closing += OnClosing;
     }
@@ -39,8 +40,39 @@ public partial class MainWindow : Window
         {
             ViewModel.OpenFile(startupFile);
         }
+        else
+        {
+            Dispatcher.BeginInvoke(ViewModel.OfferRecovery, System.Windows.Threading.DispatcherPriority.Background);
+        }
 
         Editor.Focus();
+    }
+
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = DroppedDocx(e) is not null ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void OnDrop(object sender, DragEventArgs e)
+    {
+        if (DroppedDocx(e) is { } path && ViewModel.ConfirmDiscard())
+        {
+            ViewModel.OpenFile(path);
+            Editor.Focus();
+        }
+
+        e.Handled = true;
+    }
+
+    private static string? DroppedDocx(DragEventArgs e)
+    {
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
+        {
+            return files.FirstOrDefault(f => f.EndsWith(".docx", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return null;
     }
 
     private void OnClosing(object? sender, CancelEventArgs e)
@@ -48,6 +80,7 @@ public partial class MainWindow : Window
         e.Cancel = !ViewModel.ConfirmDiscard();
         if (!e.Cancel)
         {
+            ViewModel.SaveWindowState(this);
             _findWindow?.ForceClose();
         }
     }

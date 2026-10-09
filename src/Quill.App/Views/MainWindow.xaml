@@ -5,7 +5,8 @@
         xmlns:vm="clr-namespace:Quill.App.ViewModels"
         Title="{Binding Title}"
         Width="1200" Height="820" MinWidth="700" MinHeight="400"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
   <Window.DataContext>
     <vm:MainViewModel />
   </Window.DataContext>
@@ -58,6 +59,9 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Open..." Command="{Binding OpenCommand}" ToolTip="Open a .docx (Ctrl+O)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Save" Command="{Binding SaveCommand}" ToolTip="Save (Ctrl+S)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Save As..." Command="{Binding SaveAsCommand}" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <TextBlock Text="Recent:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="220" ItemsSource="{Binding RecentFiles}" SelectedItem="{Binding SelectedRecent}" DisplayMemberPath="Name" ToolTip="Recently opened files" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Print..." Command="{Binding PrintCommand}" ToolTip="Print (Ctrl+P)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Print Preview" Click="OnPrintPreview" ToolTip="See the pages exactly as they will print" />

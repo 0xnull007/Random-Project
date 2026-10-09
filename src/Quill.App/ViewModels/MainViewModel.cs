@@ -4,8 +4,11 @@ using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Windows.Shell;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using Quill.App.Printing;
+using Quill.App.Settings;
 using Quill.Core.Editing;
 using Quill.Core.Model;
 using Quill.Core.Styles;
@@ -22,6 +25,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     private const string FileFilter = "Word Documents (*.docx)|*.docx|All files (*.*)|*.*";
 
+    private readonly AppSettings _settings = AppSettings.Load();
+    private readonly DispatcherTimer _autosaveTimer;
+    private Document? _lastAutosaved;
+    private string _recoveryId = RecoveryStore.NewId();
+    private bool _openingRecent;
     private string _documentName = "Document1";
     private string? _documentPath;
     private bool _loadWasLossy;
@@ -39,6 +47,14 @@ public sealed partial class MainViewModel : ObservableObject
         Session = new EditingSession(Document.CreateNew(metricPaper: IsMetricRegion()));
         Session.DocumentChanged += (_, _) => OnDocumentChanged();
         Session.SelectionChanged += (_, _) => RefreshFormatState();
+        Zoom = Math.Clamp(_settings.Zoom, 0.1, 5.0);
+        RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
+        _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
+        _autosaveTimer.Tick += (_, _) => Autosave();
+        if (_settings.AutosaveMinutes > 0)
+        {
+            _autosaveTimer.Start();
+        }
         FontSizes = new ObservableCollection<double>(StandardSizes);
         ParagraphStyles = new ObservableCollection<Style>(Session.Document.Styles.ParagraphStyles.Where(s => s.QuickFormat).OrderBy(s => s.Priority));
         RefreshFormatState();
@@ -51,6 +67,175 @@ public sealed partial class MainViewModel : ObservableObject
     public string DocumentName => _documentName;
 
     public ObservableCollection<double> FontSizes { get; }
+
+    public ObservableCollection<RecentFile> RecentFiles { get; }
+
+    public AppSettings Settings => _settings;
+
+    [ObservableProperty]
+    public partial RecentFile? SelectedRecent { get; set; }
+
+    partial void OnSelectedRecentChanged(RecentFile? value)
+    {
+        if (value is null || _openingRecent)
+        {
+            return;
+        }
+
+        _openingRecent = true;
+        try
+        {
+            if (!File.Exists(value.Path))
+            {
+                MessageBox.Show("The file no longer exists:" + Environment.NewLine + value.Path, "Quill", MessageBoxButton.OK, MessageBoxImage.Information);
+                _settings.RemoveRecent(value.Path);
+                RefreshRecent();
+            }
+            else if (ConfirmDiscard())
+            {
+                OpenFile(value.Path);
+            }
+        }
+        finally
+        {
+            SelectedRecent = null;
+            _openingRecent = false;
+        }
+    }
+
+    private void RefreshRecent()
+    {
+        RecentFiles.Clear();
+        foreach (string path in _settings.RecentFiles)
+        {
+            RecentFiles.Add(new RecentFile(path));
+        }
+    }
+
+    private void RememberFile(string path)
+    {
+        _settings.AddRecent(path);
+        RefreshRecent();
+        _settings.Save();
+        try
+        {
+            JumpList.AddToRecentCategory(path);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            // Jump lists need a registered file type; not fatal.
+        }
+    }
+
+    // ----- Autosave and recovery -----
+
+    private void Autosave()
+    {
+        if (!Session.IsDirty || ReferenceEquals(Session.Document, _lastAutosaved))
+        {
+            return;
+        }
+
+        try
+        {
+            RecoveryStore.Write(_recoveryId, Session.Document, _documentPath, _documentName);
+            _lastAutosaved = Session.Document;
+            StatusMessage = "Autosaved at " + DateTime.Now.ToShortTimeString();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = "Autosave failed: " + ex.Message;
+        }
+    }
+
+    private void StartNewRecoverySession()
+    {
+        RecoveryStore.Delete(_recoveryId);
+        _recoveryId = RecoveryStore.NewId();
+        _lastAutosaved = null;
+    }
+
+    /// <summary>Offers to restore autosaved documents left behind by a crash. Call once after the main window is up.</summary>
+    public void OfferRecovery()
+    {
+        foreach (RecoveryStore.Entry entry in RecoveryStore.Pending())
+        {
+            if (entry.Id == _recoveryId)
+            {
+                continue;
+            }
+
+            string when = entry.SavedAt.LocalDateTime.ToString("g", System.Globalization.CultureInfo.CurrentCulture);
+            MessageBoxResult answer = MessageBox.Show(
+                "Quill found unsaved changes to \"" + entry.Name + "\" from " + when + "." + Environment.NewLine + Environment.NewLine + "Recover them?",
+                "Quill",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question,
+                MessageBoxResult.Yes);
+            if (answer == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    LoadResult result = DocxReader.ReadFile(entry.File);
+                    Session.LoadDocument(result.Document, isDirty: true);
+                    _documentPath = entry.OriginalPath;
+                    _documentName = entry.Name;
+                    _loadWasLossy = false;
+                    _recoveryId = entry.Id;
+                    _lastAutosaved = Session.Document;
+                    StatusMessage = "Recovered unsaved changes; save to keep them";
+                    UpdateTitle();
+                    return;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FileFormatException or DocumentFormat.OpenXml.Packaging.OpenXmlPackageException)
+                {
+                    MessageBox.Show("Could not recover the document." + Environment.NewLine + Environment.NewLine + ex.Message, "Quill", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+
+            RecoveryStore.Delete(entry.Id);
+        }
+    }
+
+    /// <summary>Remembers window placement and zoom. Call when the main window closes.</summary>
+    public void SaveWindowState(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        Rect bounds = window.WindowState == WindowState.Normal ? new Rect(window.Left, window.Top, window.Width, window.Height) : window.RestoreBounds;
+        _settings.WindowLeft = bounds.Left;
+        _settings.WindowTop = bounds.Top;
+        _settings.WindowWidth = bounds.Width;
+        _settings.WindowHeight = bounds.Height;
+        _settings.WindowMaximized = window.WindowState == WindowState.Maximized;
+        _settings.Zoom = Zoom;
+        _settings.Save();
+        if (!Session.IsDirty)
+        {
+            RecoveryStore.Delete(_recoveryId);
+        }
+    }
+
+    /// <summary>Applies the remembered window placement if it is still on screen. Call before the window is shown.</summary>
+    public void RestoreWindowState(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        if (_settings.WindowWidth is { } width && _settings.WindowHeight is { } height && _settings.WindowLeft is { } left && _settings.WindowTop is { } top
+            && width >= 400 && height >= 300
+            && left + width > SystemParameters.VirtualScreenLeft + 50 && top + 50 < SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight
+            && left < SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - 50 && top >= SystemParameters.VirtualScreenTop)
+        {
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = left;
+            window.Top = top;
+            window.Width = width;
+            window.Height = height;
+        }
+
+        if (_settings.WindowMaximized)
+        {
+            window.WindowState = WindowState.Maximized;
+        }
+    }
 
     public ObservableCollection<Style> ParagraphStyles { get; }
 
@@ -330,6 +515,7 @@ public sealed partial class MainViewModel : ObservableObject
         _documentPath = null;
         _loadWasLossy = false;
         StatusMessage = string.Empty;
+        StartNewRecoverySession();
         UpdateTitle();
     }
 
@@ -357,6 +543,8 @@ public sealed partial class MainViewModel : ObservableObject
             _documentPath = path;
             _documentName = Path.GetFileNameWithoutExtension(path);
             _loadWasLossy = result.HasLossyContent;
+            StartNewRecoverySession();
+            RememberFile(path);
             StatusMessage = result.HasLossyContent
                 ? "Opened with limitations: " + string.Join(" ", result.Warnings.Select(w => w.Message))
                 : $"Opened {Path.GetFileName(path)}";
@@ -425,6 +613,9 @@ public sealed partial class MainViewModel : ObservableObject
             _documentPath = path;
             _documentName = Path.GetFileNameWithoutExtension(path);
             _loadWasLossy = false;
+            RecoveryStore.Delete(_recoveryId);
+            _lastAutosaved = Session.Document;
+            RememberFile(path);
             StatusMessage = $"Saved {Path.GetFileName(path)}";
             UpdateTitle();
         }
@@ -480,6 +671,7 @@ public sealed partial class MainViewModel : ObservableObject
             return !Session.IsDirty;
         }
 
+        RecoveryStore.Delete(_recoveryId);
         return true;
     }
 
@@ -730,4 +922,12 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private static bool IsMetricRegion() => System.Globalization.RegionInfo.CurrentRegion.IsMetric;
+}
+
+/// <summary>A recently opened file for the File tab list.</summary>
+public sealed record RecentFile(string Path)
+{
+    public string Name => System.IO.Path.GetFileName(Path);
+
+    public override string ToString() => Name;
 }

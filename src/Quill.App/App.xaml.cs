@@ -28,6 +28,15 @@ public partial class App : Application
             StartupFile = Path.GetFullPath(e.Args[0]);
         }
 
+        try
+        {
+            System.Windows.Shell.JumpList.SetJumpList(this, new System.Windows.Shell.JumpList { ShowRecentCategory = true });
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            // Jump lists are optional.
+        }
+
         base.OnStartup(e);
     }
 
