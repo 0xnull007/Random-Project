@@ -118,6 +118,13 @@ public partial class FindReplaceWindow : Window
     private static string SingleLine(string text) =>
         text.Replace("\r\n", " ", StringComparison.Ordinal).Replace('\r', ' ').Replace('\n', ' ');
 
+    /// <summary>IsCancel only closes modal windows, so the non-modal Find window hides itself explicitly (Esc triggers this too).</summary>
+    private void OnClose(object sender, RoutedEventArgs e)
+    {
+        Hide();
+        Owner?.Activate();
+    }
+
     private void OnFindNext(object sender, RoutedEventArgs e) => FindNext(backwards: false);
 
     private void OnFindPrevious(object sender, RoutedEventArgs e) => FindNext(backwards: true);

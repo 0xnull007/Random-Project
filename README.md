@@ -46,5 +46,5 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 
 Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). Done so far: editing, styles, page and
 section breaks, headers and footers with page-number fields, Page Setup, .docx open and save, print, print preview
-and PDF export. Next: find and replace, IME composition, the UI Automation text pattern, lists, images, tables, and
+and PDF export, find and replace, IME input. Next: the UI Automation text pattern, lists, images, tables, and
 packaging as MSIX.

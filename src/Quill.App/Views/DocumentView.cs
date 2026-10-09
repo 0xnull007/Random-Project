@@ -62,6 +62,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private (string Text, DocumentFragment Fragment)? _lastCopied;
     private bool _headerFooterMode;
     private TextPosition? _lastBodyPosition;
+    private readonly ImeSupport _ime;
 
     public DocumentView()
     {
@@ -78,6 +79,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         TextOptions.SetTextHintingMode(this, TextHintingMode.Fixed);
 
         _paginator = new Paginator(_formatter, _cache, new LayoutOptions(PixelsPerDip: 1.0));
+        _ime = new ImeSupport(this);
         _caretTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = CaretBlinkInterval() };
         _caretTimer.Tick += (_, _) =>
         {
@@ -335,6 +337,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     {
         Relayout();
         EnsureCaretVisible();
+        _ime.UpdateCompositionWindow();
     }
 
     private void OnSelectionChanged(object? sender, EventArgs e)
@@ -343,6 +346,32 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         UpdateHeaderFooterMode();
         UpdateCaretAndSelection();
         EnsureCaretVisible();
+        _ime.UpdateCompositionWindow();
+    }
+
+    /// <summary>Caret rectangle in this element's coordinates (zoomed and scrolled), for IME placement.</summary>
+    internal Rect? CaretRectInView()
+    {
+        EditingSession? session = Session;
+        if (session is null || CaretRect(session.Selection.Active, session.Selection.Affinity) is not { } caret)
+        {
+            return null;
+        }
+
+        double zoom = Zoom;
+        return new Rect(caret.Rect.X * zoom + _host.Offset.X, caret.Rect.Y * zoom + _host.Offset.Y, Math.Max(1, caret.Rect.Width * zoom), caret.Rect.Height * zoom);
+    }
+
+    /// <summary>Font family and size (DIPs) at the caret, so the IME composition font matches the text.</summary>
+    internal (string Family, double SizeDips) CaretFont()
+    {
+        if (Session is { } session)
+        {
+            Core.Styles.ResolvedRunProperties format = session.CaretFormat();
+            return (format.FontFamily, format.FontSize.ToDips());
+        }
+
+        return ("Segoe UI", 16);
     }
 
     private void Relayout()
@@ -457,6 +486,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         RealizePages();
         UpdateCaretAndSelection();
         EnsureCaretVisible();
+        _ime.UpdateCompositionWindow();
     }
 
     // ------------------------------------------------------------------ pages
@@ -1422,6 +1452,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         UpdateHostTransform();
         RealizePages();
         ScrollOwner?.InvalidateScrollInfo();
+        _ime.UpdateCompositionWindow();
     }
 
     private void UpdateScrollExtent()
