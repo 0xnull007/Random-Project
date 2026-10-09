@@ -42,9 +42,3 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 - **Fluent theme via `ThemeMode="System"`**, a custom command bar built from stock controls (no ribbon library), all
   theme keys in one `Theme.xaml`.
 
-## Roadmap
-
-Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). Done so far: editing, styles, page and
-section breaks, headers and footers with page-number fields, Page Setup, .docx open and save, print, print preview
-and PDF export, find and replace, IME input. Next: the UI Automation text pattern, lists, images, tables, and
-packaging as MSIX.

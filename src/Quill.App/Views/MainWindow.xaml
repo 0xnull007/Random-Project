@@ -21,6 +21,7 @@
     <KeyBinding Modifiers="Ctrl" Key="N" Command="{Binding NewDocumentCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="O" Command="{Binding OpenCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="S" Command="{Binding SaveCommand}" />
+    <KeyBinding Key="F12" Command="{Binding SaveAsCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="P" Command="{Binding PrintCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Z" Command="{Binding UndoCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Y" Command="{Binding RedoCommand}" />
