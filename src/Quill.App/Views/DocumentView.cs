@@ -38,6 +38,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         nameof(IsReadOnly), typeof(bool), typeof(DocumentView),
         new PropertyMetadata(false, (d, _) => ((DocumentView)d).OnReadOnlyChanged()));
 
+    public static readonly DependencyProperty ShowFormattingMarksProperty = DependencyProperty.Register(
+        nameof(ShowFormattingMarks), typeof(bool), typeof(DocumentView),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (d, _) => ((DocumentView)d).RedrawContent()));
+
     private readonly VisualCollection _children;
     private readonly ContainerVisual _host = new();
     private readonly ContainerVisual _pagesLayer = new();
@@ -124,6 +128,82 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
     /// <summary>True while the caret is in a header or footer story.</summary>
     public bool IsEditingHeaderFooter => _headerFooterMode;
+
+    /// <summary>Draws pilcrows, tab arrows, space dots and break markers over the text.</summary>
+    public bool ShowFormattingMarks
+    {
+        get => (bool)GetValue(ShowFormattingMarksProperty);
+        set => SetValue(ShowFormattingMarksProperty, value);
+    }
+
+    /// <summary>Number of laid-out body lines (for Word Count).</summary>
+    public int BodyLineCount => _bodyLines.Count;
+
+    /// <summary>Lines the selection touches, in the story it lives in.</summary>
+    public int SelectionLineCount()
+    {
+        if (Session is not { } session || session.Selection.IsCollapsed)
+        {
+            return 0;
+        }
+
+        TextRange range = session.Selection.Range;
+        int count = 0;
+        foreach (LineRef l in range.Story.IsBody ? _bodyLines : _otherLines)
+        {
+            if (l.Fragment.Story != range.Story || l.Fragment.Path < range.Start.Block || l.Fragment.Path > range.End.Block)
+            {
+                continue;
+            }
+
+            IFormattedLine line = l.Fragment.Layout.Lines[l.Line];
+            int from = l.Fragment.Path == range.Start.Block ? range.Start.Offset : int.MinValue;
+            int to = l.Fragment.Path == range.End.Block ? range.End.Offset : int.MaxValue;
+            if (line.End > from && line.Start < to)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>Pages the selection spans (1 for a caret).</summary>
+    public int SelectionPageCount()
+    {
+        if (Session is not { } session || _layout.Find(session.Selection.Start) is not { } start || _layout.Find(session.Selection.End) is not { } end)
+        {
+            return 1;
+        }
+
+        return Math.Abs(end.Page.Index - start.Page.Index) + 1;
+    }
+
+    /// <summary>Scrolls to a page and puts the caret on its first body line.</summary>
+    public void GoToPage(int pageNumber)
+    {
+        if (_layout.PageCount == 0 || Session is not { } session)
+        {
+            return;
+        }
+
+        int index = Math.Clamp(pageNumber - 1, 0, _layout.PageCount - 1);
+        if (_layout.Pages[index].Body.OfType<ParagraphFragment>().FirstOrDefault() is { } first)
+        {
+            IFormattedLine line = first.Layout.Lines[first.FirstLine];
+            session.MoveCaret(new TextPosition(first.Story, first.Path, line.Start), extend: false);
+        }
+
+        SetOffsets(_offset.X, Math.Max(0, (_pageTops[index] - CanvasPadding / 2) * Zoom));
+    }
+
+    private void RedrawContent()
+    {
+        foreach (PageVisuals visuals in _pageVisuals.Values)
+        {
+            DrawContent(visuals.Content, visuals.PageIndex);
+        }
+    }
 
     /// <summary>Shows the document without caret or editing (print preview). Scrolling and zoom still work.</summary>
     public bool IsReadOnly
@@ -569,8 +649,68 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         dc.PushTransform(new TranslateTransform(rect.X, rect.Y));
         dc.PushClip(new RectangleGeometry(new Rect(0, 0, rect.Width, rect.Height)));
         PageRenderer.DrawContent(_layout.Pages[index], new WpfRenderTarget(dc));
+        if (ShowFormattingMarks)
+        {
+            DrawFormattingMarks(dc, _layout.Pages[index]);
+        }
+
         dc.Pop();
         dc.Pop();
+    }
+
+    /// <summary>Word-style marks: a middle dot per space, an arrow per tab, a pilcrow at paragraph ends, a return arrow at line breaks.</summary>
+    private void DrawFormattingMarks(DrawingContext dc, PageLayout page)
+    {
+        Brush brush = TryFindResource("Quill.MarksBrush") as Brush ?? new SolidColorBrush(Color.FromArgb(0xB0, 0x5B, 0x8D, 0xC8));
+        double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        var typeface = new Typeface("Segoe UI");
+        foreach (BlockFragment fragment in page.AllFragments())
+        {
+            if (fragment is not ParagraphFragment paragraph)
+            {
+                continue;
+            }
+
+            string text = paragraph.Paragraph.FlatText;
+            for (int i = paragraph.FirstLine; i <= paragraph.LastLine; i++)
+            {
+                IFormattedLine line = paragraph.Layout.Lines[i];
+                PointD origin = paragraph.LineOrigin(i);
+                double top = paragraph.LineTop(i);
+                double height = paragraph.Layout.LineHeights[i];
+                double fontSize = Math.Clamp(height * 0.6, 6, 40);
+                int visibleEnd = Math.Min(line.End - line.NewlineLength, text.Length);
+                for (int offset = line.Start; offset < visibleEnd; offset++)
+                {
+                    char c = text[offset];
+                    if (c == ' ')
+                    {
+                        double middle = (line.GetCaretX(offset) + line.GetCaretX(offset + 1)) / 2;
+                        DrawMark(dc, "\u00B7", origin.X + middle - fontSize * 0.15, top, height, fontSize, brush, typeface, pixelsPerDip);
+                    }
+                    else if (c == '\t')
+                    {
+                        DrawMark(dc, "\u2192", origin.X + line.GetCaretX(offset) + 1, top, height, fontSize, brush, typeface, pixelsPerDip);
+                    }
+                }
+
+                double endX = origin.X + line.GetCaretX(visibleEnd) + 1;
+                if (line.NewlineLength > 0)
+                {
+                    DrawMark(dc, line.ForcedBreakAfter == Core.Model.BreakKind.Page ? "\u00B7\u00B7\u00B7\u00B7 Page Break \u00B7\u00B7\u00B7\u00B7" : "\u21B5", endX, top, height, fontSize, brush, typeface, pixelsPerDip);
+                }
+                else if (i == paragraph.LastLine && paragraph.IsParagraphEnd)
+                {
+                    DrawMark(dc, "\u00B6", endX, top, height, fontSize, brush, typeface, pixelsPerDip);
+                }
+            }
+        }
+    }
+
+    private static void DrawMark(DrawingContext dc, string glyph, double x, double top, double height, double fontSize, Brush brush, Typeface typeface, double pixelsPerDip)
+    {
+        var formatted = new FormattedText(glyph, System.Globalization.CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, typeface, fontSize, brush, pixelsPerDip);
+        dc.DrawText(formatted, new Point(x, top + (height - formatted.Height) / 2));
     }
 
     /// <summary>While a header or footer is being edited: dims the body and marks the header/footer boundaries, like Word.</summary>

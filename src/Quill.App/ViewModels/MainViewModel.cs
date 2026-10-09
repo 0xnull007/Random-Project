@@ -48,6 +48,7 @@ public sealed partial class MainViewModel : ObservableObject
         Session.DocumentChanged += (_, _) => OnDocumentChanged();
         Session.SelectionChanged += (_, _) => RefreshFormatState();
         Zoom = Math.Clamp(_settings.Zoom, 0.1, 5.0);
+        ShowFormattingMarks = _settings.ShowFormattingMarks;
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
         _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
         _autosaveTimer.Tick += (_, _) => Autosave();
@@ -208,6 +209,7 @@ public sealed partial class MainViewModel : ObservableObject
         _settings.WindowHeight = bounds.Height;
         _settings.WindowMaximized = window.WindowState == WindowState.Maximized;
         _settings.Zoom = Zoom;
+        _settings.ShowFormattingMarks = ShowFormattingMarks;
         _settings.Save();
         if (!Session.IsDirty)
         {
@@ -319,6 +321,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool CanRedo { get; set; }
+
+    [ObservableProperty]
+    public partial bool ShowFormattingMarks { get; set; }
 
     [ObservableProperty]
     public partial string StatusMessage { get; set; }

@@ -12,6 +12,8 @@ public partial class MainWindow : Window
 {
     public static readonly RoutedCommand FindNextCommand = new("FindNext", typeof(MainWindow));
     public static readonly RoutedCommand FindPreviousCommand = new("FindPrevious", typeof(MainWindow));
+    public static readonly RoutedCommand GoToPageCommand = new("GoToPage", typeof(MainWindow));
+    public static readonly RoutedCommand WordCountCommand = new("WordCount", typeof(MainWindow));
 
     private FindReplaceWindow? _findWindow;
 
@@ -159,6 +161,46 @@ public partial class MainWindow : Window
     private void OnFindNext(object sender, ExecutedRoutedEventArgs e) => FindWindow.FindNext(backwards: false);
 
     private void OnFindPrevious(object sender, ExecutedRoutedEventArgs e) => FindWindow.FindNext(backwards: true);
+
+    private void OnFitPage(object sender, RoutedEventArgs e)
+    {
+        Editor.ZoomToFitPage();
+        Editor.Focus();
+    }
+
+    private void OnFitWidth(object sender, RoutedEventArgs e)
+    {
+        Editor.ZoomToFitWidth();
+        Editor.Focus();
+    }
+
+    private void OnGoToPageCommand(object sender, ExecutedRoutedEventArgs e) => OnGoToPage(sender, e);
+
+    private void OnGoToPage(object sender, RoutedEventArgs e)
+    {
+        var dialog = new GoToPageWindow(Editor.CurrentPage, Math.Max(1, Editor.PageCount)) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            Editor.GoToPage(dialog.Page);
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnWordCountCommand(object sender, ExecutedRoutedEventArgs e) => OnWordCount(sender, e);
+
+    private void OnWordCount(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        bool forSelection = !session.Selection.IsCollapsed;
+        DocumentStatistics statistics = forSelection
+            ? DocumentStatistics.Compute(DocumentEditor.ExtractFragment(session.Document, session.Selection.Range).Paragraphs)
+            : DocumentStatistics.Compute(session.Document);
+        int lines = forSelection ? Editor.SelectionLineCount() : Editor.BodyLineCount;
+        int pages = forSelection ? Editor.SelectionPageCount() : Editor.PageCount;
+        new WordCountWindow(statistics, pages, lines, forSelection) { Owner = this }.ShowDialog();
+        Editor.Focus();
+    }
 
     private void OnPrintPreview(object sender, RoutedEventArgs e)
     {

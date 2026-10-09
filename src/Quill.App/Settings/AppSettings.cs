@@ -27,6 +27,8 @@ public sealed class AppSettings
     /// <summary>Minutes between autosaves of unsaved changes; 0 disables.</summary>
     public int AutosaveMinutes { get; set; } = 2;
 
+    public bool ShowFormattingMarks { get; set; }
+
     public static string Directory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Quill");
 
     public static string FilePath => Path.Combine(Directory, "settings.json");

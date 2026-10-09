@@ -42,12 +42,16 @@
     <KeyBinding Modifiers="Ctrl" Key="Subtract" Command="{Binding ZoomOutCommand}" />
     <KeyBinding Key="F3" Command="{x:Static views:MainWindow.FindNextCommand}" />
     <KeyBinding Key="F3" Modifiers="Shift" Command="{x:Static views:MainWindow.FindPreviousCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="G" Command="{x:Static views:MainWindow.GoToPageCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="G" Command="{x:Static views:MainWindow.WordCountCommand}" />
   </Window.InputBindings>
   <Window.CommandBindings>
     <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
     <CommandBinding Command="ApplicationCommands.Replace" Executed="OnReplace" />
     <CommandBinding Command="{x:Static views:MainWindow.FindNextCommand}" Executed="OnFindNext" />
     <CommandBinding Command="{x:Static views:MainWindow.FindPreviousCommand}" Executed="OnFindPrevious" />
+    <CommandBinding Command="{x:Static views:MainWindow.GoToPageCommand}" Executed="OnGoToPageCommand" />
+    <CommandBinding Command="{x:Static views:MainWindow.WordCountCommand}" Executed="OnWordCountCommand" />
   </Window.CommandBindings>
 
   <DockPanel>
@@ -156,16 +160,23 @@
       </TabItem>
 
       <TabItem Header="View">
-        <StackPanel Orientation="Horizontal">
+        <WrapPanel Orientation="Horizontal">
           <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="50%" Command="{Binding SetZoomCommand}" CommandParameter="50" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="75%" Command="{Binding SetZoomCommand}" CommandParameter="75" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="100%" Command="{Binding SetZoomCommand}" CommandParameter="100" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="150%" Command="{Binding SetZoomCommand}" CommandParameter="150" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="200%" Command="{Binding SetZoomCommand}" CommandParameter="200" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Page" Click="OnFitPage" ToolTip="Zoom so a whole page fits" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Width" Click="OnFitWidth" ToolTip="Zoom so the page fills the width" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Word Count" Click="OnWordCount" ToolTip="Words, characters, paragraphs, lines, pages (Ctrl+Shift+G)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Go To Page..." Click="OnGoToPage" ToolTip="Jump to a page (Ctrl+G)" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Select All" Click="OnSelectAll" ToolTip="Select all (Ctrl+A)" />
-        </StackPanel>
+        </WrapPanel>
       </TabItem>
     </TabControl>
 
@@ -203,7 +214,7 @@
                   VerticalScrollBarVisibility="Visible"
                   PanningMode="Both"
                   Focusable="False">
-      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" />
+      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" />
     </ScrollViewer>
   </DockPanel>
 </Window>
