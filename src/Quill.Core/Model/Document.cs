@@ -40,7 +40,7 @@ public sealed record DocumentMetadata
 /// </summary>
 public sealed class Document
 {
-    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null)
+    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null, ListStore? lists = null)
     {
         ArgumentNullException.ThrowIfNull(sections);
         ArgumentNullException.ThrowIfNull(styles);
@@ -53,6 +53,7 @@ public sealed class Document
         Styles = styles;
         Settings = settings ?? DocumentSettings.Default;
         Metadata = metadata ?? DocumentMetadata.Empty;
+        Lists = lists ?? ListStore.Empty;
     }
 
     /// <summary>A new blank document with one empty paragraph.</summary>
@@ -70,15 +71,20 @@ public sealed class Document
 
     public DocumentMetadata Metadata { get; }
 
-    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata);
+    /// <summary>List definitions and instances referenced by paragraphs.</summary>
+    public ListStore Lists { get; }
+
+    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata, Lists);
+
+    public Document WithLists(ListStore lists) => new(Sections, Styles, Settings, Metadata, lists);
 
     public Document WithSection(int index, Section section) => WithSections(Sections.SetItem(index, section));
 
-    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata);
+    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata, Lists);
 
-    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata);
+    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata, Lists);
 
-    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata);
+    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata, Lists);
 
     /// <summary>The blocks of a story, or null when the section or header/footer variant does not exist.</summary>
     public ImmutableList<Block>? TryGetStory(StoryId story)

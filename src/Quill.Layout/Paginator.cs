@@ -128,6 +128,7 @@ public sealed class Paginator
                 body.Add(new Placement(block, BlockPath.Of(index)));
             }
 
+            IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(section.Body, _document.Lists, _resolver);
             var page = NewPage(sectionIndex, pageNumber, isFirstOfSection: true);
             bool afterHardBreak = true; // document/section start keeps space-before
             int i = 0;
@@ -151,7 +152,7 @@ public sealed class Paginator
                 }
 
                 var paragraph = (Paragraph)placement.Block;
-                ParagraphLayout layout = GetLayout(paragraph, page.BodyArea.Width, FieldValues.Placeholder);
+                ParagraphLayout layout = GetLayout(paragraph, page.BodyArea.Width, FieldValues.Placeholder, markers.TryGetValue(i, out ListMarker bodyMarker) ? bodyMarker : null);
                 ResolvedParagraphProperties pp = layout.Properties;
 
                 if (pp.PageBreakBefore && !page.IsEmpty && placement.NextLine == 0)
@@ -528,6 +529,7 @@ public sealed class Paginator
         private StoryLayout LayoutStory(StoryId story, ImmutableList<Block> blocks, RectD area, FieldValues fields)
         {
             var fragments = ImmutableArray.CreateBuilder<BlockFragment>();
+            IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(blocks, _document.Lists, _resolver);
             double y = area.Top;
             for (int i = 0; i < blocks.Count; i++)
             {
@@ -536,7 +538,7 @@ public sealed class Paginator
                     continue;
                 }
 
-                ParagraphLayout layout = GetLayout(paragraph, area.Width, fields);
+                ParagraphLayout layout = GetLayout(paragraph, area.Width, fields, markers.TryGetValue(i, out ListMarker storyMarker) ? storyMarker : null);
                 if (layout.Input.ContainsFields && layout.Input.Runs.Any(r => r.Kind == RunKind.Field && r.FieldText != null)
                     && paragraph.Inlines.OfType<Field>().Any(f => f.Kind is FieldKind.NumPages or FieldKind.SectionPages))
                 {
@@ -553,63 +555,72 @@ public sealed class Paginator
             return new StoryLayout(story, new RectD(area.Left, area.Top, area.Width, height), fragments.ToImmutable());
         }
 
-        private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields)
+        private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields, ListMarker? marker)
         {
-            string signature = paragraph.Inlines.Any(i => i is Field) ? fields.Signature : string.Empty;
+            string signature = (paragraph.Inlines.Any(i => i is Field) ? fields.Signature : string.Empty)
+                + (marker is { } m ? "|" + m.Text : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {
                 ParagraphLayoutInput input = ParagraphLayoutInput.Create(paragraph, _resolver, fields, width, _document.Settings.DefaultTabStop, _options.PixelsPerDip);
+                IFormattedLine? markerLine = null;
+                double markerX = 0;
+                if (marker is { Text.Length: > 0 } listMarker)
+                {
+                    (markerLine, markerX, double textStart) = FormatMarker(input, listMarker);
+                    input = input with { FirstLineStart = textStart, Marker = listMarker };
+                }
+
                 IReadOnlyList<IFormattedLine> lines = _formatter.FormatParagraph(input);
-                return new ParagraphLayout(input, lines, signature);
+                return new ParagraphLayout(input, lines, signature, markerLine, markerX);
             });
         }
 
-        private static string FormatPageNumber(int number, PageNumberFormat format) => format switch
+        /// <summary>
+        /// Formats a list marker with the paragraph mark's font. The marker sits at the number position (left indent
+        /// minus hanging); the text starts at the left indent, or further right when the marker does not fit.
+        /// </summary>
+        private (IFormattedLine Line, double X, double TextStart) FormatMarker(ParagraphLayoutInput input, ListMarker marker)
         {
-            PageNumberFormat.LowerRoman => ToRoman(number).ToLowerInvariant(),
-            PageNumberFormat.UpperRoman => ToRoman(number),
-            PageNumberFormat.LowerLetter => ToLetters(number).ToLowerInvariant(),
-            PageNumberFormat.UpperLetter => ToLetters(number),
-            _ => number.ToString(CultureInfo.InvariantCulture),
-        };
-
-        private static string ToRoman(int number)
-        {
-            if (number <= 0 || number >= 4000)
+            ResolvedRunProperties run = input.MarkProperties with { FontFamily = marker.Font ?? input.MarkProperties.FontFamily };
+            var paragraph = new Paragraph([new Quill.Core.Model.Run(marker.Text)]);
+            ResolvedParagraphProperties props = input.Properties with
             {
-                return number.ToString(CultureInfo.InvariantCulture);
+                Alignment = Alignment.Left,
+                LeftIndent = Twips.Zero,
+                RightIndent = Twips.Zero,
+                FirstLineIndent = Twips.Zero,
+                Tabs = TabStops.Empty,
+                List = null,
+            };
+            var markerInput = new ParagraphLayoutInput(
+                paragraph,
+                marker.Text,
+                [new RunSpan(0, marker.Text.Length, run, RunKind.Text)],
+                run,
+                props,
+                Math.Max(1000, input.ColumnWidth * 4),
+                input.DefaultTabStop,
+                input.FlowDirection,
+                input.PixelsPerDip);
+            IReadOnlyList<IFormattedLine> lines = _formatter.FormatParagraph(markerInput);
+            IFormattedLine line = lines[0];
+            for (int i = 1; i < lines.Count; i++)
+            {
+                lines[i].Dispose();
             }
 
-            (int Value, string Symbol)[] table =
-            [
-                (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"),
-                (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
-            ];
-            var result = new System.Text.StringBuilder();
-            foreach ((int value, string symbol) in table)
+            double anchor = input.LeftIndent + input.FirstLineIndent;
+            double x = marker.Alignment switch
             {
-                while (number >= value)
-                {
-                    result.Append(symbol);
-                    number -= value;
-                }
-            }
-
-            return result.ToString();
+                Alignment.Right => anchor - line.Width,
+                Alignment.Center => anchor - line.Width / 2,
+                _ => anchor,
+            };
+            const double minimumGap = 6;
+            return (line, x, Math.Max(input.LeftIndent, x + line.Width + minimumGap));
         }
 
-        private static string ToLetters(int number)
-        {
-            if (number <= 0)
-            {
-                return number.ToString(CultureInfo.InvariantCulture);
-            }
-
-            // Word repeats the letter past Z: 27 = AA, 28 = BB.
-            int letter = (number - 1) % 26;
-            int repeat = (number - 1) / 26 + 1;
-            return new string((char)('A' + letter), repeat);
-        }
+        private static string FormatPageNumber(int number, PageNumberFormat format) => NumberText.Format(number, format);
 
         private sealed class Placement(Block block, BlockPath path)
         {

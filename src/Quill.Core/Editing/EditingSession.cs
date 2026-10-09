@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Quill.Core.Model;
 using Quill.Core.Styles;
 using Quill.Core.Text;
+using Quill.Core.Units;
 
 namespace Quill.Core.Editing;
 
@@ -31,7 +32,7 @@ public sealed class EditingSession
         Document = document;
         _savedDocument = document;
         _undo = undoStack ?? new UndoStack();
-        _resolver = new StyleResolver(document.Styles);
+        _resolver = new StyleResolver(document.Styles, document.Lists);
         Selection = Selection.Caret(TextNavigation.StoryStart(document, StoryId.Body(0)));
     }
 
@@ -255,6 +256,116 @@ public sealed class EditingSession
         ArgumentNullException.ThrowIfNull(delta);
         EditResult result = DocumentEditor.ApplyParagraphFormat(Document, Selection.Range, delta);
         Commit(result with { Selection = Selection }, EditKind.Formatting, startsNewGroup: true);
+    }
+
+    /// <summary>
+    /// Puts the selected paragraphs in a bullet or numbered list, or takes them out when they all already are in
+    /// one of that kind. Joins an adjacent list of the same kind rather than starting a new one.
+    /// </summary>
+    public void ToggleList(bool bulleted)
+    {
+        TextRange range = Selection.Range;
+        ImmutableList<Block> blocks = Document.GetStory(range.Story);
+        int first = range.Start.Block.TopIndex;
+        int last = range.End.Block.TopIndex;
+        bool allAlready = true;
+        for (int i = first; i <= last; i++)
+        {
+            if (blocks[i] is Paragraph paragraph && ListKind(paragraph) != bulleted)
+            {
+                allAlready = false;
+            }
+        }
+
+        if (allAlready)
+        {
+            Commit(DocumentEditor.ApplyParagraphFormat(Document, range, new ParagraphProperties { List = ListFormat.None }) with { Selection = Selection }, EditKind.Formatting, startsNewGroup: true);
+            return;
+        }
+
+        int? numberingId = NeighbourList(blocks, first - 1, bulleted) ?? NeighbourList(blocks, last + 1, bulleted);
+        Document document = Document;
+        if (numberingId is null)
+        {
+            (ListStore store, int id) = document.Lists.AddList(bulleted ? DefaultLists.BulletLevels() : DefaultLists.NumberedLevels());
+            document = document.WithLists(store);
+            numberingId = id;
+        }
+
+        EditResult result = DocumentEditor.ApplyParagraphFormat(document, range, new ParagraphProperties { List = new ListFormat(numberingId.Value, 0) });
+        Commit(result with { Selection = Selection, Change = ChangeSet.Structural() }, EditKind.Formatting, startsNewGroup: true);
+    }
+
+    /// <summary>Moves list paragraphs one level deeper or shallower; non-list paragraphs get their left indent changed by half an inch.</summary>
+    public void ChangeIndent(int delta)
+    {
+        TextRange range = Selection.Range;
+        ImmutableList<Block> blocks = Document.GetStory(range.Story);
+        Document document = Document;
+        ImmutableList<Block>.Builder builder = blocks.ToBuilder();
+        bool changed = false;
+        for (int i = range.Start.Block.TopIndex; i <= range.End.Block.TopIndex; i++)
+        {
+            if (blocks[i] is not Paragraph paragraph)
+            {
+                continue;
+            }
+
+            ResolvedParagraphProperties resolved = _resolver.ResolveParagraph(paragraph);
+            ParagraphProperties update;
+            if (resolved.List is { IsNone: false } list)
+            {
+                int level = Math.Clamp(list.Level + delta, 0, ListDefinition.LevelCount - 1);
+                if (level == list.Level)
+                {
+                    continue;
+                }
+
+                update = new ParagraphProperties { List = list with { Level = level } };
+            }
+            else
+            {
+                Twips left = Twips.Max(Twips.Zero, resolved.LeftIndent + Twips.FromInches(0.5 * delta));
+                if (left == resolved.LeftIndent)
+                {
+                    continue;
+                }
+
+                update = new ParagraphProperties { LeftIndent = left };
+            }
+
+            builder[i] = paragraph.WithProperties(paragraph.Properties.Merge(update));
+            changed = true;
+        }
+
+        if (changed)
+        {
+            Commit(new EditResult(document.WithStory(range.Story, builder.ToImmutable()), Selection, ChangeSet.From(range.Story, range.Start.Block.TopIndex)), EditKind.Formatting, startsNewGroup: true);
+        }
+    }
+
+    /// <summary>True for bullet, false for numbered, null when the paragraph is not in a list.</summary>
+    public bool? ListKind(Paragraph paragraph)
+    {
+        ArgumentNullException.ThrowIfNull(paragraph);
+        ResolvedParagraphProperties resolved = _resolver.ResolveParagraph(paragraph);
+        if (resolved.List is not { IsNone: false } list)
+        {
+            return null;
+        }
+
+        return Document.Lists.GetLevel(list.NumberingId, list.Level)?.IsBullet;
+    }
+
+    private int? NeighbourList(ImmutableList<Block> blocks, int index, bool bulleted)
+    {
+        if (index < 0 || index >= blocks.Count || blocks[index] is not Paragraph paragraph)
+        {
+            return null;
+        }
+
+        ResolvedParagraphProperties resolved = _resolver.ResolveParagraph(paragraph);
+        return resolved.List is { IsNone: false } list && Document.Lists.GetLevel(list.NumberingId, list.Level)?.IsBullet == bulleted ? list.NumberingId : null;
     }
 
     public void SetParagraphStyle(string? paragraphStyleId)
@@ -549,9 +660,9 @@ public sealed class EditingSession
     {
         Document old = Document;
         Document = document;
-        if (!ReferenceEquals(old.Styles, document.Styles))
+        if (!ReferenceEquals(old.Styles, document.Styles) || !ReferenceEquals(old.Lists, document.Lists))
         {
-            _resolver = new StyleResolver(document.Styles);
+            _resolver = new StyleResolver(document.Styles, document.Lists);
         }
 
         bool selectionChanged = selection != Selection;

@@ -1170,6 +1170,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 {
                     session.DeleteWordBackward();
                 }
+                else if (session.Selection.IsCollapsed && session.Selection.Active.Offset == 0 && CaretListKind(session) is { } listAtStart)
+                {
+                    session.ToggleList(listAtStart); // Backspace at the start of a list item removes the bullet first, like Word
+                }
                 else
                 {
                     session.Backspace();
@@ -1200,6 +1204,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 {
                     session.InsertBreak(Core.Model.BreakKind.Page);
                 }
+                else if (session.Selection.IsCollapsed && session.Document.GetParagraph(session.Selection.Active).IsEmpty && CaretListKind(session) is { } emptyItem)
+                {
+                    session.ToggleList(emptyItem); // Enter on an empty list item ends the list, like Word
+                }
                 else
                 {
                     session.InsertParagraphBreak();
@@ -1207,7 +1215,15 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
                 break;
             case Key.Tab:
-                session.InsertText("\t");
+                if (session.Selection.IsCollapsed && session.Selection.Active.Offset == 0 && CaretListKind(session) is not null)
+                {
+                    session.ChangeIndent(shift ? -1 : 1);
+                }
+                else if (!shift)
+                {
+                    session.InsertText("\t");
+                }
+
                 break;
             case Key.Insert when shift:
                 PasteFromClipboard();
@@ -1290,6 +1306,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         e.Handled = true;
     }
+
+    /// <summary>True for bullets, false for numbers, null when the caret's paragraph is not a list item.</summary>
+    private static bool? CaretListKind(EditingSession session) =>
+        session.ListKind(session.Document.GetParagraph(session.Selection.Active));
 
     private void MoveHorizontal(int direction, bool byWord, bool extend)
     {

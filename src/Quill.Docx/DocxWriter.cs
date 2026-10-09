@@ -28,6 +28,12 @@ public static class DocxWriter
         StyleDefinitionsPart stylesPart = main.AddNewPart<StyleDefinitionsPart>();
         stylesPart.Styles = BuildStyles(document.Styles);
 
+        if (!document.Lists.IsEmpty)
+        {
+            NumberingDefinitionsPart numberingPart = main.AddNewPart<NumberingDefinitionsPart>();
+            numberingPart.Numbering = BuildNumbering(document.Lists);
+        }
+
         DocumentSettingsPart settingsPart = main.AddNewPart<DocumentSettingsPart>();
         var settings = new W.Settings(new W.DefaultTabStop { Val = (short)Math.Clamp(document.Settings.DefaultTabStop.Value, 1, short.MaxValue) });
         if (document.Settings.EvenAndOddHeaders)
@@ -334,6 +340,13 @@ public static class DocxWriter
             pPr.Append(new W.WidowControl { Val = OnOffValue.FromBoolean(widow) });
         }
 
+        if (p.List is { } list)
+        {
+            pPr.Append(new W.NumberingProperties(
+                new W.NumberingLevelReference { Val = list.IsNone ? 0 : list.Level },
+                new W.NumberingId { Val = list.IsNone ? 0 : list.NumberingId }));
+        }
+
         if (p.Tabs is { Count: > 0 } tabs)
         {
             var element = new W.Tabs();
@@ -495,6 +508,71 @@ public static class DocxWriter
 
         return sectPr;
     }
+
+    // ------------------------------------------------------------------ numbering
+
+    private static W.Numbering BuildNumbering(ListStore lists)
+    {
+        var numbering = new W.Numbering();
+        foreach (ListDefinition definition in lists.Definitions.Values.OrderBy(d => d.Id))
+        {
+            var abstractNum = new W.AbstractNum { AbstractNumberId = definition.Id };
+            abstractNum.Append(new W.MultiLevelType { Val = W.MultiLevelValues.HybridMultilevel });
+            for (int i = 0; i < definition.Levels.Length; i++)
+            {
+                ListLevel level = definition.Levels[i];
+                var element = new W.Level { LevelIndex = i };
+                element.Append(new W.StartNumberingValue { Val = level.Start });
+                element.Append(new W.NumberingFormat { Val = NumberFormatTo(level.Format) });
+                element.Append(new W.LevelText { Val = level.Text });
+                element.Append(new W.LevelJustification { Val = LevelJustificationTo(level.Alignment) });
+                element.Append(new W.PreviousParagraphProperties(new W.Indentation { Left = Inv(level.LeftIndent.Value), Hanging = Inv(level.Hanging.Value) }));
+                if (level.MarkerFont is not null)
+                {
+                    element.Append(new W.NumberingSymbolRunProperties(new W.RunFonts { Ascii = level.MarkerFont, HighAnsi = level.MarkerFont }));
+                }
+
+                abstractNum.Append(element);
+            }
+
+            numbering.Append(abstractNum);
+        }
+
+        foreach (ListInstance instance in lists.Instances.Values.OrderBy(i => i.Id))
+        {
+            var num = new W.NumberingInstance { NumberID = instance.Id };
+            num.Append(new W.AbstractNumId { Val = instance.DefinitionId });
+            if (instance.StartOverrides is not null)
+            {
+                foreach ((int level, int start) in instance.StartOverrides.OrderBy(o => o.Key))
+                {
+                    num.Append(new W.LevelOverride(new W.StartOverrideNumberingValue { Val = start }) { LevelIndex = level });
+                }
+            }
+
+            numbering.Append(num);
+        }
+
+        return numbering;
+    }
+
+    private static W.NumberFormatValues NumberFormatTo(NumberFormat format) => format switch
+    {
+        NumberFormat.Bullet => W.NumberFormatValues.Bullet,
+        NumberFormat.LowerLetter => W.NumberFormatValues.LowerLetter,
+        NumberFormat.UpperLetter => W.NumberFormatValues.UpperLetter,
+        NumberFormat.LowerRoman => W.NumberFormatValues.LowerRoman,
+        NumberFormat.UpperRoman => W.NumberFormatValues.UpperRoman,
+        NumberFormat.None => W.NumberFormatValues.None,
+        _ => W.NumberFormatValues.Decimal,
+    };
+
+    private static W.LevelJustificationValues LevelJustificationTo(Alignment alignment) => alignment switch
+    {
+        Alignment.Center => W.LevelJustificationValues.Center,
+        Alignment.Right => W.LevelJustificationValues.Right,
+        _ => W.LevelJustificationValues.Left,
+    };
 
     // ------------------------------------------------------------------ styles
 

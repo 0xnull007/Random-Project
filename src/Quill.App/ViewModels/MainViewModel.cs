@@ -87,6 +87,12 @@ public sealed partial class MainViewModel : ObservableObject
     public partial Alignment Alignment { get; set; }
 
     [ObservableProperty]
+    public partial bool IsBulleted { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsNumbered { get; set; }
+
+    [ObservableProperty]
     public partial string FontFamily { get; set; }
 
     [ObservableProperty]
@@ -182,6 +188,28 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void Redo() => Session.Redo();
+
+    [RelayCommand]
+    private void IncreaseIndent() => Session.ChangeIndent(1);
+
+    [RelayCommand]
+    private void DecreaseIndent() => Session.ChangeIndent(-1);
+
+    partial void OnIsBulletedChanged(bool value)
+    {
+        if (!_syncingFormat && value != (Session.ListKind(Session.Document.GetParagraph(Session.Selection.Active)) == true))
+        {
+            Session.ToggleList(bulleted: true);
+        }
+    }
+
+    partial void OnIsNumberedChanged(bool value)
+    {
+        if (!_syncingFormat && value != (Session.ListKind(Session.Document.GetParagraph(Session.Selection.Active)) == false))
+        {
+            Session.ToggleList(bulleted: false);
+        }
+    }
 
     [RelayCommand]
     private void InsertPageBreak() => Session.InsertBreak(BreakKind.Page);
@@ -511,6 +539,9 @@ public sealed partial class MainViewModel : ObservableObject
             Alignment = paragraph.Alignment;
             Paragraph current = Session.Document.GetParagraph(Session.Selection.Active);
             CurrentStyle = ParagraphStyles.FirstOrDefault(s => s.Id == (current.StyleId ?? Session.Document.Styles.DefaultParagraphStyleId));
+            bool? listKind = Session.ListKind(current);
+            IsBulleted = listKind == true;
+            IsNumbered = listKind == false;
             CanUndo = Session.CanUndo;
             CanRedo = Session.CanRedo;
         }

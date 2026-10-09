@@ -41,6 +41,9 @@ public sealed record ParagraphProperties
     /// <summary>Outline level 0-8 for headings; null = body text.</summary>
     public int? OutlineLevel { get; init; }
 
+    /// <summary>List membership; <see cref="ListFormat.None"/> switches an inherited list off.</summary>
+    public ListFormat? List { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -72,6 +75,7 @@ public sealed record ParagraphProperties
             ContextualSpacing = overrides.ContextualSpacing ?? ContextualSpacing,
             Tabs = Tabs is null ? overrides.Tabs : Tabs.Merge(overrides.Tabs),
             OutlineLevel = overrides.OutlineLevel ?? OutlineLevel,
+            List = overrides.List ?? List,
         };
     }
 }

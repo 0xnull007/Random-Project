@@ -78,6 +78,11 @@
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignRight}" Content="&#x2630;" ToolTip="Align right (Ctrl+R)" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignJustify}" Content="&#x2261;" ToolTip="Justify (Ctrl+J)" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsBulleted}" Content="&#x2022; List" ToolTip="Bulleted list" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsNumbered}" Content="1. List" ToolTip="Numbered list" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E4;" Command="{Binding DecreaseIndentCommand}" ToolTip="Decrease indent (Shift+Tab at the start of a list item)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E5;" Command="{Binding IncreaseIndentCommand}" ToolTip="Increase indent (Tab at the start of a list item)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150"
                     ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
                     ToolTip="Paragraph style" />

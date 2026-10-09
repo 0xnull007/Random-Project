@@ -49,6 +49,7 @@ public sealed class DocxReader
         _theme = ThemeInfo.From(_main.ThemePart);
         StyleSheet styles = ReadStyles(_main.StyleDefinitionsPart);
         DocumentSettings settings = ReadSettings(_main.DocumentSettingsPart);
+        ListStore lists = ReadNumbering(_main.NumberingDefinitionsPart);
         W.Body body = _main.Document?.Body ?? new W.Body();
         ImmutableList<Section> sections = ReadSections(body);
         DocumentMetadata metadata = new()
@@ -60,7 +61,7 @@ public sealed class DocxReader
             Created = package.PackageProperties.Created,
             Modified = package.PackageProperties.Modified,
         };
-        return new LoadResult(new Document(sections, styles, settings, metadata), _warnings);
+        return new LoadResult(new Document(sections, styles, settings, metadata, lists), _warnings);
     }
 
     // ------------------------------------------------------------------ sections and stories
@@ -446,6 +447,7 @@ public sealed class DocxReader
             WidowControl = OnOff(pPr.GetFirstChild<W.WidowControl>()),
             ContextualSpacing = OnOff(pPr.GetFirstChild<W.ContextualSpacing>()),
             OutlineLevel = pPr.GetFirstChild<W.OutlineLevel>()?.Val?.Value,
+            List = ReadListFormat(pPr.GetFirstChild<W.NumberingProperties>()),
         };
 
         if (pPr.GetFirstChild<W.Indentation>() is { } ind)
@@ -498,6 +500,154 @@ public sealed class DocxReader
         }
 
         return props;
+    }
+
+    private static ListFormat? ReadListFormat(W.NumberingProperties? numPr)
+    {
+        if (numPr is null)
+        {
+            return null;
+        }
+
+        int numberingId = numPr.NumberingId?.Val?.Value ?? 0;
+        int level = numPr.NumberingLevelReference?.Val?.Value ?? 0;
+        return numberingId <= 0 ? ListFormat.None : new ListFormat(numberingId, Math.Clamp(level, 0, ListDefinition.LevelCount - 1));
+    }
+
+    // ------------------------------------------------------------------ numbering
+
+    private ListStore ReadNumbering(NumberingDefinitionsPart? part)
+    {
+        W.Numbering? numbering = part?.Numbering;
+        if (numbering is null)
+        {
+            return ListStore.Empty;
+        }
+
+        var definitions = ImmutableDictionary.CreateBuilder<int, ListDefinition>();
+        foreach (W.AbstractNum abstractNum in numbering.Elements<W.AbstractNum>())
+        {
+            if (abstractNum.AbstractNumberId?.Value is not { } id)
+            {
+                continue;
+            }
+
+            var levels = new ListLevel[ListDefinition.LevelCount];
+            for (int i = 0; i < levels.Length; i++)
+            {
+                levels[i] = new ListLevel { LeftIndent = Twips.FromInches(0.5 * (i + 1)), Hanging = Twips.FromInches(0.25) };
+            }
+
+            foreach (W.Level level in abstractNum.Elements<W.Level>())
+            {
+                int index = level.LevelIndex?.Value ?? 0;
+                if (index < 0 || index >= levels.Length)
+                {
+                    continue;
+                }
+
+                levels[index] = ReadLevel(level, levels[index]);
+            }
+
+            definitions[id] = new ListDefinition(id, [.. levels]);
+        }
+
+        var instances = ImmutableDictionary.CreateBuilder<int, ListInstance>();
+        foreach (W.NumberingInstance num in numbering.Elements<W.NumberingInstance>())
+        {
+            if (num.NumberID?.Value is not { } id || num.AbstractNumId?.Val?.Value is not { } definitionId)
+            {
+                continue;
+            }
+
+            ImmutableDictionary<int, int>? overrides = null;
+            foreach (W.LevelOverride levelOverride in num.Elements<W.LevelOverride>())
+            {
+                if (levelOverride.LevelIndex?.Value is { } index && levelOverride.StartOverrideNumberingValue?.Val?.Value is { } start)
+                {
+                    overrides = (overrides ?? ImmutableDictionary<int, int>.Empty).SetItem(index, start);
+                }
+            }
+
+            instances[id] = new ListInstance(id, definitionId, overrides);
+        }
+
+        return new ListStore(definitions.ToImmutable(), instances.ToImmutable());
+    }
+
+    private ListLevel ReadLevel(W.Level level, ListLevel defaults)
+    {
+        NumberFormat format = level.NumberingFormat?.Val?.InnerText switch
+        {
+            "bullet" => NumberFormat.Bullet,
+            "lowerLetter" => NumberFormat.LowerLetter,
+            "upperLetter" => NumberFormat.UpperLetter,
+            "lowerRoman" => NumberFormat.LowerRoman,
+            "upperRoman" => NumberFormat.UpperRoman,
+            "none" => NumberFormat.None,
+            null => defaults.Format,
+            _ => NumberFormat.Decimal,
+        };
+        string text = level.LevelText?.Val?.Value ?? (format == NumberFormat.Bullet ? "\u2022" : defaults.Text);
+        string? font = level.NumberingSymbolRunProperties?.GetFirstChild<W.RunFonts>() is { } fonts ? fonts.Ascii?.Value ?? fonts.HighAnsi?.Value : null;
+        if (format == NumberFormat.Bullet)
+        {
+            (text, font) = MapSymbolBullet(text, font);
+        }
+
+        Twips leftIndent = defaults.LeftIndent;
+        Twips hanging = defaults.Hanging;
+        if (level.PreviousParagraphProperties?.GetFirstChild<W.Indentation>() is { } ind)
+        {
+            leftIndent = TwipsFrom(ind.Left?.Value ?? ind.Start?.Value) ?? leftIndent;
+            hanging = TwipsFrom(ind.Hanging?.Value) ?? (TwipsFrom(ind.FirstLine?.Value) is { } firstLine ? -firstLine : hanging);
+        }
+
+        return new ListLevel
+        {
+            Format = format,
+            Text = text,
+            Start = level.StartNumberingValue?.Val?.Value ?? 1,
+            LeftIndent = leftIndent,
+            Hanging = hanging,
+            MarkerFont = font,
+            Alignment = level.LevelJustification?.Val?.InnerText switch
+            {
+                "center" => Alignment.Center,
+                "right" => Alignment.Right,
+                _ => Alignment.Left,
+            },
+        };
+    }
+
+    /// <summary>Word stores its default bullets as private-use characters in Symbol/Wingdings; map the common ones to Unicode.</summary>
+    private static (string Text, string? Font) MapSymbolBullet(string text, string? font)
+    {
+        if (text.Length == 1 && text[0] >= '\uF000' && text[0] <= '\uF0FF')
+        {
+            string mapped = (text[0] & 0xFF) switch
+            {
+                0xB7 => "\u2022", // Symbol bullet
+                0xA7 => "\u25AA", // Wingdings small square
+                0xA8 => "\u25AB",
+                0xD8 => "\u27A2", // Wingdings arrow
+                0xFC => "\u2713", // Wingdings check
+                0x76 => "\u2756", // Wingdings diamond
+                0x6E => "\u25A0",
+                0x6C => "\u25CF",
+                0xB2 => "\u2751",
+                0xA1 => "\u25CB",
+                _ => "\u2022",
+            };
+            return (mapped, null);
+        }
+
+        if (string.Equals(font, "Symbol", StringComparison.OrdinalIgnoreCase) || (font is not null && font.StartsWith("Wingdings", StringComparison.OrdinalIgnoreCase)))
+        {
+            return (text, null);
+        }
+
+        return (text, font);
     }
 
     // ------------------------------------------------------------------ styles and settings

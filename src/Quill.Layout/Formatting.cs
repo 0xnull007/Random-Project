@@ -63,12 +63,18 @@ public sealed record ParagraphLayoutInput(
 
     public double FirstLineIndent => Properties.FirstLineIndent.ToDips();
 
+    /// <summary>For list paragraphs: where the first line's text starts (after the marker), overriding the hanging indent.</summary>
+    public double? FirstLineStart { get; init; }
+
+    /// <summary>The list marker drawn in front of the paragraph, if any.</summary>
+    public ListMarker? Marker { get; init; }
+
     /// <summary>Width available to a given line after indents; never below one DIP.</summary>
-    public double LineWidth(bool firstLine) =>
-        Math.Max(1, ColumnWidth - LeftIndent - RightIndent - (firstLine ? FirstLineIndent : 0));
+    public double LineWidth(bool firstLine) => Math.Max(1, ColumnWidth - LineStart(firstLine) - RightIndent);
 
     /// <summary>Horizontal start of a line relative to the column's left edge.</summary>
-    public double LineStart(bool firstLine) => LeftIndent + (firstLine ? FirstLineIndent : 0);
+    public double LineStart(bool firstLine) =>
+        firstLine && FirstLineStart is { } start ? start : LeftIndent + (firstLine ? FirstLineIndent : 0);
 
     /// <summary>Builds the input for a paragraph by resolving every inline against the style sheet.</summary>
     public static ParagraphLayoutInput Create(

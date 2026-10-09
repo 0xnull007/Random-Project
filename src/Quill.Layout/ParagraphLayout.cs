@@ -12,11 +12,13 @@ public sealed class ParagraphLayout : IDisposable
 {
     private bool _disposed;
 
-    internal ParagraphLayout(ParagraphLayoutInput input, IReadOnlyList<IFormattedLine> lines, string fieldSignature)
+    internal ParagraphLayout(ParagraphLayoutInput input, IReadOnlyList<IFormattedLine> lines, string fieldSignature, IFormattedLine? marker = null, double markerX = 0)
     {
         Input = input;
         Lines = lines;
         FieldSignature = fieldSignature;
+        MarkerLine = marker;
+        MarkerX = markerX;
 
         ResolvedParagraphProperties props = input.Properties;
         SpaceBefore = Math.Max(0, props.SpaceBefore.ToDips());
@@ -54,6 +56,12 @@ public sealed class ParagraphLayout : IDisposable
     public double Width => Input.ColumnWidth;
 
     public string FieldSignature { get; }
+
+    /// <summary>The formatted list marker (bullet or number) drawn before the first line, or null.</summary>
+    public IFormattedLine? MarkerLine { get; }
+
+    /// <summary>x of the marker relative to the column's left edge.</summary>
+    public double MarkerX { get; }
 
     public IReadOnlyList<IFormattedLine> Lines { get; }
 
@@ -154,6 +162,7 @@ public sealed class ParagraphLayout : IDisposable
         }
 
         _disposed = true;
+        MarkerLine?.Dispose();
         foreach (IFormattedLine line in Lines)
         {
             line.Dispose();

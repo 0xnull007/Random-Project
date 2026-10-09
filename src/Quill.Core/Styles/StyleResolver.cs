@@ -55,15 +55,18 @@ public sealed class StyleResolver
     private readonly RunProperties _runBase;
     private readonly ParagraphProperties _paragraphBase;
 
-    public StyleResolver(StyleSheet sheet)
+    public StyleResolver(StyleSheet sheet, ListStore? lists = null)
     {
         ArgumentNullException.ThrowIfNull(sheet);
         Sheet = sheet;
+        Lists = lists ?? ListStore.Empty;
         _runBase = HardRunDefaults.Merge(sheet.Defaults.Run);
         _paragraphBase = HardParagraphDefaults.Merge(sheet.Defaults.Paragraph);
     }
 
     public StyleSheet Sheet { get; }
+
+    public ListStore Lists { get; }
 
     public ResolvedParagraphProperties ResolveParagraph(Paragraph paragraph)
     {
@@ -115,7 +118,17 @@ public sealed class StyleResolver
 
     private ResolvedParagraphProperties BuildParagraph(ParagraphKey key)
     {
-        ParagraphProperties merged = _paragraphBase.Merge(ParagraphChain(key.ParagraphStyleId)).Merge(key.Direct);
+        ParagraphProperties chain = ParagraphChain(key.ParagraphStyleId);
+        ParagraphProperties merged = _paragraphBase.Merge(chain);
+
+        // Word applies the list level's indents between the style and direct formatting.
+        ListFormat? list = key.Direct.List ?? chain.List;
+        if (list is { IsNone: false } format && Lists.GetLevel(format.NumberingId, format.Level) is { } level)
+        {
+            merged = merged.Merge(new ParagraphProperties { LeftIndent = level.LeftIndent, FirstLineIndent = -level.Hanging });
+        }
+
+        merged = merged.Merge(key.Direct);
         return new ResolvedParagraphProperties(
             merged.Alignment!.Value,
             merged.LeftIndent!.Value,
@@ -130,7 +143,8 @@ public sealed class StyleResolver
             merged.WidowControl!.Value,
             merged.ContextualSpacing!.Value,
             (merged.Tabs ?? TabStops.Empty).WithoutCleared(),
-            merged.OutlineLevel);
+            merged.OutlineLevel,
+            list is { IsNone: false } ? list : null);
     }
 
     private ResolvedRunProperties BuildRun(RunKey key)

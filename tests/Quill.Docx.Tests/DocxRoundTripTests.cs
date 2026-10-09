@@ -313,3 +313,89 @@ public class DocxRoundTripTests
         }
     }
 }
+
+public class DocxListTests
+{
+    [Fact]
+    public void Lists_round_trip_with_levels_overrides_and_bullets()
+    {
+        (ListStore store, int bullets) = ListStore.Empty.AddList(DefaultLists.BulletLevels());
+        (store, int numbers) = store.AddList(DefaultLists.NumberedLevels());
+        store = store.With(new ListInstance(numbers + 1, store.GetInstance(numbers)!.DefinitionId, ImmutableDictionary<int, int>.Empty.Add(0, 7)));
+        Block[] blocks =
+        [
+            new Paragraph([new Run("bullet one")], properties: new ParagraphProperties { List = new ListFormat(bullets, 0) }),
+            new Paragraph([new Run("bullet nested")], properties: new ParagraphProperties { List = new ListFormat(bullets, 1) }),
+            new Paragraph([new Run("number one")], properties: new ParagraphProperties { List = new ListFormat(numbers, 0) }),
+            new Paragraph([new Run("restarted at seven")], properties: new ParagraphProperties { List = new ListFormat(numbers + 1, 0) }),
+            new Paragraph([new Run("switched off")], properties: new ParagraphProperties { List = ListFormat.None }),
+        ];
+        var original = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, blocks.ToImmutableList())), DefaultStyleSheet.Create(), lists: store);
+
+        byte[] bytes = DocxWriter.ToBytes(original);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            Assert.NotNull(package.MainDocumentPart!.NumberingDefinitionsPart);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package));
+        }
+
+        Document doc = DocxReader.Read(new MemoryStream(bytes)).Document;
+        Assert.Equal(2, doc.Lists.Definitions.Count);
+        Assert.Equal(3, doc.Lists.Instances.Count);
+        Assert.Equal(new ListFormat(bullets, 1), ((Paragraph)doc.Sections[0].Body[1]).Properties.List);
+        Assert.Equal(ListFormat.None, ((Paragraph)doc.Sections[0].Body[4]).Properties.List);
+        Assert.Equal(7, doc.Lists.GetInstance(numbers + 1)!.StartOverride(0));
+        ListLevel level1 = doc.Lists.GetLevel(bullets, 1)!;
+        Assert.Equal(NumberFormat.Bullet, level1.Format);
+        Assert.Equal("o", level1.Text);
+        Assert.Equal(Twips.FromInches(1.0), level1.LeftIndent);
+        Assert.Equal(Twips.FromInches(0.25), level1.Hanging);
+        ListLevel numbered2 = doc.Lists.GetLevel(numbers, 2)!;
+        Assert.Equal(NumberFormat.LowerRoman, numbered2.Format);
+        Assert.Equal("%3.", numbered2.Text);
+        Assert.Equal(Alignment.Right, numbered2.Alignment);
+
+        var resolver = new StyleResolver(doc.Styles, doc.Lists);
+        IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(doc.Sections[0].Body, doc.Lists, resolver);
+        Assert.Equal("\u2022", markers[0].Text);
+        Assert.Equal("1.", markers[2].Text);
+        Assert.Equal("7.", markers[3].Text);
+        Assert.False(markers.ContainsKey(4));
+    }
+
+    [Fact]
+    public void Word_symbol_bullets_map_to_unicode()
+    {
+        using var stream = new MemoryStream();
+        using (WordprocessingDocument package = WordprocessingDocument.Create(stream, DocumentFormat.OpenXml.WordprocessingDocumentType.Document))
+        {
+            MainDocumentPart main = package.AddMainDocumentPart();
+            NumberingDefinitionsPart numbering = main.AddNewPart<NumberingDefinitionsPart>();
+            numbering.Numbering = new W.Numbering(
+                new W.AbstractNum(
+                    new W.Level(
+                        new W.StartNumberingValue { Val = 1 },
+                        new W.NumberingFormat { Val = W.NumberFormatValues.Bullet },
+                        new W.LevelText { Val = "\uF0B7" },
+                        new W.LevelJustification { Val = W.LevelJustificationValues.Left },
+                        new W.PreviousParagraphProperties(new W.Indentation { Left = "720", Hanging = "360" }),
+                        new W.NumberingSymbolRunProperties(new W.RunFonts { Ascii = "Symbol", HighAnsi = "Symbol" }))
+                    { LevelIndex = 0 })
+                { AbstractNumberId = 0 },
+                new W.NumberingInstance(new W.AbstractNumId { Val = 0 }) { NumberID = 1 });
+            main.Document = new W.Document(new W.Body(
+                new W.Paragraph(new W.ParagraphProperties(new W.NumberingProperties(new W.NumberingLevelReference { Val = 0 }, new W.NumberingId { Val = 1 })), new W.Run(new W.Text("item")))));
+            main.Document.Save();
+        }
+
+        stream.Position = 0;
+        Document doc = DocxReader.Read(stream).Document;
+        ListLevel level = doc.Lists.GetLevel(1, 0)!;
+        Assert.Equal("\u2022", level.Text);
+        Assert.Null(level.MarkerFont);
+        Assert.Equal(new Twips(720), level.LeftIndent);
+        Assert.Equal(new Twips(360), level.Hanging);
+        Assert.Equal(new ListFormat(1, 0), ((Paragraph)doc.Sections[0].Body[0]).Properties.List);
+    }
+}

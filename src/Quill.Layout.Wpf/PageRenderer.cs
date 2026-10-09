@@ -31,6 +31,13 @@ public static class PageRenderer
     {
         ArgumentNullException.ThrowIfNull(fragment);
         ArgumentNullException.ThrowIfNull(target);
+        if (fragment.IsParagraphStart && fragment.Layout.MarkerLine is { } marker)
+        {
+            PointD first = fragment.LineOrigin(fragment.FirstLine);
+            double y = first.Y + (fragment.Layout.Lines[fragment.FirstLine].Baseline - marker.Baseline);
+            marker.Draw(target, new PointD(fragment.Bounds.Left + fragment.Layout.MarkerX, y));
+        }
+
         for (int i = fragment.FirstLine; i <= fragment.LastLine; i++)
         {
             fragment.Layout.Lines[i].Draw(target, fragment.LineOrigin(i));
