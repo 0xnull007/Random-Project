@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>WPF-free document model, units, styles, positions, selection, edit operations and undo.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Quill.Core.Tests" />
+    <InternalsVisibleTo Include="Quill.Layout.Tests" />
+  </ItemGroup>
+
+</Project>

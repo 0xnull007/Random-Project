@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Quill</AssemblyName>
+    <RootNamespace>Quill.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Quill desktop application: document view, editor controller, command bar, dialogs, printing.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Quill.Core/Quill.Core.csproj" />
+    <ProjectReference Include="../Quill.Layout/Quill.Layout.csproj" />
+    <ProjectReference Include="../Quill.Layout.Wpf/Quill.Layout.Wpf.csproj" />
+    <ProjectReference Include="../Quill.Docx/Quill.Docx.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+
+</Project>

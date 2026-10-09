@@ -1,0 +1,39 @@
+# Build output
+bin/
+obj/
+out/
+artifacts/
+TestResults/
+BenchmarkDotNet.Artifacts/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+*.swp
+*.DotSettings.user
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# MSIX / packaging output
+AppPackages/
+BundleArtifacts/
+*.appx
+*.msix
+*.msixbundle
+*.pfx
+
+# Golden-image diffs produced by tests
+**/GoldenDiffs/
+
+# OS
+Thumbs.db
+.DS_Store

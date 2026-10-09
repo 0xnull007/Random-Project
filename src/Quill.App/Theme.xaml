@@ -1,0 +1,36 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!--
+    The only place that names Fluent theme resource keys. Everything else binds to these aliases so a rename in a
+    future .NET release is a one-file fix. The Fluent keys are provided by ThemeMode on the Application.
+  -->
+  <SolidColorBrush x:Key="Quill.CanvasBrush" Color="#FFE6E6E6" />
+  <SolidColorBrush x:Key="Quill.CanvasBrushDark" Color="#FF202020" />
+  <SolidColorBrush x:Key="Quill.PageBrush" Color="White" />
+  <SolidColorBrush x:Key="Quill.PageBorderBrush" Color="#FFBDBDBD" />
+  <SolidColorBrush x:Key="Quill.PageShadowBrush" Color="#33000000" />
+  <SolidColorBrush x:Key="Quill.SelectionBrush" Color="#550078D4" />
+  <SolidColorBrush x:Key="Quill.CaretBrush" Color="Black" />
+
+  <Style x:Key="Quill.CommandGroupLabel" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Opacity" Value="0.7" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="Margin" Value="0,2,0,0" />
+  </Style>
+
+  <Style x:Key="Quill.CommandToggle" TargetType="ToggleButton">
+    <Setter Property="MinWidth" Value="32" />
+    <Setter Property="Height" Value="32" />
+    <Setter Property="Margin" Value="1,0" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="FontSize" Value="14" />
+  </Style>
+
+  <Style x:Key="Quill.CommandButton" TargetType="Button">
+    <Setter Property="MinWidth" Value="32" />
+    <Setter Property="Height" Value="32" />
+    <Setter Property="Margin" Value="1,0" />
+    <Setter Property="Padding" Value="8,0" />
+  </Style>
+</ResourceDictionary>

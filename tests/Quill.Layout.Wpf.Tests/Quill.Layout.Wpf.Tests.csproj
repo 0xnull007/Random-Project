@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseWPF>true</UseWPF>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Quill.Core/Quill.Core.csproj" />
+    <ProjectReference Include="../../src/Quill.Layout/Quill.Layout.csproj" />
+    <ProjectReference Include="../../src/Quill.Layout.Wpf/Quill.Layout.Wpf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Xunit.StaFact" />
+  </ItemGroup>
+
+</Project>

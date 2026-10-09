@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Description>WPF adapters: TextFormatter-based line formatter, DrawingContext render target, font catalog.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Quill.Core/Quill.Core.csproj" />
+    <ProjectReference Include="../Quill.Layout/Quill.Layout.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Quill.Layout.Wpf.Tests" />
+  </ItemGroup>
+
+</Project>

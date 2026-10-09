@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Quill.App/Quill.App.csproj" />
+    <Project Path="src/Quill.Core/Quill.Core.csproj" />
+    <Project Path="src/Quill.Docx/Quill.Docx.csproj" />
+    <Project Path="src/Quill.Layout.Wpf/Quill.Layout.Wpf.csproj" />
+    <Project Path="src/Quill.Layout/Quill.Layout.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Quill.Core.Tests/Quill.Core.Tests.csproj" />
+    <Project Path="tests/Quill.Docx.Tests/Quill.Docx.Tests.csproj" />
+    <Project Path="tests/Quill.Layout.Tests/Quill.Layout.Tests.csproj" />
+    <Project Path="tests/Quill.Layout.Wpf.Tests/Quill.Layout.Wpf.Tests.csproj" />
+  </Folder>
+</Solution>
