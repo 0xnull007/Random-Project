@@ -69,4 +69,41 @@ public class UnitTests
         Assert.Throws<FormatException>(() => DocColor.Parse("12345"));
         Assert.Equal("2F5496", DocColor.Parse("2f5496").ToHex());
     }
+
+    [Theory]
+    [InlineData("1", LengthUnit.Inches, 1440)]
+    [InlineData("0.5in", LengthUnit.Centimeters, 720)]
+    [InlineData("0.5 inches", LengthUnit.Centimeters, 720)]
+    [InlineData("1\"", LengthUnit.Centimeters, 1440)]
+    [InlineData("2.54 cm", LengthUnit.Inches, 1440)]
+    [InlineData("25.4mm", LengthUnit.Inches, 1440)]
+    [InlineData("72pt", LengthUnit.Inches, 1440)]
+    [InlineData("1,5", LengthUnit.Centimeters, 850)]
+    [InlineData("  3  ", LengthUnit.Centimeters, 1701)]
+    public void Twips_parse_user_input_with_units(string text, LengthUnit defaultUnit, int expected)
+    {
+        Assert.True(Twips.TryParse(text, defaultUnit, out Twips value));
+        Assert.Equal(expected, value.Value);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("abc")]
+    [InlineData("1.2.3")]
+    [InlineData("in")]
+    public void Twips_rejects_non_lengths(string text)
+    {
+        Assert.False(Twips.TryParse(text, LengthUnit.Inches, out _));
+    }
+
+    [Fact]
+    public void Twips_format_for_display()
+    {
+        Assert.Equal("1.25", Twips.FromInches(1.25).Format(LengthUnit.Inches));
+        Assert.Equal("2.54", Twips.FromInches(1).Format(LengthUnit.Centimeters));
+        Assert.Equal("25.4", Twips.FromInches(1).Format(LengthUnit.Millimeters));
+        Assert.Equal("72", Twips.FromInches(1).Format(LengthUnit.Points));
+        Assert.Equal(Twips.FromInches(2), Twips.From(2, LengthUnit.Inches));
+    }
 }

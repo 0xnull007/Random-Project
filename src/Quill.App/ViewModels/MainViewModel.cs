@@ -209,6 +209,46 @@ public sealed partial class MainViewModel : ObservableObject
         Session.SetSectionProperties(section, props with { MarginTop = margin, MarginBottom = margin, MarginLeft = margin, MarginRight = margin });
     }
 
+    /// <summary>
+    /// Applies page setup to the current section or to every section as one undo step. Each section keeps its
+    /// own break type and page numbering; the odd/even setting is document-wide.
+    /// </summary>
+    public void ApplyPageSetup(SectionProperties setup, bool wholeDocument, bool evenAndOddHeaders)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        Document document = Session.Document;
+        int current = Session.Selection.Story.SectionIndex;
+        System.Collections.Immutable.ImmutableList<Section> sections = document.Sections;
+        for (int i = 0; i < sections.Count; i++)
+        {
+            if (!wholeDocument && i != current)
+            {
+                continue;
+            }
+
+            SectionProperties existing = sections[i].Properties;
+            SectionProperties updated = setup with
+            {
+                Start = existing.Start,
+                PageNumberStart = existing.PageNumberStart,
+                PageNumberFormat = existing.PageNumberFormat,
+                ColumnCount = existing.ColumnCount,
+            };
+            if (updated != existing)
+            {
+                sections = sections.SetItem(i, sections[i].WithProperties(updated));
+            }
+        }
+
+        DocumentSettings settings = document.Settings with { EvenAndOddHeaders = evenAndOddHeaders };
+        if (ReferenceEquals(sections, document.Sections) && settings == document.Settings)
+        {
+            return;
+        }
+
+        Session.ReplaceDocument(document.WithSections(sections).WithSettings(settings));
+    }
+
     [RelayCommand]
     private void SetZoom(string percent) => Zoom = double.Parse(percent, System.Globalization.CultureInfo.InvariantCulture) / 100.0;
 

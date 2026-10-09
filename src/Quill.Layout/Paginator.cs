@@ -400,7 +400,7 @@ public sealed class Paginator
         {
             SectionProperties props = _document.Sections[sectionIndex].Properties;
             var size = new SizeD(props.PageWidth.ToDips(), props.PageHeight.ToDips());
-            (StoryLayout? header, StoryLayout? footer) = LayoutHeaderFooter(sectionIndex, pageNumber, isFirstOfSection, size);
+            (StoryLayout? header, StoryLayout? footer, HeaderFooterVariant variant) = LayoutHeaderFooter(sectionIndex, pageNumber, isFirstOfSection, size);
 
             double bodyTop = props.MarginTop.ToDips();
             if (header is not null)
@@ -417,7 +417,7 @@ public sealed class Paginator
             double left = (props.MarginLeft + props.Gutter).ToDips();
             double width = Math.Max(1, size.Width - left - props.MarginRight.ToDips());
             var bodyArea = RectD.FromEdges(left, bodyTop, left + width, Math.Max(bodyTop + 1, bodyBottom));
-            return new PageBuilder(sectionIndex, pageNumber, size, bodyArea, header, footer, isFirstOfSection);
+            return new PageBuilder(sectionIndex, pageNumber, size, bodyArea, header, footer, isFirstOfSection, variant);
         }
 
         private void FinishPage(PageBuilder page, int pageNumber, int sectionIndex)
@@ -432,7 +432,8 @@ public sealed class Paginator
                 page.Fragments.ToImmutableArray(),
                 page.Header,
                 page.Footer,
-                isBlankFiller: false));
+                isBlankFiller: false,
+                page.Variant));
         }
 
         private void AddBlankPage(int sectionIndex, int pageNumber, bool isFirstOfSection)
@@ -448,10 +449,11 @@ public sealed class Paginator
                 ImmutableArray<BlockFragment>.Empty,
                 page.Header,
                 page.Footer,
-                isBlankFiller: true));
+                isBlankFiller: true,
+                page.Variant));
         }
 
-        private (StoryLayout? Header, StoryLayout? Footer) LayoutHeaderFooter(int sectionIndex, int pageNumber, bool isFirstOfSection, SizeD pageSize)
+        private (StoryLayout? Header, StoryLayout? Footer, HeaderFooterVariant Variant) LayoutHeaderFooter(int sectionIndex, int pageNumber, bool isFirstOfSection, SizeD pageSize)
         {
             SectionProperties props = _document.Sections[sectionIndex].Properties;
             HeaderFooterVariant variant = HeaderFooterVariant.Default;
@@ -492,7 +494,7 @@ public sealed class Paginator
                 footer = LayoutStory(footerStory, footerBlocks, new RectD(left, top, width, measured.Height), fields);
             }
 
-            return (header, footer);
+            return (header, footer, variant);
         }
 
         /// <summary>Walks back through "linked to previous" sections to find the story to show.</summary>
@@ -518,12 +520,8 @@ public sealed class Paginator
                 }
             }
 
-            // Fall back to the default variant when a first/even variant is missing.
-            if (variant != HeaderFooterVariant.Default)
-            {
-                return ResolveStory(sectionIndex, isHeader, HeaderFooterVariant.Default);
-            }
-
+            // No fallback to the default variant: like Word, a title page or even page whose own variant is
+            // undefined everywhere shows an empty header/footer.
             return (new StoryId(sectionIndex, kind), null);
         }
 
@@ -627,8 +625,10 @@ public sealed class Paginator
             public int FragmentsOnPage { get; set; }
         }
 
-        private sealed class PageBuilder(int sectionIndex, int pageNumber, SizeD size, RectD bodyArea, StoryLayout? header, StoryLayout? footer, bool isFirstOfSection)
+        private sealed class PageBuilder(int sectionIndex, int pageNumber, SizeD size, RectD bodyArea, StoryLayout? header, StoryLayout? footer, bool isFirstOfSection, HeaderFooterVariant variant)
         {
+            public HeaderFooterVariant Variant { get; } = variant;
+
             public int SectionIndex { get; } = sectionIndex;
 
             public int PageNumber { get; } = pageNumber;

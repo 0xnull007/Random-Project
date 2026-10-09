@@ -56,6 +56,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private bool _dragging;
     private double? _desiredCaretX;
     private (string Text, DocumentFragment Fragment)? _lastCopied;
+    private bool _headerFooterMode;
+    private TextPosition? _lastBodyPosition;
 
     public DocumentView()
     {
@@ -113,6 +115,156 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
     public LayoutDocument Layout => _layout;
 
+    /// <summary>True while the caret is in a header or footer story.</summary>
+    public bool IsEditingHeaderFooter => _headerFooterMode;
+
+    // ------------------------------------------------------------------ header / footer editing
+
+    /// <summary>Opens the header of the caret's page for editing, creating it if the section has none.</summary>
+    public void EditHeader() => EnterHeaderFooter(CurrentPageIndex(), isHeader: true);
+
+    /// <summary>Opens the footer of the caret's page for editing, creating it if the section has none.</summary>
+    public void EditFooter() => EnterHeaderFooter(CurrentPageIndex(), isHeader: false);
+
+    /// <summary>Returns the caret to the body, at the position it left.</summary>
+    public void ExitHeaderFooter()
+    {
+        EditingSession? session = Session;
+        if (session is null || !_headerFooterMode)
+        {
+            return;
+        }
+
+        TextPosition target = _lastBodyPosition is { } remembered && session.Document.IsValid(remembered)
+            ? remembered
+            : TextNavigation.StoryStart(session.Document, StoryId.Body(0));
+        session.MoveCaret(target, extend: false);
+    }
+
+    /// <summary>Inserts a field at the caret; from the body this first opens the footer, like Word's Page Number button.</summary>
+    public void InsertField(Core.Model.Field field)
+    {
+        ArgumentNullException.ThrowIfNull(field);
+        EditingSession? session = Session;
+        if (session is null)
+        {
+            return;
+        }
+
+        if (!_headerFooterMode)
+        {
+            EditFooter();
+        }
+
+        session.InsertInline(field);
+    }
+
+    private int CurrentPageIndex()
+    {
+        if (Session is { } session && _layout.Find(session.Selection.Active) is { } found)
+        {
+            return found.Page.Index;
+        }
+
+        return Math.Max(0, PageIndexAt(VisibleDocumentRect().Top + 1));
+    }
+
+    private void EnterHeaderFooter(int pageIndex, bool isHeader)
+    {
+        EditingSession? session = Session;
+        if (session is null || pageIndex < 0 || pageIndex >= _layout.PageCount)
+        {
+            return;
+        }
+
+        PageLayout page = _layout.Pages[pageIndex];
+        StoryId story = isHeader ? page.EditableHeaderStory() : page.EditableFooterStory();
+        if (session.Selection.Story.IsBody)
+        {
+            _lastBodyPosition = session.Selection.Active;
+        }
+
+        session.EnsureStory(story);
+        session.MoveCaret(TextNavigation.StoryStart(session.Document, story), extend: false);
+    }
+
+    private void UpdateHeaderFooterMode()
+    {
+        EditingSession? session = Session;
+        bool editing = session is not null && !session.Selection.Story.IsBody;
+        if (session is not null && session.Selection.Story.IsBody)
+        {
+            _lastBodyPosition = session.Selection.Active;
+        }
+
+        if (editing == _headerFooterMode)
+        {
+            return;
+        }
+
+        _headerFooterMode = editing;
+        foreach (PageVisuals visuals in _pageVisuals.Values)
+        {
+            DrawOverlay(visuals.Overlay, visuals.PageIndex);
+        }
+    }
+
+    /// <summary>Double-click in the header or footer area enters that story; double-click in the body leaves it.</summary>
+    private bool TryToggleHeaderFooterAt(Point viewPoint)
+    {
+        EditingSession? session = Session;
+        if (session is null || _layout.PageCount == 0)
+        {
+            return false;
+        }
+
+        Point doc = ToDocument(viewPoint);
+        int pageIndex = PageIndexAt(doc.Y);
+        if (pageIndex < 0)
+        {
+            return false;
+        }
+
+        PageLayout page = _layout.Pages[pageIndex];
+        double y = doc.Y - PageRect(pageIndex).Y;
+        bool inHeader = y < page.BodyArea.Top;
+        bool inFooter = y >= page.BodyArea.Bottom;
+        if (!_headerFooterMode && (inHeader || inFooter))
+        {
+            EnterHeaderFooter(pageIndex, inHeader);
+            if (HitTest(viewPoint) is { } hit)
+            {
+                session.MoveCaret(hit.Position, extend: false, hit.Affinity);
+            }
+
+            return true;
+        }
+
+        if (_headerFooterMode && !inHeader && !inFooter)
+        {
+            ExitHeaderFooter();
+            if (HitTest(viewPoint) is { } hit)
+            {
+                session.MoveCaret(hit.Position, extend: false, hit.Affinity);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Moves the caret, ignoring an extension that would cross into another story (which a selection cannot span).</summary>
+    private static void SafeMove(EditingSession session, TextPosition position, bool extend, CaretAffinity affinity = CaretAffinity.Downstream)
+    {
+        if (extend && position.Story != session.Selection.Story)
+        {
+            return;
+        }
+
+        session.MoveCaret(position, extend, affinity);
+    }
+
     protected override int VisualChildrenCount => _children.Count;
 
     protected override Visual GetVisualChild(int index) => _children[index];
@@ -146,6 +298,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private void OnSelectionChanged(object? sender, EventArgs e)
     {
         RestartCaretBlink();
+        UpdateHeaderFooterMode();
         UpdateCaretAndSelection();
         EnsureCaretVisible();
     }
@@ -256,6 +409,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         foreach (PageVisuals visuals in _pageVisuals.Values)
         {
             DrawChrome(visuals.Chrome, visuals.PageIndex);
+            DrawOverlay(visuals.Overlay, visuals.PageIndex);
         }
 
         RealizePages();
@@ -312,6 +466,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             var visuals = new PageVisuals(index);
             DrawChrome(visuals.Chrome, index);
             DrawContent(visuals.Content, index);
+            DrawOverlay(visuals.Overlay, index);
             DrawSelection(visuals.Selection, index);
             _pagesLayer.Children.Add(visuals.Root);
             _pageVisuals[index] = visuals;
@@ -343,6 +498,59 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         PageRenderer.DrawContent(_layout.Pages[index], new WpfRenderTarget(dc));
         dc.Pop();
         dc.Pop();
+    }
+
+    /// <summary>While a header or footer is being edited: dims the body and marks the header/footer boundaries, like Word.</summary>
+    private void DrawOverlay(DrawingVisual visual, int index)
+    {
+        using DrawingContext dc = visual.RenderOpen();
+        if (!_headerFooterMode)
+        {
+            return;
+        }
+
+        PageLayout page = _layout.Pages[index];
+        Rect rect = PageRect(index);
+        double zoom = Zoom;
+
+        Brush pageBrush = TryFindResource("Quill.PageBrush") as Brush ?? Brushes.White;
+        Brush dim = pageBrush.Clone();
+        dim.Opacity = 0.6;
+        dim.Freeze();
+        dc.DrawRectangle(dim, null, new Rect(rect.X + page.BodyArea.Left, rect.Y + page.BodyArea.Top, page.BodyArea.Width, page.BodyArea.Height));
+
+        Brush accent = TryFindResource("Quill.GuideBrush") as Brush ?? new SolidColorBrush(Color.FromRgb(0x00, 0x78, 0xD4));
+        var pen = new Pen(accent, 1 / zoom) { DashStyle = DashStyles.Dash };
+        pen.Freeze();
+        double left = rect.X + page.BodyArea.Left;
+        double right = rect.X + page.BodyArea.Right;
+        string section = (page.SectionIndex + 1).ToString(System.Globalization.CultureInfo.CurrentCulture);
+
+        double headerY = rect.Y + page.BodyArea.Top;
+        dc.DrawLine(pen, new Point(left, headerY), new Point(right, headerY));
+        DrawGuideLabel(dc, $"Header - Section {section}", left, headerY, below: true, accent, zoom);
+
+        double footerY = rect.Y + page.BodyArea.Bottom;
+        dc.DrawLine(pen, new Point(left, footerY), new Point(right, footerY));
+        DrawGuideLabel(dc, $"Footer - Section {section}", left, footerY, below: false, accent, zoom);
+    }
+
+    private void DrawGuideLabel(DrawingContext dc, string text, double x, double y, bool below, Brush accent, double zoom)
+    {
+        double fontSize = 11 / zoom;
+        var formatted = new FormattedText(
+            text,
+            System.Globalization.CultureInfo.CurrentUICulture,
+            System.Windows.FlowDirection.LeftToRight,
+            new Typeface("Segoe UI"),
+            fontSize,
+            Brushes.White,
+            VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        double padding = 4 / zoom;
+        double height = formatted.Height + 2 * padding;
+        double top = below ? y : y - height;
+        dc.DrawRectangle(accent, null, new Rect(x, top, formatted.Width + 2 * padding, height));
+        dc.DrawText(formatted, new Point(x + padding, top + padding));
     }
 
     private void DrawSelection(DrawingVisual visual, int index)
@@ -652,7 +860,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         LineRef targetLine = lines[target];
         double pageX = caretX - PageRect(targetLine.Page).X;
         (TextPosition position, CaretAffinity affinity) = HitTestLine(targetLine.Fragment, targetLine.Line, pageX);
-        session.MoveCaret(position, extend, affinity);
+        SafeMove(session, position, extend, affinity);
         _desiredCaretX = caretX;
     }
 
@@ -693,7 +901,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         SetOffsets(_offset.X, _offset.Y + direction * _viewport.Height);
         if (HitTest(viewPoint) is { } hit)
         {
-            session.MoveCaret(hit.Position, extend, hit.Affinity);
+            SafeMove(session, hit.Position, extend, hit.Affinity);
             _desiredCaretX = x;
         }
     }
@@ -705,12 +913,24 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         base.OnMouseLeftButtonDown(e);
         Focus();
         EditingSession? session = Session;
-        if (session is null || HitTest(e.GetPosition(this)) is not { } hit)
+        if (session is null)
         {
             return;
         }
 
+        Point viewPoint = e.GetPosition(this);
         _desiredCaretX = null;
+        if (e.ClickCount == 2 && TryToggleHeaderFooterAt(viewPoint))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (HitTest(viewPoint) is not { } hit)
+        {
+            return;
+        }
+
         switch (e.ClickCount)
         {
             case 2:
@@ -720,7 +940,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 session.SelectParagraphAt(hit.Position);
                 break;
             default:
-                session.MoveCaret(hit.Position, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift), hit.Affinity);
+                SafeMove(session, hit.Position, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift), hit.Affinity);
                 _dragging = true;
                 CaptureMouse();
                 break;
@@ -739,7 +959,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         if (HitTest(e.GetPosition(this)) is { } hit)
         {
-            session.MoveCaret(hit.Position, extend: true, hit.Affinity);
+            SafeMove(session, hit.Position, extend: true, hit.Affinity);
         }
     }
 
@@ -912,7 +1132,15 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 CopySelection();
                 break;
             case Key.Escape:
-                session.SetSelection(Selection.Caret(session.Selection.Active, session.Selection.Affinity));
+                if (_headerFooterMode && session.Selection.IsCollapsed)
+                {
+                    ExitHeaderFooter();
+                }
+                else
+                {
+                    session.SetSelection(Selection.Caret(session.Selection.Active, session.Selection.Affinity));
+                }
+
                 break;
             case Key.A when ctrl:
                 session.SelectAll();
@@ -1149,6 +1377,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             PageIndex = pageIndex;
             Root.Children.Add(Chrome);
             Root.Children.Add(Content);
+            Root.Children.Add(Overlay);
             Root.Children.Add(Selection);
         }
 
@@ -1159,6 +1388,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         public DrawingVisual Chrome { get; } = new();
 
         public DrawingVisual Content { get; } = new();
+
+        /// <summary>Dimming and guides shown while editing a header or footer.</summary>
+        public DrawingVisual Overlay { get; } = new();
 
         public DrawingVisual Selection { get; } = new();
     }

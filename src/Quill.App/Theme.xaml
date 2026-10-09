@@ -11,6 +11,7 @@
   <SolidColorBrush x:Key="Quill.PageShadowBrush" Color="#33000000" />
   <SolidColorBrush x:Key="Quill.SelectionBrush" Color="#550078D4" />
   <SolidColorBrush x:Key="Quill.CaretBrush" Color="Black" />
+  <SolidColorBrush x:Key="Quill.GuideBrush" Color="#FF0078D4" />
 
   <SolidColorBrush x:Key="Quill.DividerBrush" Color="#40808080" />
 

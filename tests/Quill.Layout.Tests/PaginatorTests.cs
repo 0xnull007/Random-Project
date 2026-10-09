@@ -392,6 +392,49 @@ public class PaginatorTests
     }
 
     [Fact]
+    public void Title_page_without_a_first_variant_shows_no_header_and_edits_its_own_variant()
+    {
+        var defaultHeader = ImmutableList.Create<Block>(P("default"));
+        var section = new Section(Page(5) with { TitlePage = true }, SingleLines(6).ToImmutableList(), new HeaderFooterSet(defaultHeader, null, null));
+        (LayoutDocument layout, _, _) = Run(Doc(section));
+        Assert.Equal(2, layout.PageCount);
+        Assert.Null(layout.Pages[0].Header);
+        Assert.Equal(HeaderFooterVariant.First, layout.Pages[0].Variant);
+        Assert.NotNull(layout.Pages[1].Header);
+        Assert.Equal(HeaderFooterVariant.Default, layout.Pages[1].Variant);
+        Assert.Equal(new StoryId(0, StoryKind.HeaderFirst), layout.Pages[0].EditableHeaderStory());
+        Assert.Equal(new StoryId(0, StoryKind.HeaderDefault), layout.Pages[1].EditableHeaderStory());
+        Assert.Equal(new StoryId(0, StoryKind.FooterFirst), layout.Pages[0].EditableFooterStory());
+    }
+
+    [Fact]
+    public void Even_pages_use_the_even_variant_when_enabled()
+    {
+        var defaultHeader = ImmutableList.Create<Block>(P("default"));
+        var section = new Section(Page(5), SingleLines(10).ToImmutableList(), new HeaderFooterSet(defaultHeader, null, null));
+        var doc = new Document(ImmutableList.Create(section), StyleSheet.Empty, new DocumentSettings { EvenAndOddHeaders = true });
+        (LayoutDocument layout, _, _) = Run(doc);
+        Assert.True(layout.PageCount >= 2);
+        Assert.Equal(HeaderFooterVariant.Default, layout.Pages[0].Variant);
+        Assert.NotNull(layout.Pages[0].Header);
+        Assert.Equal(HeaderFooterVariant.Even, layout.Pages[1].Variant);
+        Assert.Null(layout.Pages[1].Header);
+        Assert.Equal(new StoryId(0, StoryKind.HeaderEven), layout.Pages[1].EditableHeaderStory());
+    }
+
+    [Fact]
+    public void Editing_a_linked_header_edits_the_section_that_defines_it()
+    {
+        var defaultHeader = ImmutableList.Create<Block>(P("linked"));
+        var s1 = new Section(Page(5), ImmutableList.Create<Block>(P("one")), new HeaderFooterSet(defaultHeader, null, null));
+        var s2 = new Section(Page(5), ImmutableList.Create<Block>(P("two")));
+        (LayoutDocument layout, _, _) = Run(Doc(s1, s2));
+        Assert.Equal(2, layout.PageCount);
+        Assert.Equal(new StoryId(0, StoryKind.HeaderDefault), layout.Pages[1].EditableHeaderStory());
+        Assert.Equal(new StoryId(1, StoryKind.FooterDefault), layout.Pages[1].EditableFooterStory());
+    }
+
+    [Fact]
     public void Empty_document_has_one_page_with_one_empty_line()
     {
         (LayoutDocument layout, _, _) = Run(Doc(Page(5), Paragraph.Empty()));

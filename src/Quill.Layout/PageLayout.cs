@@ -127,7 +127,8 @@ public sealed class PageLayout
         ImmutableArray<BlockFragment> body,
         StoryLayout? header,
         StoryLayout? footer,
-        bool isBlankFiller)
+        bool isBlankFiller,
+        HeaderFooterVariant variant = HeaderFooterVariant.Default)
     {
         Index = index;
         SectionIndex = sectionIndex;
@@ -139,7 +140,33 @@ public sealed class PageLayout
         Header = header;
         Footer = footer;
         IsBlankFiller = isBlankFiller;
+        Variant = variant;
     }
+
+    /// <summary>Which header/footer variant this page shows (first page, even page, or default).</summary>
+    public HeaderFooterVariant Variant { get; }
+
+    /// <summary>
+    /// The story to edit when the user opens this page's header: the one actually shown (possibly linked from an
+    /// earlier section), or the section's own variant story if none exists yet.
+    /// </summary>
+    public StoryId EditableHeaderStory() => Header?.Story ?? new StoryId(SectionIndex, HeaderKind(Variant));
+
+    public StoryId EditableFooterStory() => Footer?.Story ?? new StoryId(SectionIndex, FooterKind(Variant));
+
+    public static StoryKind HeaderKind(HeaderFooterVariant variant) => variant switch
+    {
+        HeaderFooterVariant.First => StoryKind.HeaderFirst,
+        HeaderFooterVariant.Even => StoryKind.HeaderEven,
+        _ => StoryKind.HeaderDefault,
+    };
+
+    public static StoryKind FooterKind(HeaderFooterVariant variant) => variant switch
+    {
+        HeaderFooterVariant.First => StoryKind.FooterFirst,
+        HeaderFooterVariant.Even => StoryKind.FooterEven,
+        _ => StoryKind.FooterDefault,
+    };
 
     /// <summary>0-based physical page index.</summary>
     public int Index { get; }

@@ -81,11 +81,20 @@
         <StackPanel Orientation="Horizontal">
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Break" Command="{Binding InsertPageBreakCommand}" ToolTip="Insert a page break (Ctrl+Enter)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Section Break" Command="{Binding InsertSectionBreakCommand}" ToolTip="Start a new section on the next page" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Header" Click="OnEditHeader" ToolTip="Edit the header of the current page (or double-click the top margin)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Footer" Click="OnEditFooter" ToolTip="Edit the footer of the current page (or double-click the bottom margin)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Close Header/Footer" Click="OnCloseHeaderFooter" ToolTip="Return to the document body (Esc)" />
         </StackPanel>
       </TabItem>
 
       <TabItem Header="Layout">
         <StackPanel Orientation="Horizontal">
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Setup..." Click="OnPageSetup" ToolTip="Paper size, orientation, margins, headers and footers" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Orientation" Command="{Binding ToggleOrientationCommand}" ToolTip="Switch between portrait and landscape" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <TextBlock Text="Margins:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
