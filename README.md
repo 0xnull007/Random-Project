@@ -4,8 +4,10 @@ A paged word processor for Windows 11, built with C# on .NET 10 and WPF. Think "
 margins, headers and footers, page breaks and sections, printing and PDF export, and `.docx` as the native format.
 
 > **Status: usable alpha.** The core engine (document model, layout, pagination, editing, `.docx` round trip) is
-> unit tested, and the desktop app runs on Windows 11 with editing, headers and footers, Page Setup, printing,
-> print preview and PDF export. See [docs/PLAN.md](docs/PLAN.md) for the full plan and milestones.
+> unit tested, and the desktop app runs on Windows 11 with editing, lists, pictures, headers and footers, Page
+> Setup, find and replace, printing, print preview and PDF export. See [docs/PLAN.md](docs/PLAN.md) for the plan
+> and [docs/TESTING.md](docs/TESTING.md) for the feature-by-feature test checklist.
+
 
 ## Build and run (Windows)
 
@@ -42,3 +44,13 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 - **Fluent theme via `ThemeMode="System"`**, a custom command bar built from stock controls (no ribbon library), all
   theme keys in one `Theme.xaml`.
 
+
+## Roadmap
+
+Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). Done so far: editing with undo,
+character and paragraph formatting, styles, bulleted and numbered lists, change case, page and section breaks,
+headers and footers with page-number fields, Page Setup, inline pictures (insert, paste, drop, resize), symbols and
+date/time, .docx open and save (tables preserved opaquely), rich clipboard (RTF), find and replace, IME input,
+print, print preview, PDF export, recent files, autosave recovery, formatting marks, word count, light/dark theme,
+document properties. Next: the UI Automation text pattern, editable tables, hyperlinks, spell check, and packaging
+as MSIX. The full manual checklist is in [docs/TESTING.md](docs/TESTING.md).
