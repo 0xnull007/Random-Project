@@ -1,0 +1,21 @@
+<Window x:Class="Quill.App.Views.SymbolWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Insert Symbol"
+        Width="520" SizeToContent="Height"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="16,12,16,14">
+    <TextBlock Text="Click a symbol to insert it:" Margin="0,0,0,6" />
+    <WrapPanel x:Name="Grid" Width="480" />
+    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+      <TextBlock Text="Character code (hex):" VerticalAlignment="Center" Margin="0,0,8,0" />
+      <TextBox x:Name="CodeBox" Width="80" VerticalAlignment="Center" TextChanged="OnCodeChanged" ToolTip="Unicode code point, for example 2192 for an arrow" />
+      <TextBlock x:Name="CodePreview" Width="40" TextAlignment="Center" FontSize="20" VerticalAlignment="Center" Margin="8,0,0,0" />
+      <Button x:Name="InsertCodeButton" Content="Insert" Width="80" Margin="8,0,0,0" IsEnabled="False" Click="OnInsertCode" />
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+      <Button Content="Close" Width="90" IsCancel="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

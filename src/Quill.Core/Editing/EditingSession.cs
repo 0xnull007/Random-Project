@@ -516,7 +516,38 @@ public sealed class EditingSession
         PendingFormat = null;
     }
 
+    // ----- Change case -----
+
+    /// <summary>Changes the case of the selection, or of the word at the caret when nothing is selected.</summary>
+    public void ChangeCase(CaseChange change)
+    {
+        TextRange range = CaseRange();
+        if (range.IsEmpty)
+        {
+            return;
+        }
+
+        System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentCulture;
+        EditResult result = DocumentEditor.TransformText(Document, range, text => TextCase.Apply(text, change, culture));
+        Commit(result with { Selection = Selection }, EditKind.Other, startsNewGroup: true);
+    }
+
+    /// <summary>Shift+F3: lowercase, UPPERCASE, Capitalize Each Word, and round again.</summary>
+    public void CycleCase()
+    {
+        TextRange range = CaseRange();
+        if (range.IsEmpty)
+        {
+            return;
+        }
+
+        ChangeCase(TextCase.NextInCycle(DocumentEditor.ExtractFragment(Document, range).ToPlainText()));
+    }
+
+    private TextRange CaseRange() => Selection.IsCollapsed ? TextNavigation.WordAt(Document, Selection.Active) : Selection.Range;
+
     // ----- Find and replace -----
+
 
     /// <summary>Replaces a range with text that takes the formatting of the first replaced character; the new text is selected afterwards.</summary>
     public void ReplaceRange(TextRange range, string replacement)

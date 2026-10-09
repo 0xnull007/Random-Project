@@ -154,7 +154,61 @@ public static class DocumentEditor
         });
     }
 
+    /// <summary>
+    /// Rewrites the selected text of each paragraph with <paramref name="transform"/> (case changes), keeping every
+    /// run's formatting. The transform must return text of the same length; otherwise that paragraph is left alone.
+    /// </summary>
+    public static EditResult TransformText(Document document, TextRange range, Func<string, string> transform)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(transform);
+        if (range.IsEmpty)
+        {
+            return EditResult.NoOp(document, new Selection(range.Start, range.End));
+        }
+
+        return TransformParagraphs(document, range, (paragraph, start, end, _) =>
+        {
+            string flat = paragraph.FlatText;
+            end = Math.Min(end, flat.Length);
+            if (end <= start)
+            {
+                return paragraph;
+            }
+
+            string replacement = transform(flat.Substring(start, end - start));
+            if (replacement.Length != end - start || flat.AsSpan(start, end - start).SequenceEqual(replacement))
+            {
+                return paragraph;
+            }
+
+            var inlines = ImmutableArray.CreateBuilder<Inline>(paragraph.Inlines.Length);
+            foreach (InlineSpan span in paragraph.Spans())
+            {
+                if (span.Inline is Run run && span.End > start && span.Start < end)
+                {
+                    int from = Math.Max(start, span.Start);
+                    int to = Math.Min(end, span.End);
+                    char[] chars = run.Text.ToCharArray();
+                    for (int i = from; i < to; i++)
+                    {
+                        chars[i - span.Start] = replacement[i - start];
+                    }
+
+                    inlines.Add(run.WithText(new string(chars)));
+                }
+                else
+                {
+                    inlines.Add(span.Inline);
+                }
+            }
+
+            return paragraph.WithInlines(inlines.MoveToImmutable());
+        });
+    }
+
     /// <summary>Sets the character style of every inline in the range (null clears it).</summary>
+
     public static EditResult ApplyCharacterStyle(Document document, TextRange range, string? characterStyleId)
     {
         ArgumentNullException.ThrowIfNull(document);

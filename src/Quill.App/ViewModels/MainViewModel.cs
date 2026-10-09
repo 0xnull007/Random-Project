@@ -12,6 +12,7 @@ using Quill.App.Settings;
 using Quill.Core.Editing;
 using Quill.Core.Model;
 using Quill.Core.Styles;
+using Quill.Core.Text;
 using Quill.Core.Units;
 using Quill.Docx;
 using Style = Quill.Core.Model.Style;
@@ -49,6 +50,7 @@ public sealed partial class MainViewModel : ObservableObject
         Session.SelectionChanged += (_, _) => RefreshFormatState();
         Zoom = Math.Clamp(_settings.Zoom, 0.1, 5.0);
         ShowFormattingMarks = _settings.ShowFormattingMarks;
+        Theme = ThemeChoices.Contains(_settings.Theme) ? _settings.Theme : "System";
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
         _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
         _autosaveTimer.Tick += (_, _) => Autosave();
@@ -73,8 +75,37 @@ public sealed partial class MainViewModel : ObservableObject
 
     public AppSettings Settings => _settings;
 
+    public IReadOnlyList<string> ThemeChoices { get; } = ["System", "Light", "Dark"];
+
+    /// <summary>Light, dark or follow Windows; applied immediately and remembered.</summary>
+    [ObservableProperty]
+    public partial string Theme { get; set; } = "System";
+
+    partial void OnThemeChanged(string value)
+    {
+        ApplyTheme(value);
+        _settings.Theme = value;
+        _settings.Save();
+    }
+
+    private static void ApplyTheme(string theme)
+    {
+        if (Application.Current is not { } app)
+        {
+            return;
+        }
+
+        app.ThemeMode = theme switch
+        {
+            "Light" => ThemeMode.Light,
+            "Dark" => ThemeMode.Dark,
+            _ => ThemeMode.System,
+        };
+    }
+
     [ObservableProperty]
     public partial RecentFile? SelectedRecent { get; set; }
+
 
     partial void OnSelectedRecentChanged(RecentFile? value)
     {
@@ -525,7 +556,20 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ChangeCase(string kind)
+    {
+        if (Enum.TryParse(kind, ignoreCase: true, out CaseChange change))
+        {
+            Session.ChangeCase(change);
+        }
+    }
+
+    [RelayCommand]
+    private void CycleCase() => Session.CycleCase();
+
+    [RelayCommand]
     private void Open()
+
     {
         if (!ConfirmDiscard())
         {

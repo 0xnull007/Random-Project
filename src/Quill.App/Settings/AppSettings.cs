@@ -29,6 +29,9 @@ public sealed class AppSettings
 
     public bool ShowFormattingMarks { get; set; }
 
+    /// <summary>"System", "Light" or "Dark".</summary>
+    public string Theme { get; set; } = "System";
+
     public static string Directory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Quill");
 
     public static string FilePath => Path.Combine(Directory, "settings.json");

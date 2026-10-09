@@ -35,7 +35,7 @@
 
     <StackPanel Grid.Column="1">
       <Button Content="Find Next" Width="110" Margin="0,3" IsDefault="True" Click="OnFindNext" ToolTip="F3" />
-      <Button Content="Find Previous" Width="110" Margin="0,3" Click="OnFindPrevious" ToolTip="Shift+F3" />
+      <Button Content="Find Previous" Width="110" Margin="0,3" Click="OnFindPrevious" ToolTip="Shift+F4" />
       <Button Content="Replace" Width="110" Margin="0,3" Click="OnReplace" />
       <Button Content="Replace All" Width="110" Margin="0,3" Click="OnReplaceAll" />
       <Button Content="Close" Width="110" Margin="0,12,0,3" IsCancel="True" Click="OnClose" />

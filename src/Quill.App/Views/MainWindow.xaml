@@ -41,7 +41,8 @@
     <KeyBinding Modifiers="Ctrl" Key="OemMinus" Command="{Binding ZoomOutCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Subtract" Command="{Binding ZoomOutCommand}" />
     <KeyBinding Key="F3" Command="{x:Static views:MainWindow.FindNextCommand}" />
-    <KeyBinding Key="F3" Modifiers="Shift" Command="{x:Static views:MainWindow.FindPreviousCommand}" />
+    <KeyBinding Key="F3" Modifiers="Shift" Command="{Binding CycleCaseCommand}" />
+    <KeyBinding Key="F4" Modifiers="Shift" Command="{x:Static views:MainWindow.FindPreviousCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="G" Command="{x:Static views:MainWindow.GoToPageCommand}" />
     <KeyBinding Modifiers="Ctrl+Shift" Key="G" Command="{x:Static views:MainWindow.WordCountCommand}" />
   </Window.InputBindings>
@@ -89,6 +90,17 @@
                     ToolTip="Font size" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2191;" Command="{Binding GrowFontCommand}" ToolTip="Grow font (Ctrl+Shift+&gt;)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2193;" Command="{Binding ShrinkFontCommand}" ToolTip="Shrink font (Ctrl+Shift+&lt;)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Aa" Click="OnCaseMenu" ToolTip="Change case (Shift+F3 cycles lowercase, UPPERCASE, Capitalize Each Word)">
+            <Button.ContextMenu>
+              <ContextMenu Closed="OnMenuClosed">
+                <MenuItem Header="Sentence case." Command="{Binding ChangeCaseCommand}" CommandParameter="Sentence" />
+                <MenuItem Header="lowercase" Command="{Binding ChangeCaseCommand}" CommandParameter="Lower" />
+                <MenuItem Header="UPPERCASE" Command="{Binding ChangeCaseCommand}" CommandParameter="Upper" />
+                <MenuItem Header="Capitalize Each Word" Command="{Binding ChangeCaseCommand}" CommandParameter="TitleCase" />
+                <MenuItem Header="tOGGLE cASE" Command="{Binding ChangeCaseCommand}" CommandParameter="Toggle" />
+              </ContextMenu>
+            </Button.ContextMenu>
+          </Button>
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsBold}" FontWeight="Bold" Content="B" ToolTip="Bold (Ctrl+B)" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsItalic}" FontStyle="Italic" Content="I" ToolTip="Italic (Ctrl+I)" />
@@ -142,6 +154,8 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Symbol..." Click="OnInsertSymbol" ToolTip="Insert a special character" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Date &amp; Time..." Click="OnInsertDateTime" ToolTip="Insert the current date or time" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Picture..." Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Picture Size..." Click="OnPictureSize" ToolTip="Change the size of the selected picture" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
@@ -174,6 +188,9 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Width" Click="OnFitWidth" ToolTip="Zoom so the page fills the width" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <TextBlock Text="Theme:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="90" ItemsSource="{Binding ThemeChoices}" SelectedItem="{Binding Theme}" ToolTip="Light, dark, or follow the Windows setting" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Word Count" Click="OnWordCount" ToolTip="Words, characters, paragraphs, lines, pages (Ctrl+Shift+G)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Go To Page..." Click="OnGoToPage" ToolTip="Jump to a page (Ctrl+G)" />

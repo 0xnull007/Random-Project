@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 using Quill.App.Imaging;
@@ -89,7 +90,51 @@ public partial class MainWindow : Window
         return null;
     }
 
+    private void OnCaseMenu(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { ContextMenu: { } menu } button)
+        {
+            menu.PlacementTarget = button;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void OnMenuClosed(object sender, RoutedEventArgs e) => Editor.Focus();
+
+    private SymbolWindow? _symbolWindow;
+
+    private void OnInsertSymbol(object sender, RoutedEventArgs e)
+    {
+        if (_symbolWindow is null || !_symbolWindow.IsLoaded)
+        {
+            _symbolWindow = new SymbolWindow(symbol =>
+            {
+                ViewModel.Session.InsertText(symbol);
+                Editor.Focus();
+            })
+            {
+                Owner = this,
+            };
+        }
+
+        _symbolWindow.Show();
+        _symbolWindow.Activate();
+    }
+
+    private void OnInsertDateTime(object sender, RoutedEventArgs e)
+    {
+        var dialog = new DateTimeWindow { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            ViewModel.Session.InsertText(dialog.Text);
+        }
+
+        Editor.Focus();
+    }
+
     private void OnInsertPicture(object sender, RoutedEventArgs e)
+
     {
         var dialog = new OpenFileDialog { Filter = ImageFiles.Filter, Title = "Insert Picture" };
         if (dialog.ShowDialog(this) == true)
@@ -139,6 +184,7 @@ public partial class MainWindow : Window
         {
             ViewModel.SaveWindowState(this);
             _findWindow?.ForceClose();
+            _symbolWindow?.Close();
         }
     }
 
