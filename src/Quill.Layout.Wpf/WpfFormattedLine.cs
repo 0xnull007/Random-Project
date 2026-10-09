@@ -114,12 +114,57 @@ public sealed class WpfFormattedLine : IFormattedLine
 
     public void Draw(IRenderTarget target, PointD origin)
     {
-        if (target is not WpfRenderTarget wpf)
+        ArgumentNullException.ThrowIfNull(target);
+        if (target is WpfRenderTarget wpf)
         {
-            throw new ArgumentException("WPF lines can only be drawn to a WpfRenderTarget.", nameof(target));
+            _line.Draw(wpf.Context, new Point(origin.X, origin.Y), InvertAxes.None);
+            return;
         }
 
-        _line.Draw(wpf.Context, new Point(origin.X, origin.Y), InvertAxes.None);
+        target.DrawTextSegments(GetSegments(), origin);
+    }
+
+    /// <summary>
+    /// Words with their exact x positions as WPF placed them, so a PDF target reproduces wrapping, justification
+    /// and tab stops; only the advances inside a word come from the target's own font metrics.
+    /// </summary>
+    public IEnumerable<TextSegment> GetSegments()
+    {
+        string text = _expansion.LayoutText;
+        int position = _layoutStart;
+        foreach (TextSpan<TextRun> span in _line.GetTextRunSpans())
+        {
+            int length = span.Length;
+            if (span.Value is TextCharacters characters && characters.Properties is QuillTextRunProperties props)
+            {
+                int end = Math.Min(position + length, _layoutEnd);
+                int i = position;
+                while (i < end)
+                {
+                    while (i < end && char.IsWhiteSpace(text[i]))
+                    {
+                        i++;
+                    }
+
+                    int wordStart = i;
+                    while (i < end && !char.IsWhiteSpace(text[i]))
+                    {
+                        i++;
+                    }
+
+                    if (i > wordStart)
+                    {
+                        double x = _line.GetDistanceFromCharacterHit(new CharacterHit(wordStart, 0));
+                        double right = _line.GetDistanceFromCharacterHit(new CharacterHit(i, 0));
+                        IList<TextBounds> bounds = _line.GetTextBounds(wordStart, i - wordStart);
+                        Rect box = bounds.Count > 0 ? bounds[0].Rectangle : new Rect(x, 0, Math.Max(0, right - x), _line.Height);
+                        yield return new TextSegment(text.Substring(wordStart, i - wordStart), props.Properties, x, _line.Baseline, Math.Max(0, right - x), box.Y, box.Height);
+                    }
+                }
+            }
+
+            position += length;
+        }
     }
 
     public void Dispose()

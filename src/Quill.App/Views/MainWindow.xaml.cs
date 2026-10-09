@@ -78,6 +78,13 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnPrintPreview(object sender, RoutedEventArgs e)
+    {
+        var preview = new PrintPreviewWindow(ViewModel.Session.Document, ViewModel.DocumentName) { Owner = this };
+        preview.ShowDialog();
+        Editor.Focus();
+    }
+
     private void OnPageSetup(object sender, RoutedEventArgs e)
     {
         EditingSession session = ViewModel.Session;

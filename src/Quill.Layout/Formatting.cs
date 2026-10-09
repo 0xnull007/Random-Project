@@ -116,6 +116,9 @@ public sealed record ParagraphLayoutInput(
     public bool ContainsFields => Runs.Any(r => r.Kind == RunKind.Field);
 }
 
+/// <summary>A word-sized piece of a line with its position, for render targets that cannot draw glyph runs (PDF). Coordinates are relative to the line origin passed to <see cref="IFormattedLine.Draw"/>.</summary>
+public readonly record struct TextSegment(string Text, ResolvedRunProperties Properties, double X, double Baseline, double Width, double Top, double Height);
+
 /// <summary>Breaks paragraphs into lines. Implementations wrap a platform text engine (WPF TextFormatter) or a fake for tests.</summary>
 public interface ILineFormatter
 {
@@ -168,6 +171,9 @@ public interface IFormattedLine : IDisposable
 
     /// <summary>Draws the line with its baseline-independent origin at <paramref name="origin"/> (top-left of the line box).</summary>
     void Draw(IRenderTarget target, PointD origin);
+
+    /// <summary>The line's visible text split into words with layout positions, for non-WPF render targets.</summary>
+    IEnumerable<TextSegment> GetSegments();
 }
 
 /// <summary>A minimal vector drawing surface. Text is drawn through <see cref="IFormattedLine.Draw"/>.</summary>
@@ -182,4 +188,7 @@ public interface IRenderTarget
     void PushClip(RectD rect);
 
     void Pop();
+
+    /// <summary>Draws text segments produced by <see cref="IFormattedLine.GetSegments"/> at <paramref name="origin"/>.</summary>
+    void DrawTextSegments(IEnumerable<TextSegment> segments, PointD origin);
 }

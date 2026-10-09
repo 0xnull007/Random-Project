@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="PDFsharp-wpf" />
   </ItemGroup>
 
 </Project>

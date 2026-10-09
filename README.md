@@ -3,8 +3,9 @@
 A paged word processor for Windows 11, built with C# on .NET 10 and WPF. Think "a small Word": real pages with
 margins, headers and footers, page breaks and sections, printing and PDF export, and `.docx` as the native format.
 
-> **Status: early.** The core engine (document model, layout, pagination, editing, `.docx` round trip) exists and is
-> unit tested; the desktop shell runs but is minimal. See [docs/PLAN.md](docs/PLAN.md) for the full plan and milestones.
+> **Status: usable alpha.** The core engine (document model, layout, pagination, editing, `.docx` round trip) is
+> unit tested, and the desktop app runs on Windows 11 with editing, headers and footers, Page Setup, printing,
+> print preview and PDF export. See [docs/PLAN.md](docs/PLAN.md) for the full plan and milestones.
 
 ## Build and run (Windows)
 
@@ -43,5 +44,7 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 
 ## Roadmap
 
-Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). The next items are IME composition,
-print preview and PDF export, the UI Automation text pattern, and packaging as MSIX.
+Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). Done so far: editing, styles, page and
+section breaks, headers and footers with page-number fields, Page Setup, .docx open and save, print, print preview
+and PDF export. Next: find and replace, IME composition, the UI Automation text pattern, lists, images, tables, and
+packaging as MSIX.

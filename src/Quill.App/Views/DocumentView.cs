@@ -33,6 +33,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         nameof(Session), typeof(EditingSession), typeof(DocumentView),
         new PropertyMetadata(null, (d, e) => ((DocumentView)d).OnSessionChanged(e.OldValue as EditingSession, e.NewValue as EditingSession)));
 
+    public static readonly DependencyProperty IsReadOnlyProperty = DependencyProperty.Register(
+        nameof(IsReadOnly), typeof(bool), typeof(DocumentView),
+        new PropertyMetadata(false, (d, _) => ((DocumentView)d).OnReadOnlyChanged()));
+
     private readonly VisualCollection _children;
     private readonly ContainerVisual _host = new();
     private readonly ContainerVisual _pagesLayer = new();
@@ -117,6 +121,44 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
     /// <summary>True while the caret is in a header or footer story.</summary>
     public bool IsEditingHeaderFooter => _headerFooterMode;
+
+    /// <summary>Shows the document without caret or editing (print preview). Scrolling and zoom still work.</summary>
+    public bool IsReadOnly
+    {
+        get => (bool)GetValue(IsReadOnlyProperty);
+        set => SetValue(IsReadOnlyProperty, value);
+    }
+
+    /// <summary>Zooms so the current page fits the viewport.</summary>
+    public void ZoomToFitPage()
+    {
+        if (_layout.PageCount == 0 || _viewport.Width <= 0 || _viewport.Height <= 0)
+        {
+            return;
+        }
+
+        PageLayout page = _layout.Pages[Math.Clamp(CurrentPage - 1, 0, _layout.PageCount - 1)];
+        double byHeight = (_viewport.Height - 2 * CanvasPadding) / page.Size.Height;
+        double byWidth = (_viewport.Width - 2 * CanvasPadding) / page.Size.Width;
+        Zoom = Math.Clamp(Math.Min(byHeight, byWidth), 0.1, 5);
+    }
+
+    /// <summary>Zooms so the widest page fills the viewport width.</summary>
+    public void ZoomToFitWidth()
+    {
+        if (_layout.PageCount == 0 || _viewport.Width <= 0)
+        {
+            return;
+        }
+
+        Zoom = Math.Clamp((_viewport.Width - 2 * CanvasPadding) / Math.Max(1, _docWidth - 2 * CanvasPadding), 0.1, 5);
+    }
+
+    private void OnReadOnlyChanged()
+    {
+        Cursor = IsReadOnly ? Cursors.Arrow : Cursors.IBeam;
+        DrawCaret();
+    }
 
     // ------------------------------------------------------------------ header / footer editing
 
@@ -647,7 +689,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     {
         using DrawingContext dc = _caretVisual.RenderOpen();
         EditingSession? session = Session;
-        if (session is null || !_caretOn || !IsKeyboardFocused || !session.Selection.IsCollapsed)
+        if (session is null || IsReadOnly || !_caretOn || !IsKeyboardFocused || !session.Selection.IsCollapsed)
         {
             return;
         }
@@ -918,6 +960,12 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
+        if (IsReadOnly)
+        {
+            e.Handled = true;
+            return;
+        }
+
         Point viewPoint = e.GetPosition(this);
         _desiredCaretX = null;
         if (e.ClickCount == 2 && TryToggleHeaderFooterAt(viewPoint))
@@ -994,7 +1042,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         base.OnTextInput(e);
         EditingSession? session = Session;
         string text = e.Text;
-        if (session is null || string.IsNullOrEmpty(text) || text.All(c => c < ' '))
+        if (session is null || IsReadOnly || string.IsNullOrEmpty(text) || text.All(c => c < ' '))
         {
             return;
         }
@@ -1015,6 +1063,12 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+        if (IsReadOnly)
+        {
+            HandleReadOnlyKey(e, ctrl);
+            return;
+        }
+
         bool handled = true;
         bool keepDesiredX = false;
         switch (e.Key)
@@ -1174,6 +1228,37 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
             e.Handled = true;
         }
+    }
+
+    /// <summary>In read-only mode the keyboard only scrolls.</summary>
+    private void HandleReadOnlyKey(KeyEventArgs e, bool ctrl)
+    {
+        switch (e.Key)
+        {
+            case Key.PageUp:
+                PageUp();
+                break;
+            case Key.PageDown:
+            case Key.Space:
+                PageDown();
+                break;
+            case Key.Up:
+                LineUp();
+                break;
+            case Key.Down:
+                LineDown();
+                break;
+            case Key.Home when ctrl:
+                SetVerticalOffset(0);
+                break;
+            case Key.End when ctrl:
+                SetVerticalOffset(ExtentHeight);
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
     }
 
     private void MoveHorizontal(int direction, bool byWord, bool extend)

@@ -1,5 +1,8 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
+using Quill.Core.Model;
+using Quill.Core.Styles;
 using Quill.Core.Units;
 
 namespace Quill.Layout.Wpf;
@@ -49,6 +52,25 @@ public sealed class WpfRenderTarget : IRenderTarget
     public void PushClip(RectD rect) => Context.PushClip(new RectangleGeometry(ToRect(rect)));
 
     public void Pop() => Context.Pop();
+
+    /// <summary>Fallback for lines that were not formatted by WPF; the normal path draws the TextLine directly.</summary>
+    public void DrawTextSegments(IEnumerable<TextSegment> segments, PointD origin)
+    {
+        ArgumentNullException.ThrowIfNull(segments);
+        foreach (TextSegment segment in segments)
+        {
+            ResolvedRunProperties p = segment.Properties;
+            var formatted = new FormattedText(
+                segment.Text,
+                CultureInfo.CurrentUICulture,
+                System.Windows.FlowDirection.LeftToRight,
+                _fonts.GetTypeface(p.FontFamily, p.Bold, p.Italic),
+                p.FontSize.ToDips(),
+                _fonts.GetBrush(p.Color),
+                1.0);
+            Context.DrawText(formatted, new Point(origin.X + segment.X, origin.Y + segment.Baseline - formatted.Baseline));
+        }
+    }
 
     private static Rect ToRect(RectD rect) => new(rect.X, rect.Y, Math.Max(0, rect.Width), Math.Max(0, rect.Height));
 }

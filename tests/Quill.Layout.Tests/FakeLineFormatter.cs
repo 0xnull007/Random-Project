@@ -168,6 +168,8 @@ internal sealed class FakeLineFormatter : ILineFormatter
         {
         }
 
+        public IEnumerable<TextSegment> GetSegments() => [];
+
         public void Dispose() => IsDisposed = true;
     }
 }

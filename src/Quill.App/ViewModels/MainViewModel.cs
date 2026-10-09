@@ -47,6 +47,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     public EditingSession Session { get; }
 
+    /// <summary>File name without extension, used for window titles and print jobs.</summary>
+    public string DocumentName => _documentName;
+
     public ObservableCollection<double> FontSizes { get; }
 
     public ObservableCollection<Style> ParagraphStyles { get; }
@@ -388,6 +391,16 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex) when (ex is System.Printing.PrintSystemException or InvalidOperationException)
         {
             MessageBox.Show($"Printing failed.\n\n{ex.Message}", "Quill", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void ExportPdf()
+    {
+        string? path = PdfExportCommand.Run(Session.Document, Session.Resolver, _documentName, Application.Current.MainWindow);
+        if (path is not null)
+        {
+            StatusMessage = "Exported " + Path.GetFileName(path);
         }
     }
 

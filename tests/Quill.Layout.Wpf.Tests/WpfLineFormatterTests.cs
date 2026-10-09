@@ -107,6 +107,36 @@ public class WpfLineFormatterTests
     }
 
     [WpfFact]
+    public void Segments_cover_each_word_with_increasing_positions()
+    {
+        var paragraph = new Paragraph([new Run("Hello big "), Field.Page(), new Run(" world", new RunProperties { Bold = true })]);
+        IFormattedLine line = new WpfLineFormatter().FormatParagraph(Input(paragraph, 500, new FieldValues("12", "3", "1")))[0];
+        List<TextSegment> segments = line.GetSegments().ToList();
+        Assert.Equal(["Hello", "big", "12", "world"], segments.Select(s => s.Text));
+        for (int i = 1; i < segments.Count; i++)
+        {
+            Assert.True(segments[i].X > segments[i - 1].X);
+        }
+
+        Assert.True(segments[^1].Properties.Bold);
+        Assert.All(segments, s => Assert.True(s.Width > 0 && s.Height > 0));
+        Assert.Equal(line.Baseline, segments[0].Baseline);
+    }
+
+    [WpfFact]
+    public void Justified_text_keeps_word_positions_in_segments()
+    {
+        string text = string.Join(" ", Enumerable.Repeat("word", 30));
+        var paragraph = new Paragraph([new Run(text)], properties: new ParagraphProperties { Alignment = Alignment.Justify });
+        IReadOnlyList<IFormattedLine> lines = new WpfLineFormatter().FormatParagraph(Input(paragraph, 200));
+        Assert.True(lines.Count > 1);
+        List<TextSegment> first = lines[0].GetSegments().ToList();
+        Assert.True(first.Count > 2);
+        double lastRight = first[^1].X + first[^1].Width;
+        Assert.True(lastRight > 190, "a justified line should reach the right edge");
+    }
+
+    [WpfFact]
     public void Paginator_produces_letter_pages_with_real_text_metrics()
     {
         string text = string.Join(" ", Enumerable.Repeat("The quick brown fox jumps over the lazy dog.", 400));
