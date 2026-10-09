@@ -25,7 +25,7 @@ public sealed partial class MainViewModel : ObservableObject
     private string _documentName = "Document1";
     private string? _documentPath;
     private bool _loadWasLossy;
-    private bool _syncingFormat;
+    private bool _syncingFormat = true; // stays on until the constructor finishes so initial values do not edit the document
 
     public MainViewModel()
     {

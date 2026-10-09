@@ -30,147 +30,107 @@
   </Window.InputBindings>
 
   <DockPanel>
-    <Menu DockPanel.Dock="Top">
-      <MenuItem Header="_File">
-        <MenuItem Header="_New" InputGestureText="Ctrl+N" Command="{Binding NewDocumentCommand}" />
-        <MenuItem Header="_Open..." InputGestureText="Ctrl+O" Command="{Binding OpenCommand}" />
-        <MenuItem Header="_Save" InputGestureText="Ctrl+S" Command="{Binding SaveCommand}" />
-        <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" />
-        <Separator />
-        <MenuItem Header="_Print..." InputGestureText="Ctrl+P" Command="{Binding PrintCommand}" />
-        <Separator />
-        <MenuItem Header="E_xit" Click="OnExit" />
-      </MenuItem>
-      <MenuItem Header="_Edit">
-        <MenuItem Header="_Undo" InputGestureText="Ctrl+Z" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" />
-        <MenuItem Header="_Redo" InputGestureText="Ctrl+Y" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" />
-        <Separator />
-        <MenuItem Header="Cu_t" InputGestureText="Ctrl+X" Click="OnCut" />
-        <MenuItem Header="_Copy" InputGestureText="Ctrl+C" Click="OnCopy" />
-        <MenuItem Header="_Paste" InputGestureText="Ctrl+V" Click="OnPaste" />
-        <Separator />
-        <MenuItem Header="Select _All" InputGestureText="Ctrl+A" Click="OnSelectAll" />
-      </MenuItem>
-      <MenuItem Header="_View">
-        <MenuItem Header="Zoom 50%" Command="{Binding SetZoomCommand}" CommandParameter="50" />
-        <MenuItem Header="Zoom 75%" Command="{Binding SetZoomCommand}" CommandParameter="75" />
-        <MenuItem Header="Zoom 100%" Command="{Binding SetZoomCommand}" CommandParameter="100" />
-        <MenuItem Header="Zoom 150%" Command="{Binding SetZoomCommand}" CommandParameter="150" />
-        <MenuItem Header="Zoom 200%" Command="{Binding SetZoomCommand}" CommandParameter="200" />
-      </MenuItem>
-    </Menu>
+    <!-- One compact command bar (Word's "simplified ribbon"): tabs on top, a single row of controls below. -->
+    <TabControl DockPanel.Dock="Top" SelectedIndex="1" Margin="0" Padding="6,3" BorderThickness="0,0,0,1">
+      <TabItem Header="File">
+        <StackPanel Orientation="Horizontal">
+          <Button Style="{StaticResource Quill.CommandButton}" Content="New" Command="{Binding NewDocumentCommand}" ToolTip="New document (Ctrl+N)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Open..." Command="{Binding OpenCommand}" ToolTip="Open a .docx (Ctrl+O)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Save" Command="{Binding SaveCommand}" ToolTip="Save (Ctrl+S)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Save As..." Command="{Binding SaveAsCommand}" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Print..." Command="{Binding PrintCommand}" ToolTip="Print (Ctrl+P)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Exit" Click="OnExit" />
+        </StackPanel>
+      </TabItem>
 
-    <!-- Command bar: Fluent-styled stock controls grouped like a ribbon. -->
-    <TabControl DockPanel.Dock="Top" Margin="8,2,8,4" Padding="8,6">
       <TabItem Header="Home">
         <StackPanel Orientation="Horizontal">
-          <StackPanel Margin="0,0,12,0">
-            <StackPanel Orientation="Horizontal">
-              <ComboBox Width="170" Height="32" IsEditable="True" Margin="1,0"
-                        ItemsSource="{Binding FontFamilies}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
-                        ToolTip="Font" />
-              <ComboBox Width="70" Height="32" Margin="1,0"
-                        ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}"
-                        ToolTip="Font size" />
-              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsBold}" FontWeight="Bold" Content="B" ToolTip="Bold (Ctrl+B)" />
-              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsItalic}" FontStyle="Italic" Content="I" ToolTip="Italic (Ctrl+I)" />
-              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsUnderline}" ToolTip="Underline (Ctrl+U)">
-                <TextBlock Text="U" TextDecorations="Underline" />
-              </ToggleButton>
-            </StackPanel>
-            <TextBlock Style="{StaticResource Quill.CommandGroupLabel}" Text="Font" />
-          </StackPanel>
-
-          <StackPanel Margin="0,0,12,0">
-            <StackPanel Orientation="Horizontal">
-              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignLeft}" Content="&#x2630;" ToolTip="Align left (Ctrl+L)" />
-              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignCenter}" Content="&#x2261;" ToolTip="Center (Ctrl+E)" />
-              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignRight}" Content="&#x2630;" ToolTip="Align right (Ctrl+R)" />
-              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignJustify}" Content="&#x2261;" ToolTip="Justify (Ctrl+J)" />
-            </StackPanel>
-            <TextBlock Style="{StaticResource Quill.CommandGroupLabel}" Text="Paragraph" />
-          </StackPanel>
-
-          <StackPanel Margin="0,0,12,0">
-            <ComboBox Width="180" Height="32" Margin="1,0"
-                      ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
-                      ToolTip="Paragraph style" />
-            <TextBlock Style="{StaticResource Quill.CommandGroupLabel}" Text="Styles" />
-          </StackPanel>
-
-          <StackPanel>
-            <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
-            </StackPanel>
-            <TextBlock Style="{StaticResource Quill.CommandGroupLabel}" Text="History" />
-          </StackPanel>
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Cut" Click="OnCut" ToolTip="Cut (Ctrl+X)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Copy" Click="OnCopy" ToolTip="Copy (Ctrl+C)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Paste" Click="OnPaste" ToolTip="Paste (Ctrl+V)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150" IsEditable="True"
+                    ItemsSource="{Binding FontFamilies}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
+                    ToolTip="Font" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="64"
+                    ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}"
+                    ToolTip="Font size" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsBold}" FontWeight="Bold" Content="B" ToolTip="Bold (Ctrl+B)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsItalic}" FontStyle="Italic" Content="I" ToolTip="Italic (Ctrl+I)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsUnderline}" ToolTip="Underline (Ctrl+U)">
+            <TextBlock Text="U" TextDecorations="Underline" />
+          </ToggleButton>
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignLeft}" Content="&#x2630;" ToolTip="Align left (Ctrl+L)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignCenter}" Content="&#x2261;" ToolTip="Center (Ctrl+E)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignRight}" Content="&#x2630;" ToolTip="Align right (Ctrl+R)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignJustify}" Content="&#x2261;" ToolTip="Justify (Ctrl+J)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150"
+                    ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
+                    ToolTip="Paragraph style" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
         </StackPanel>
       </TabItem>
 
       <TabItem Header="Insert">
         <StackPanel Orientation="Horizontal">
-          <StackPanel Margin="0,0,12,0">
-            <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Page Break" Command="{Binding InsertPageBreakCommand}" ToolTip="Insert a page break (Ctrl+Enter)" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Section Break" Command="{Binding InsertSectionBreakCommand}" ToolTip="Start a new section on the next page" />
-            </StackPanel>
-            <TextBlock Style="{StaticResource Quill.CommandGroupLabel}" Text="Pages" />
-          </StackPanel>
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Break" Command="{Binding InsertPageBreakCommand}" ToolTip="Insert a page break (Ctrl+Enter)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Section Break" Command="{Binding InsertSectionBreakCommand}" ToolTip="Start a new section on the next page" />
         </StackPanel>
       </TabItem>
 
       <TabItem Header="Layout">
         <StackPanel Orientation="Horizontal">
-          <StackPanel Margin="0,0,12,0">
-            <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Orientation" Command="{Binding ToggleOrientationCommand}" ToolTip="Switch between portrait and landscape" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Normal margins" Command="{Binding SetMarginsCommand}" CommandParameter="Normal" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Narrow" Command="{Binding SetMarginsCommand}" CommandParameter="Narrow" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="Moderate" Command="{Binding SetMarginsCommand}" CommandParameter="Moderate" />
-            </StackPanel>
-            <TextBlock Style="{StaticResource Quill.CommandGroupLabel}" Text="Page Setup" />
-          </StackPanel>
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Orientation" Command="{Binding ToggleOrientationCommand}" ToolTip="Switch between portrait and landscape" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <TextBlock Text="Margins:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Normal" Command="{Binding SetMarginsCommand}" CommandParameter="Normal" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Narrow" Command="{Binding SetMarginsCommand}" CommandParameter="Narrow" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Moderate" Command="{Binding SetMarginsCommand}" CommandParameter="Moderate" />
         </StackPanel>
       </TabItem>
 
       <TabItem Header="View">
         <StackPanel Orientation="Horizontal">
-          <StackPanel>
-            <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource Quill.CommandButton}" Content="50%" Command="{Binding SetZoomCommand}" CommandParameter="50" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="100%" Command="{Binding SetZoomCommand}" CommandParameter="100" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="150%" Command="{Binding SetZoomCommand}" CommandParameter="150" />
-              <Button Style="{StaticResource Quill.CommandButton}" Content="200%" Command="{Binding SetZoomCommand}" CommandParameter="200" />
-            </StackPanel>
-            <TextBlock Style="{StaticResource Quill.CommandGroupLabel}" Text="Zoom" />
-          </StackPanel>
+          <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="50%" Command="{Binding SetZoomCommand}" CommandParameter="50" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="75%" Command="{Binding SetZoomCommand}" CommandParameter="75" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="100%" Command="{Binding SetZoomCommand}" CommandParameter="100" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="150%" Command="{Binding SetZoomCommand}" CommandParameter="150" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="200%" Command="{Binding SetZoomCommand}" CommandParameter="200" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Select All" Click="OnSelectAll" ToolTip="Select all (Ctrl+A)" />
         </StackPanel>
       </TabItem>
     </TabControl>
 
-    <StatusBar DockPanel.Dock="Bottom">
-      <StatusBarItem>
+    <StatusBar DockPanel.Dock="Bottom" Padding="6,0" FontSize="12">
+      <StatusBarItem Padding="4,0">
         <TextBlock>
           <Run Text="Page " /><Run Text="{Binding CurrentPage, Mode=OneWay}" /><Run Text=" of " /><Run Text="{Binding PageCount, Mode=OneWay}" />
         </TextBlock>
       </StatusBarItem>
       <Separator />
-      <StatusBarItem>
+      <StatusBarItem Padding="4,0">
         <TextBlock>
           <Run Text="{Binding WordCount, Mode=OneWay}" /><Run Text=" words" />
         </TextBlock>
       </StatusBarItem>
       <Separator />
-      <StatusBarItem>
+      <StatusBarItem Padding="4,0">
         <TextBlock Text="{Binding StatusMessage}" TextTrimming="CharacterEllipsis" MaxWidth="600" ToolTip="{Binding StatusMessage}" />
       </StatusBarItem>
-      <StatusBarItem HorizontalAlignment="Right">
+      <StatusBarItem HorizontalAlignment="Right" Padding="4,0">
         <StackPanel Orientation="Horizontal">
-          <Button Content="&#x2212;" Width="24" Height="24" Padding="0" Command="{Binding ZoomOutCommand}" />
-          <Slider Width="140" Minimum="0.1" Maximum="5" Value="{Binding Zoom}" VerticalAlignment="Center" Margin="6,0" />
-          <Button Content="+" Width="24" Height="24" Padding="0" Command="{Binding ZoomInCommand}" />
-          <TextBlock Width="48" TextAlignment="Right" VerticalAlignment="Center" Margin="6,0,0,0">
+          <Button Style="{StaticResource Quill.StatusButton}" Content="&#x2212;" Command="{Binding ZoomOutCommand}" />
+          <Slider Width="120" Minimum="0.1" Maximum="5" Value="{Binding Zoom}" VerticalAlignment="Center" Margin="6,0" />
+          <Button Style="{StaticResource Quill.StatusButton}" Content="+" Command="{Binding ZoomInCommand}" />
+          <TextBlock Width="44" TextAlignment="Right" VerticalAlignment="Center" Margin="6,0,0,0">
             <Run Text="{Binding ZoomPercent, Mode=OneWay}" /><Run Text="%" />
           </TextBlock>
         </StackPanel>

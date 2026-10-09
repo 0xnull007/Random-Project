@@ -12,25 +12,43 @@
   <SolidColorBrush x:Key="Quill.SelectionBrush" Color="#550078D4" />
   <SolidColorBrush x:Key="Quill.CaretBrush" Color="Black" />
 
-  <Style x:Key="Quill.CommandGroupLabel" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="11" />
-    <Setter Property="Opacity" Value="0.7" />
-    <Setter Property="HorizontalAlignment" Value="Center" />
-    <Setter Property="Margin" Value="0,2,0,0" />
-  </Style>
+  <SolidColorBrush x:Key="Quill.DividerBrush" Color="#40808080" />
 
   <Style x:Key="Quill.CommandToggle" TargetType="ToggleButton">
-    <Setter Property="MinWidth" Value="32" />
-    <Setter Property="Height" Value="32" />
+    <Setter Property="MinWidth" Value="28" />
+    <Setter Property="Height" Value="28" />
     <Setter Property="Margin" Value="1,0" />
     <Setter Property="Padding" Value="6,0" />
-    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
   <Style x:Key="Quill.CommandButton" TargetType="Button">
-    <Setter Property="MinWidth" Value="32" />
-    <Setter Property="Height" Value="32" />
+    <Setter Property="MinWidth" Value="28" />
+    <Setter Property="Height" Value="28" />
     <Setter Property="Margin" Value="1,0" />
     <Setter Property="Padding" Value="8,0" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style x:Key="Quill.CommandCombo" TargetType="ComboBox">
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Margin" Value="1,0" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style x:Key="Quill.CommandDivider" TargetType="Border">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Margin" Value="6,4" />
+    <Setter Property="Background" Value="{StaticResource Quill.DividerBrush}" />
+  </Style>
+
+  <Style x:Key="Quill.StatusButton" TargetType="Button">
+    <Setter Property="Width" Value="22" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FontSize" Value="12" />
   </Style>
 </ResourceDictionary>

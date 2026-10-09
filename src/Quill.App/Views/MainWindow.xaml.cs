@@ -24,6 +24,8 @@ public partial class MainWindow : Window
             ViewModel.CurrentPage = Editor.CurrentPage;
         };
         ViewModel.PageCount = Editor.PageCount;
+        PopupThemeFix.AttachAll(this);
+        Dispatcher.BeginInvoke(() => PopupThemeFix.AttachAll(this), System.Windows.Threading.DispatcherPriority.Loaded);
         if (Application.Current is App { StartupFile: { } startupFile })
         {
             ViewModel.OpenFile(startupFile);
