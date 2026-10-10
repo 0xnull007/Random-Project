@@ -56,6 +56,7 @@ public sealed partial class MainViewModel : ObservableObject
         _headingsTimer.Tick += (_, _) => RefreshHeadings();
         ShowNavigation = _settings.ShowNavigation;
         CheckSpelling = _settings.CheckSpelling;
+        ShowRuler = _settings.ShowRuler;
         UnitPreference.Apply(_settings.Units);
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
         _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
@@ -621,7 +622,17 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [ObservableProperty]
+    public partial bool ShowRuler { get; set; } = true;
+
+    partial void OnShowRulerChanged(bool value)
+    {
+        _settings.ShowRuler = value;
+        _settings.Save();
+    }
+
+    [ObservableProperty]
     public partial bool ShowNavigation { get; set; }
+
 
 
     [ObservableProperty]

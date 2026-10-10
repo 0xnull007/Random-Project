@@ -40,6 +40,10 @@ public partial class MainWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Editor.Session = ViewModel.Session;
+        Ruler.Editor = Editor;
+        ViewModel.Session.SelectionChanged += (_, _) => Ruler.Refresh();
+        ViewModel.Session.DocumentChanged += (_, _) => Ruler.Refresh();
+
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.PainterChanged += (_, _) => Editor.PendingFormatSample = ViewModel.PainterSample;
         Editor.FormatPainted += (_, _) =>

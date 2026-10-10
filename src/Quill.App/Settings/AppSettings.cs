@@ -39,6 +39,8 @@ public sealed class AppSettings
 
     public bool ShowNavigation { get; set; }
 
+    public bool ShowRuler { get; set; } = true;
+
     /// <summary>Underline words the Windows spell checker does not know.</summary>
     public bool CheckSpelling { get; set; } = true;
 

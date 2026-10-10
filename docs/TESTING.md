@@ -175,6 +175,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       Fit Page and Fit Width.
 - [ ] ¶ toggle shows paragraph marks, tab arrows, space dots and break markers; the setting is remembered.
 - [ ] Theme: System / Light / Dark switches instantly and is remembered **(new)**.
+- [ ] View > Ruler: the ruler above the page shows margins (grey), the text column (white), inch/cm ticks, the
+      indent markers and tab stops of the caret paragraph, and follows zoom and horizontal scrolling. Drag the top
+      triangle (first line), the bottom triangle (hanging) or the box (both) and the right triangle; click in the
+      ruler to add a left tab stop (Tab then jumps there); drag a tab stop off the ruler to remove it **(new)**.
 - [ ] View > Navigation opens a side pane listing the headings (indented by level); clicking one jumps there and the
       current heading is highlighted as you move the caret; the pane state is remembered **(new)**.
 - [ ] Word Count (Ctrl+Shift+G) shows pages, words, characters with/without spaces, paragraphs, lines; with a

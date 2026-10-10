@@ -1119,6 +1119,51 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
     }
 
+    /// <summary>Raised whenever scrolling, zoom or the viewport size moves the pages on screen (the ruler follows).</summary>
+    public event EventHandler? ViewportChanged;
+
+    /// <summary>What the ruler needs: where the caret's page sits on screen and the caret paragraph's indents and tabs (all DIPs; PageLeftInView in view pixels).</summary>
+    public sealed record RulerInfo(
+        double PageLeftInView,
+        double Zoom,
+        double PageWidth,
+        double MarginLeft,
+        double MarginRight,
+        double LeftIndent,
+        double FirstLineIndent,
+        double RightIndent,
+        IReadOnlyList<Core.Model.TabStop> Tabs,
+        IReadOnlyList<Core.Model.TabStop> DirectTabs,
+        double DefaultTabStop,
+        bool CanEdit);
+
+    public RulerInfo? GetRulerInfo()
+    {
+        if (Session is not { } session || _layout.PageCount == 0 || session.Document.TryGetParagraph(session.Selection.Active) is not { } paragraph)
+        {
+            return null;
+        }
+
+        int pageIndex = _layout.Find(session.Selection.Active)?.Page.Index ?? Math.Clamp(PageIndexAt(VisibleDocumentRect().Top + 1), 0, _layout.PageCount - 1);
+        PageLayout page = _layout.Pages[pageIndex];
+        Core.Model.SectionProperties props = session.Document.Sections[page.SectionIndex].Properties;
+        Quill.Core.Styles.ResolvedParagraphProperties pp = session.CaretParagraphFormat();
+        double zoom = Zoom;
+        return new RulerInfo(
+            _host.Offset.X + _pageLefts[pageIndex] * zoom,
+            zoom,
+            page.Size.Width,
+            props.MarginLeft.ToDips() + props.Gutter.ToDips(),
+            props.MarginRight.ToDips(),
+            pp.LeftIndent.ToDips(),
+            pp.FirstLineIndent.ToDips(),
+            pp.RightIndent.ToDips(),
+            pp.Tabs.WithoutCleared().ToList(),
+            (paragraph.Properties.Tabs ?? Core.Model.TabStops.Empty).ToList(),
+            session.Document.Settings.DefaultTabStop.ToDips(),
+            !IsReadOnly);
+    }
+
     private void UpdateHostTransform()
     {
         double zoom = Zoom;
@@ -1126,7 +1171,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         double centerX = Math.Max(0, (_viewport.Width - extentWidth) / 2);
         _host.Transform = new ScaleTransform(zoom, zoom);
         _host.Offset = new Vector(centerX - _offset.X, -_offset.Y);
+        ViewportChanged?.Invoke(this, EventArgs.Empty);
     }
+
 
     // ------------------------------------------------------------------ caret & selection
 

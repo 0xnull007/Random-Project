@@ -258,6 +258,7 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Width" Click="OnFitWidth" ToolTip="Zoom so the page fills the width" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowRuler}" Content="Ruler" ToolTip="Show the ruler: drag the markers for indents, click to add a tab stop, drag a tab stop off to remove it" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowNavigation}" Content="Navigation" ToolTip="Show the headings of the document in a side pane; click one to jump there" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding CheckSpelling}" Content="Spelling" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
@@ -341,7 +342,9 @@
           </ListBox>
         </DockPanel>
       </Border>
-      <ScrollViewer x:Name="Scroller" Grid.Column="1"
+      <DockPanel Grid.Column="1">
+        <views:RulerView x:Name="Ruler" DockPanel.Dock="Top" Visibility="{Binding ShowRuler, Converter={StaticResource BoolToVis}}" />
+      <ScrollViewer x:Name="Scroller"
                   CanContentScroll="True"
                   HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Visible"
@@ -349,6 +352,7 @@
                   Focusable="False">
       <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" CheckSpelling="{Binding CheckSpelling}" />
     </ScrollViewer>
+      </DockPanel>
     </Grid>
   </DockPanel>
 </Window>
