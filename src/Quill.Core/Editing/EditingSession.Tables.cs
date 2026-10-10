@@ -216,9 +216,88 @@ public sealed partial class EditingSession
             return;
         }
 
-        var updated = new Table(at.Table.Rows, at.Table.ColumnWidths, !at.Table.HasBorders, at.Table.Indent);
-        Commit(new EditResult(DocumentEditor.ReplaceBlock(Document, Selection.Story, at.Path, updated), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+        CommitTableFormat(at.Path, new Table(at.Table.Rows, at.Table.ColumnWidths, !at.Table.HasBorders, at.Table.Indent));
     }
+
+    /// <summary>True when the caret's row is a header row (repeated at the top of every page the table continues on).</summary>
+    public bool IsHeaderRowAtCaret => TableAtCaret() is { } at && at.Table.Rows[at.Row].IsHeader;
+
+    /// <summary>Background of the caret's cell, or null for none.</summary>
+    public DocColor? CellShadingAtCaret => TableAtCaret() is { } at ? at.Table.Rows[at.Row].Cells[at.Cell].Shading : null;
+
+    public void ToggleHeaderRow()
+    {
+        if (TableAtCaret() is not { } at)
+        {
+            return;
+        }
+
+        TableRow row = at.Table.Rows[at.Row];
+        var updated = new TableRow(row.Cells, row.Height, row.ExactHeight, !row.IsHeader);
+        CommitTableFormat(at.Path, at.Table.WithRows(at.Table.Rows.SetItem(at.Row, updated)));
+    }
+
+    /// <summary>Fills the caret's cell with a colour (null clears it).</summary>
+    public void SetCellShading(DocColor? color)
+    {
+        if (TableAtCaret() is not { } at)
+        {
+            return;
+        }
+
+        TableRow row = at.Table.Rows[at.Row];
+        TableCell cell = row.Cells[at.Cell];
+        var updatedCell = new TableCell(cell.Blocks, cell.GridSpan, cell.VerticalMerge, color is { IsAuto: true } ? null : color);
+        CommitTableFormat(at.Path, at.Table.WithRows(at.Table.Rows.SetItem(at.Row, WithCells(row, row.Cells.SetItem(at.Cell, updatedCell)))));
+    }
+
+    /// <summary>Sets the grid column widths of a table (used when a border is dragged).</summary>
+    public void SetColumnWidths(StoryId story, BlockPath tablePath, ImmutableArray<Twips> widths)
+    {
+        if (Document.TryGetBlock(story, tablePath) is not Table table)
+        {
+            return;
+        }
+
+        Commit(new EditResult(DocumentEditor.ReplaceBlock(Document, story, tablePath, table.WithColumnWidths(widths)), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    private Document? _resizeBase;
+
+    /// <summary>Live preview while a column border is dragged: the document updates without an undo step.</summary>
+    public void PreviewColumnWidths(StoryId story, BlockPath tablePath, ImmutableArray<Twips> widths)
+    {
+        if (Document.TryGetBlock(story, tablePath) is not Table table)
+        {
+            return;
+        }
+
+        _resizeBase ??= Document;
+        ApplyState(DocumentEditor.ReplaceBlock(Document, story, tablePath, table.WithColumnWidths(widths)), Selection, ChangeSet.Structural());
+    }
+
+    /// <summary>Ends a drag: the whole resize becomes one undo step.</summary>
+    public void EndColumnResize()
+    {
+        if (_resizeBase is not { } baseDocument)
+        {
+            return;
+        }
+
+        Document final = Document;
+        _resizeBase = null;
+        if (ReferenceEquals(final, baseDocument))
+        {
+            return;
+        }
+
+        ApplyState(baseDocument, Selection, ChangeSet.Structural());
+        Commit(new EditResult(final, Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    private void CommitTableFormat(BlockPath path, Table table) =>
+        Commit(new EditResult(DocumentEditor.ReplaceBlock(Document, Selection.Story, path, table), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+
 
     private void CommitTable(BlockPath path, Table table, BlockPath caretBlock)
     {

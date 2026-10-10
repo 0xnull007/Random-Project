@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -347,6 +348,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private Vector _offset;
     private bool _caretOn = true;
     private bool _dragging;
+    private ColumnDrag? _columnDrag;
+    private bool _hoverColumnBorder;
+
     private double? _desiredCaretX;
     private (string Text, DocumentFragment Fragment)? _lastCopied;
     private bool _headerFooterMode;
@@ -1630,7 +1634,87 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         return HitTestFragment(fragment, pagePoint);
     }
 
+    private sealed record ColumnDrag(StoryId Story, BlockPath Path, int GridLine, double StartX, ImmutableArray<double> Widths, double Scale);
+
+    /// <summary>A vertical cell border within a few pixels of the pointer: the table and the grid line (1..columns) it belongs to.</summary>
+    private (TableFragment Fragment, int GridLine)? TableBorderAt(Point viewPoint)
+    {
+        if (IsReadOnly || _layout.PageCount == 0)
+        {
+            return null;
+        }
+
+        Point doc = ToDocument(viewPoint);
+        int pageIndex = PageIndexAt(doc.Y);
+        if (pageIndex < 0)
+        {
+            return null;
+        }
+
+        Rect pageRect = PageRect(pageIndex);
+        var p = new PointD(doc.X - pageRect.X, doc.Y - pageRect.Y);
+        double tolerance = 3 / Zoom;
+        foreach (TableFragment table in _layout.Pages[pageIndex].AllFragments().OfType<TableFragment>())
+        {
+            if (p.Y < table.Bounds.Top || p.Y > table.Bounds.Bottom || p.X < table.Bounds.Left - tolerance || p.X > table.Bounds.Right + tolerance)
+            {
+                continue;
+            }
+
+            // The row under the pointer decides where the borders are (merged cells differ per row).
+            int row = table.FirstRow;
+            while (row < table.LastRow && p.Y >= table.RowTop(row + 1))
+            {
+                row++;
+            }
+
+            TableRowLayout rowLayout = table.Layout.Rows[row];
+            int grid = 0;
+            foreach (TableCellLayout cell in rowLayout.Cells)
+            {
+                grid += cell.Cell.GridSpan;
+                double x = table.Bounds.Left + cell.Left + cell.Width;
+                if (Math.Abs(p.X - x) <= tolerance)
+                {
+                    return (table, Math.Min(grid, table.Layout.ColumnWidths.Length));
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>New grid widths after dragging a border by <paramref name="delta"/> DIPs: the two neighbouring columns trade width, the right edge grows the last column.</summary>
+    private static ImmutableArray<Twips> ResizedWidths(ColumnDrag drag, double delta)
+    {
+        const double minimum = 10;
+        double[] widths = drag.Widths.ToArray();
+        int line = drag.GridLine;
+        if (line >= widths.Length)
+        {
+            widths[^1] = Math.Max(minimum, widths[^1] + delta);
+        }
+        else
+        {
+            delta = Math.Clamp(delta, minimum - widths[line - 1], widths[line] - minimum);
+            widths[line - 1] += delta;
+            widths[line] -= delta;
+        }
+
+        double scale = drag.Scale > 0 ? drag.Scale : 1;
+        return widths.Select(w => Twips.FromDips(w / scale)).ToImmutableArray();
+    }
+
+    private void FinishColumnDrag()
+    {
+        _columnDrag = null;
+        ReleaseMouseCapture();
+        Session?.EndColumnResize();
+        UpdateCursor();
+    }
+
     private static (TableFragment Table, int Row, int Cell)? CellAt(PageLayout page, Point pagePoint, bool body)
+
     {
         var point = new PointD(pagePoint.X, pagePoint.Y);
         foreach (BlockFragment fragment in page.AllFragments())
@@ -1845,12 +1929,22 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
+        if (e.ClickCount == 1 && Keyboard.Modifiers == ModifierKeys.None && TableBorderAt(viewPoint) is { } border)
+        {
+            // Dragging a vertical cell border resizes the columns on either side (the right edge resizes the last column).
+            _columnDrag = new ColumnDrag(border.Fragment.Story, border.Fragment.Path, border.GridLine, viewPoint.X, border.Fragment.Layout.ColumnWidths, border.Fragment.Layout.Scale);
+            CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
         if (HitTest(viewPoint) is not { } hit)
         {
             return;
         }
 
         switch (e.ClickCount)
+
         {
             case 2:
                 session.SelectWordAt(hit.Position);
@@ -1929,6 +2023,20 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (_columnDrag is { } drag)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                FinishColumnDrag();
+                return;
+            }
+
+            double delta = (e.GetPosition(this).X - drag.StartX) / Zoom;
+            Session?.PreviewColumnWidths(drag.Story, drag.Path, ResizedWidths(drag, delta));
+            return;
+        }
+
+
         if (_textDragStart is { } dragStart)
         {
             if (e.LeftButton != MouseButtonState.Pressed)
@@ -1957,6 +2065,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 ToolTip = url is null ? null : url + Environment.NewLine + "Ctrl+Click to follow the link";
             }
 
+            _hoverColumnBorder = TableBorderAt(e.GetPosition(this)) is not null;
             UpdateCursor();
         }
 
@@ -1994,6 +2103,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private void UpdateCursor() => Cursor = IsReadOnly ? Cursors.Arrow
         : _pendingFormatSample is not null ? Cursors.Pen
         : _hoverLink is not null && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? Cursors.Hand
+        : _hoverColumnBorder ? Cursors.SizeWE
         : Cursors.IBeam;
 
     /// <summary>Right-click outside the selection moves the caret there first (and selects a clicked picture), like Word; the context menu then opens.</summary>
@@ -2124,6 +2234,14 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
+        if (_columnDrag is not null)
+        {
+            FinishColumnDrag();
+            e.Handled = true;
+            return;
+        }
+
+
         if (_textDragStart is not null)
         {
             // Released without dragging: the click just moves the caret, like Word.

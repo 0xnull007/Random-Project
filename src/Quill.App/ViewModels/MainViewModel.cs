@@ -129,6 +129,30 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsInTable { get; set; }
 
+    /// <summary>Whether the caret's table row repeats at the top of following pages (Table tab toggle).</summary>
+    [ObservableProperty]
+    public partial bool IsHeaderRow { get; set; }
+
+    partial void OnIsHeaderRowChanged(bool value)
+    {
+        if (Session.IsInTable && Session.IsHeaderRowAtCaret != value)
+        {
+            Session.ToggleHeaderRow();
+        }
+    }
+
+    /// <summary>Background of the caret's table cell for the shading picker (white when none).</summary>
+    [ObservableProperty]
+    public partial Color CellShadingSwatch { get; set; } = Colors.White;
+
+    /// <summary>Applies a cell shading from the picker: "auto" clears it, otherwise an RRGGBB hex.</summary>
+    public void SetCellShading(string value)
+    {
+        Session.SetCellShading(value == "auto" ? null : DocColor.Parse(value));
+        RefreshFormatState();
+    }
+
+
     /// <summary>Mirrors the document's track-changes switch (Review tab toggle, Ctrl+Shift+E).</summary>
     [ObservableProperty]
     public partial bool TrackChanges { get; set; }
@@ -1486,6 +1510,8 @@ public sealed partial class MainViewModel : ObservableObject
             bool? listKind = Session.ListKind(current);
             IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
             IsInTable = Session.IsInTable;
+            IsHeaderRow = Session.IsHeaderRowAtCaret;
+            CellShadingSwatch = Session.CellShadingAtCaret is { IsAuto: false } shading ? Color.FromRgb(shading.R, shading.G, shading.B) : Colors.White;
             TrackChanges = Session.TrackChanges;
             UpdateCurrentHeading();
             UpdateWordCountText();

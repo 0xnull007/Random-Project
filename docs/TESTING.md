@@ -171,6 +171,13 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       Delete Column and Delete Table remove them; deleting the only row removes the table and leaves the paragraphs
       around it intact; Borders hides and shows the grid lines; Align Left/Center/Right align the cell paragraph.
 - [ ] Right-click inside a table: Insert Row Below, Insert Column Right, Delete Row/Column/Table are offered only there.
+- [ ] Point at a vertical cell border: the cursor becomes a horizontal resize arrow; drag it and the two columns on
+      either side trade width live (the right edge widens or narrows the last column); release and one Ctrl+Z undoes
+      the whole drag. Dragging the same border in Word's file keeps the other columns as they were **(new)**.
+- [ ] Table tab > Header Row on the first row, then add rows until the table runs onto a second page: the header row
+      is drawn again at the top of the continuation (not editable there); Header Row off stops that **(new)**.
+- [ ] Table tab > shading swatch: pick a colour and the caret's cell is filled (text stays readable); "Automatic"
+      clears it; the swatch shows the current cell's colour; saved files keep the shading **(new)**.
 - [ ] Undo (Ctrl+Z) reverts each table command in one step.
 - [ ] Save as .docx and open in Word: the inserted table has its borders, equal columns and cell text; no repair prompt.
 - [ ] Export to PDF and print preview show the table like the page does.
@@ -311,8 +318,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## Known limitations (expected, not bugs)
 
-- Tables: no merging or splitting of cells, cell shading or dragging of column widths yet; unedited tables are saved
-  exactly as read, edited and inserted ones are written as plain grids.
+- Tables: no merging or splitting of cells and no table styles yet; unedited tables are saved exactly as read,
+  edited and inserted ones are written as plain grids with their widths, shading and header rows.
 - Track changes records insertions and deletions of text only: formatting changes, paragraph marks, moved
   pictures and tables are not tracked, and deleted text is always shown (Word's "All Markup").
 - No equations (dropped with a warning).

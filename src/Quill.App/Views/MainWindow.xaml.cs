@@ -537,7 +537,14 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnCellShadingSelected(object? sender, string value)
+    {
+        ViewModel.SetCellShading(value);
+        Editor.Focus();
+    }
+
     private void OnEditHeader(object sender, RoutedEventArgs e)
+
     {
         Editor.EditHeader();
         Editor.Focus();

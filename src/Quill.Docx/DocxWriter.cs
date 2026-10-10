@@ -211,10 +211,22 @@ public static class DocxWriter
         foreach (TableRow row in table.Rows)
         {
             var tr = new W.TableRow();
+            var trPr = new W.TableRowProperties();
             if (row.Height is { } height)
             {
-                tr.Append(new W.TableRowProperties(new W.TableRowHeight { Val = (uint)Math.Max(0, height.Value), HeightType = row.ExactHeight ? W.HeightRuleValues.Exact : W.HeightRuleValues.AtLeast }));
+                trPr.Append(new W.TableRowHeight { Val = (uint)Math.Max(0, height.Value), HeightType = row.ExactHeight ? W.HeightRuleValues.Exact : W.HeightRuleValues.AtLeast });
             }
+
+            if (row.IsHeader)
+            {
+                trPr.Append(new W.TableHeader());
+            }
+
+            if (trPr.HasChildren)
+            {
+                tr.Append(trPr);
+            }
+
 
             foreach (TableCell cell in row.Cells)
             {

@@ -181,7 +181,10 @@ public sealed class Paginator
                     }
 
                     int firstRow = placement.NextLine;
-                    double availableHeight = page.Column.Bottom - page.Y;
+                    int headerRows = LeadingHeaderRows(table);
+                    int repeated = firstRow > 0 && firstRow >= headerRows ? headerRows : 0;
+                    double availableHeight = page.Column.Bottom - page.Y - tableLayout.RowTops[repeated];
+
                     int rows = 0;
                     while (firstRow + rows < tableLayout.Rows.Length && tableLayout.HeightOfRows(firstRow, firstRow + rows) <= availableHeight + 0.001)
                     {
@@ -200,7 +203,7 @@ public sealed class Paginator
                     }
 
                     int lastRow = firstRow + rows - 1;
-                    var tableFragment = new TableFragment(placement.Story, placement.Path, tableLayout, firstRow, lastRow, page.Y, page.Column.Left);
+                    var tableFragment = new TableFragment(placement.Story, placement.Path, tableLayout, firstRow, lastRow, page.Y, page.Column.Left, repeated);
                     page.Fragments.Add(tableFragment);
                     page.Y = tableFragment.Bounds.Bottom;
                     page.IsEmpty = false;
@@ -755,7 +758,20 @@ public sealed class Paginator
             return new StoryLayout(story, new RectD(area.Left, area.Top, area.Width, height), fragments.ToImmutable());
         }
 
+        /// <summary>Header rows at the top of a table (w:tblHeader) that repeat on every page the table continues on; never all of them.</summary>
+        private static int LeadingHeaderRows(Table table)
+        {
+            int count = 0;
+            while (count < table.Rows.Length && table.Rows[count].IsHeader)
+            {
+                count++;
+            }
+
+            return count >= table.Rows.Length ? 0 : count;
+        }
+
         /// <summary>Lays out a table at the column width: grid columns scaled to fit, each cell's paragraphs formatted at the cell width.</summary>
+
         private TableLayout GetTableLayout(Table table, double columnWidth, FieldValues fields)
         {
             double indent = Math.Max(0, table.Indent.ToDips());
@@ -767,6 +783,7 @@ public sealed class Paginator
                 widths[c] = c < table.ColumnWidths.Length ? Math.Max(0, table.ColumnWidths[c].ToDips()) : 0;
             }
 
+            double scale = 1;
             double total = widths.Sum();
             if (total <= 0.5)
             {
@@ -774,7 +791,7 @@ public sealed class Paginator
             }
             else if (total > available)
             {
-                double scale = available / total;
+                scale = available / total;
                 for (int c = 0; c < columnCount; c++)
                 {
                     widths[c] *= scale;
@@ -840,7 +857,7 @@ public sealed class Paginator
                 rows.Add(new TableRowLayout(row, Math.Max(4, rowHeight), cells.ToImmutable()));
             }
 
-            return new TableLayout(table, indent, ImmutableArray.Create(widths), rows.ToImmutable());
+            return new TableLayout(table, indent, ImmutableArray.Create(widths), rows.ToImmutable(), scale);
         }
 
         private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields, ListMarker? marker)

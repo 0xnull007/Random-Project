@@ -48,6 +48,11 @@ public static class PageRenderer
     {
         ArgumentNullException.ThrowIfNull(fragment);
         ArgumentNullException.ThrowIfNull(target);
+        for (int r = 0; r < fragment.RepeatedHeaderRows; r++)
+        {
+            DrawRow(fragment.Layout, fragment.Layout.Rows[r], fragment.Bounds.Left, fragment.RowTop(r), target);
+        }
+
         for (int r = fragment.FirstRow; r <= fragment.LastRow; r++)
         {
             DrawRow(fragment.Layout, fragment.Layout.Rows[r], fragment.Bounds.Left, fragment.RowTop(r), target);

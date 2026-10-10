@@ -167,4 +167,36 @@ public class TableCommandTests
         session.ToggleTableBorders();
         Assert.Same(before, session.Document);
     }
+
+    [Fact]
+    public void Header_rows_shading_and_column_widths_are_table_formatting()
+    {
+        EditingSession session = SessionWithGrid();
+        Assert.False(session.IsHeaderRowAtCaret);
+        session.ToggleHeaderRow();
+        Assert.True(TableOf(session).Rows[0].IsHeader);
+        Assert.True(session.IsHeaderRowAtCaret);
+        Assert.Equal(Cell(1, 0, 0), session.Selection.Active);
+
+        session.SetCellShading(DocColor.Parse("FFFF00"));
+        Assert.Equal(DocColor.Parse("FFFF00"), session.CellShadingAtCaret);
+        Assert.Null(TableOf(session).Rows[0].Cells[1].Shading);
+        session.SetCellShading(null);
+        Assert.Null(session.CellShadingAtCaret);
+
+        ImmutableArray<Twips> widths = [Twips.FromInches(1), Twips.FromInches(2), Twips.FromInches(3)];
+        Document before = session.Document;
+        session.PreviewColumnWidths(Body, BlockPath.Of(1), [Twips.FromInches(2), Twips.FromInches(2), Twips.FromInches(2)]);
+        session.PreviewColumnWidths(Body, BlockPath.Of(1), widths);
+        Assert.Equal(widths, TableOf(session).ColumnWidths);
+        session.EndColumnResize();
+        Assert.Equal(widths, TableOf(session).ColumnWidths);
+        session.Undo();
+        Assert.Same(before, session.Document);
+        session.Redo();
+        Assert.Equal(widths, TableOf(session).ColumnWidths);
+
+        session.SetColumnWidths(Body, BlockPath.Of(1), [Twips.FromInches(3), Twips.FromInches(2), Twips.FromInches(1)]);
+        Assert.Equal(Twips.FromInches(3), TableOf(session).ColumnWidths[0]);
+    }
 }

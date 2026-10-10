@@ -13,13 +13,14 @@ public sealed class TableLayout
     /// <summary>0.5 pt single borders.</summary>
     public const double BorderThickness = 2.0 / 3.0;
 
-    public TableLayout(Table table, double left, ImmutableArray<double> columnWidths, ImmutableArray<TableRowLayout> rows)
+    public TableLayout(Table table, double left, ImmutableArray<double> columnWidths, ImmutableArray<TableRowLayout> rows, double scale = 1)
     {
         ArgumentNullException.ThrowIfNull(table);
         Table = table;
         Left = left;
         ColumnWidths = columnWidths;
         Rows = rows;
+        Scale = scale;
         var tops = new double[rows.Length + 1];
         for (int i = 0; i < rows.Length; i++)
         {
@@ -35,6 +36,9 @@ public sealed class TableLayout
     public double Left { get; }
 
     public ImmutableArray<double> ColumnWidths { get; }
+
+    /// <summary>Ratio of laid-out widths to the model widths: below 1 when a grid wider than the column was shrunk to fit.</summary>
+    public double Scale { get; }
 
     public double Width => ColumnWidths.Sum();
 
@@ -107,15 +111,20 @@ public sealed class CellBlockLayout
     public double Height { get; }
 }
 
-/// <summary>Rows [FirstRow, LastRow] of a table placed on a page, with a fragment for every paragraph inside its cells.</summary>
+/// <summary>
+/// Rows [FirstRow, LastRow] of a table placed on a page, with a fragment for every paragraph inside its cells.
+/// When the table continues from an earlier page its leading header rows are repeated above the body rows.
+/// </summary>
 public sealed class TableFragment : BlockFragment
 {
-    public TableFragment(StoryId story, BlockPath path, TableLayout layout, int firstRow, int lastRow, double top, double columnLeft)
-        : base(story, path, new RectD(columnLeft + layout.Left, top, layout.Width, layout.HeightOfRows(firstRow, lastRow)))
+    public TableFragment(StoryId story, BlockPath path, TableLayout layout, int firstRow, int lastRow, double top, double columnLeft, int repeatedHeaderRows = 0)
+        : base(story, path, new RectD(columnLeft + layout.Left, top, layout.Width, layout.RowTops[Math.Min(repeatedHeaderRows, firstRow)] + layout.HeightOfRows(firstRow, lastRow)))
     {
         Layout = layout;
         FirstRow = firstRow;
         LastRow = lastRow;
+        RepeatedHeaderRows = Math.Min(repeatedHeaderRows, firstRow);
+
         var paragraphs = ImmutableArray.CreateBuilder<ParagraphFragment>();
         var tables = ImmutableArray.CreateBuilder<TableFragment>();
         for (int r = firstRow; r <= lastRow; r++)
@@ -157,6 +166,13 @@ public sealed class TableFragment : BlockFragment
 
     public int LastRow { get; }
 
+    /// <summary>Leading header rows drawn again above <see cref="FirstRow"/> on a continuation page (0 on the first page).</summary>
+    public int RepeatedHeaderRows { get; }
+
+    /// <summary>Height of the repeated header rows at the top of this fragment.</summary>
+    public double HeaderHeight => Layout.RowTops[RepeatedHeaderRows];
+
+
     /// <summary>Fragments of the paragraphs directly inside this fragment's cells (nested paths), for hit testing, caret and selection.</summary>
     public ImmutableArray<ParagraphFragment> CellParagraphs { get; }
 
@@ -179,8 +195,11 @@ public sealed class TableFragment : BlockFragment
         }
     }
 
-    /// <summary>Page y of the top of a row on this fragment.</summary>
-    public double RowTop(int row) => Bounds.Top + Layout.RowTops[row] - Layout.RowTops[FirstRow];
+    /// <summary>Page y of the top of a row on this fragment (repeated header rows sit above the body rows).</summary>
+    public double RowTop(int row) => row < RepeatedHeaderRows
+        ? Bounds.Top + Layout.RowTops[row]
+        : Bounds.Top + HeaderHeight + Layout.RowTops[row] - Layout.RowTops[FirstRow];
+
 
     /// <summary>
     /// The innermost cell under a page point: the fragment holding it plus row and cell indices (merged cells
@@ -194,14 +213,26 @@ public sealed class TableFragment : BlockFragment
         }
 
         int row = FirstRow;
-        while (row < LastRow && point.Y >= RowTop(row + 1))
+        if (RepeatedHeaderRows > 0 && point.Y < RowTop(FirstRow))
         {
-            row++;
+            row = 0;
+            while (row < RepeatedHeaderRows - 1 && point.Y >= RowTop(row + 1))
+            {
+                row++;
+            }
         }
+        else
+        {
+            while (row < LastRow && point.Y >= RowTop(row + 1))
+            {
+                row++;
+            }
+        }
+
 
         TableRowLayout rowLayout = Layout.Rows[row];
         int cell = CellIndexAt(rowLayout, point.X - Bounds.Left);
-        while (row > FirstRow && rowLayout.Cells[cell].Cell.VerticalMerge == VerticalMerge.Continue)
+        while (row > (row < RepeatedHeaderRows ? 0 : FirstRow) && rowLayout.Cells[cell].Cell.VerticalMerge == VerticalMerge.Continue)
         {
             row--;
             rowLayout = Layout.Rows[row];

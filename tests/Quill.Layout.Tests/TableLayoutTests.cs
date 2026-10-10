@@ -122,3 +122,42 @@ public class TableFragmentTests
         Assert.Null(table.CellAt(new PointD(table.Bounds.Left - 5, table.Bounds.Top)));
     }
 }
+
+public class TableHeaderRowTests
+{
+    [Fact]
+    public void Header_rows_repeat_at_the_top_of_continuation_pages_without_duplicating_cell_fragments()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(240),
+            PageHeight = Twips.FromDips(90),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        TableRow Row(string text, bool header = false) => new([new TableCell(ImmutableList.Create<Block>(Paragraph.FromText(text)))], isHeader: header);
+        var table = new Table([Row("head", header: true), Row("a"), Row("b"), Row("c")], [Twips.FromDips(200)], hasBorders: true, Twips.Zero);
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(table))), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+
+        // 50 DIP of body per page, 20 per row: page 1 holds head + a; page 2 repeats head (20) and holds b; page 3 head + c.
+        Assert.Equal(3, layout.Pages.Length);
+        var first = Assert.IsType<TableFragment>(layout.Pages[0].Body[0]);
+        var second = Assert.IsType<TableFragment>(layout.Pages[1].Body[0]);
+        Assert.Equal(0, first.RepeatedHeaderRows);
+        Assert.Equal((0, 1), (first.FirstRow, first.LastRow));
+        Assert.Equal(1, second.RepeatedHeaderRows);
+        Assert.Equal((2, 2), (second.FirstRow, second.LastRow));
+        Assert.Equal(20, second.HeaderHeight, 3);
+        Assert.Equal(second.Bounds.Top, second.RowTop(0), 3);
+        Assert.Equal(second.Bounds.Top + 20, second.RowTop(2), 3);
+        Assert.Equal(40, second.Bounds.Height, 3);
+        Assert.Single(second.CellParagraphs);
+        Assert.Equal(new BlockPath([0, 2, 0, 0]), second.CellParagraphs[0].Path);
+        Assert.Equal(second.RowTop(2), second.CellParagraphs[0].Bounds.Top, 3);
+        Assert.Equal((second, 0, 0), second.CellAt(new PointD(second.Bounds.Left + 5, second.Bounds.Top + 5)));
+        Assert.Equal((second, 2, 0), second.CellAt(new PointD(second.Bounds.Left + 5, second.Bounds.Top + 25)));
+    }
+}

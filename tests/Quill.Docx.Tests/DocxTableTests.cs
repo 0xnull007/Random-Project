@@ -160,4 +160,24 @@ public class DocxTableTests
         Assert.Equal(Twips.FromInches(3).Value, read.ColumnWidths[0].Value);
         Assert.Equal(3, reread.Document.Sections[0].Body.Count);
     }
+
+    [Fact]
+    public void Header_rows_round_trip()
+    {
+        var head = new TableRow([new TableCell(ImmutableList.Create<Block>(Paragraph.FromText("h")))], isHeader: true);
+        var body = new TableRow([new TableCell(ImmutableList.Create<Block>(Paragraph.FromText("b")))]);
+        var table = new Table([head, body], [Twips.FromInches(3)], hasBorders: true, Twips.Zero);
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(table, Paragraph.FromText("after")))), DefaultStyleSheet.Create());
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+        }
+
+        var read = Assert.IsType<Table>(DocxReader.Read(new MemoryStream(bytes)).Document.Sections[0].Body[0]);
+        Assert.True(read.Rows[0].IsHeader);
+        Assert.False(read.Rows[1].IsHeader);
+    }
 }
