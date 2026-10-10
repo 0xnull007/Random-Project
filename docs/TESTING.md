@@ -188,6 +188,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 - [ ] Copy/paste inside Quill keeps formatting, lists and pictures.
 - [ ] Copy from Quill and paste into Word or WordPad: fonts, bold/italic/colors, alignment and list bullets arrive.
+- [ ] Copy from a web page (Chrome/Edge) and paste: headings, bold/italic, links, colors, lists and table rows
+      arrive; copy from Quill and paste into Gmail/a browser editor: formatting and links arrive **(new)**.
 - [ ] Copy from Word/browser and paste into Quill: formatting arrives (RTF); Ctrl+Alt+V pastes plain text.
 - [ ] Ctrl+X cuts. The Cut/Copy/Paste buttons do the same.
 

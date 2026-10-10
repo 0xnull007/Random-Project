@@ -1840,6 +1840,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         try
         {
             data.SetData(DataFormats.Rtf, RichTextConverter.ToRtf(fragment, session.Resolver, session.Document.Lists));
+            data.SetData(DataFormats.Html, HtmlConverter.ToClipboardHtml(fragment, session.Resolver, session.Document.Lists));
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException)
         {
@@ -2309,7 +2310,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         string? text = null;
         string? rtf = null;
+        string? html = null;
         BitmapSource? bitmap = null;
+
         try
         {
             IDataObject? data = Clipboard.GetDataObject();
@@ -2329,7 +2332,13 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 rtf = data.GetData(DataFormats.Rtf) as string;
             }
 
-            if (!plainTextOnly && rtf is null && data.GetDataPresent(DataFormats.Bitmap))
+            if (!plainTextOnly && rtf is null && data.GetDataPresent(DataFormats.Html))
+            {
+                html = data.GetData(DataFormats.Html) as string;
+            }
+
+            if (!plainTextOnly && rtf is null && html is null && data.GetDataPresent(DataFormats.Bitmap))
+
             {
                 bitmap = Clipboard.GetImage();
             }
@@ -2368,10 +2377,28 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             }
         }
 
+        if (html is not null)
+        {
+            try
+            {
+                DocumentFragment fragment = HtmlConverter.FromHtml(html);
+                if (!fragment.IsEmpty)
+                {
+                    session.Paste(fragment);
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Odd HTML from another app: fall back to its plain text.
+            }
+        }
+
         if (!string.IsNullOrEmpty(text))
         {
             session.InsertPlainText(text);
         }
+
     }
 
     // ------------------------------------------------------------------ IScrollInfo
