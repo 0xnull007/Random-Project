@@ -541,7 +541,11 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
     }
 
+    /// <summary>The page number shown where a position is laid out (for a table of contents), or null when not laid out.</summary>
+    public string? PageNumberTextOf(TextPosition position) => _layout.Find(position)?.Page.PageNumberText;
+
     private int CurrentPageIndex()
+
 
     {
         if (Session is { } session && _layout.Find(session.Selection.Active) is { } found)

@@ -531,7 +531,47 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    // ----- Table of contents -----
+
+    /// <summary>Inserts a table of contents before the caret paragraph, or replaces the existing one in place; the caret lands after it.</summary>
+    public void InsertTableOfContents(IReadOnlyList<TocEntry> entries, Twips columnWidth, string? title = "Contents")
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        Document document = Document;
+        foreach (Style style in TableOfContents.RequiredStyles(document.Styles))
+        {
+            if (!document.Styles.Contains(style.Id))
+            {
+                document = document.WithStyles(document.Styles.With(style));
+            }
+        }
+
+        ImmutableArray<Paragraph> paragraphs = TableOfContents.Build(entries, columnWidth, title);
+        StoryId story;
+        int index;
+        ImmutableList<Block> blocks;
+        if (TableOfContents.FindExisting(document) is { } existing)
+        {
+            story = existing.Story;
+            index = existing.First;
+            blocks = document.GetStory(story).RemoveRange(index, existing.Last - existing.First + 1);
+        }
+        else
+        {
+            story = StoryId.Body(Selection.Story.SectionIndex);
+            index = Selection.Story == story ? Selection.Range.Start.Block.TopIndex : 0;
+            blocks = document.GetStory(story);
+        }
+
+        blocks = blocks.InsertRange(index, paragraphs);
+        document = document.WithStory(story, blocks);
+        int after = Math.Min(index + paragraphs.Length, blocks.Count - 1);
+        Commit(new EditResult(document, Selection.Caret(new TextPosition(story, BlockPath.Of(after), 0)), ChangeSet.Structural()), EditKind.Paste, startsNewGroup: true);
+        PendingFormat = null;
+    }
+
     // ----- Styles -----
+
 
     /// <summary>Adds or replaces a style (Modify Style); every paragraph in that style follows.</summary>
     public void ModifyStyle(Style style)

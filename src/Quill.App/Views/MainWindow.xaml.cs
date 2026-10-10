@@ -156,7 +156,54 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    /// <summary>Insert > Table of Contents: from the headings and their current page numbers; run again to refresh.</summary>
+    private void OnInsertToc(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        List<TocEntry> entries = CollectTocEntries(session);
+        session.InsertTableOfContents(entries, Editor.TextColumnWidth());
+        // The table itself shifts the pages, so take the numbers again once the layout settled.
+        for (int pass = 0; pass < 2; pass++)
+        {
+            List<TocEntry> refreshed = CollectTocEntries(session);
+            if (refreshed.SequenceEqual(entries))
+            {
+                break;
+            }
+
+            entries = refreshed;
+            session.InsertTableOfContents(entries, Editor.TextColumnWidth());
+        }
+
+        ViewModel.StatusMessage = entries.Count == 0
+            ? "No headings found: apply Heading 1-3 styles, then insert the table of contents again"
+            : "Table of contents with " + entries.Count.ToString(System.Globalization.CultureInfo.CurrentCulture) + " entries; insert again to refresh the page numbers";
+        Editor.Focus();
+    }
+
+    private List<TocEntry> CollectTocEntries(EditingSession session)
+    {
+        var entries = new List<TocEntry>();
+        Document document = session.Document;
+        for (int s = 0; s < document.Sections.Count; s++)
+        {
+            var body = document.Sections[s].Body;
+            for (int i = 0; i < body.Count; i++)
+            {
+                if (body[i] is Paragraph paragraph && !TableOfContents.IsTocStyle(paragraph.StyleId)
+                    && session.Resolver.ResolveParagraph(paragraph).OutlineLevel is { } level && level < 3 && paragraph.FlatText.Trim().Length > 0)
+                {
+                    var position = new TextPosition(StoryId.Body(s), BlockPath.Of(i), 0);
+                    entries.Add(new TocEntry(paragraph.FlatText.Trim(), level, Editor.PageNumberTextOf(position) ?? "?"));
+                }
+            }
+        }
+
+        return entries;
+    }
+
     private void OnInsertLinkCommand(object sender, ExecutedRoutedEventArgs e) => OnInsertLink(sender, e);
+
 
     private void OnInsertLink(object sender, RoutedEventArgs e)
     {

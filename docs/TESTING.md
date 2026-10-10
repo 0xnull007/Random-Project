@@ -155,6 +155,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       the text. Hover shows the address; Ctrl+Click opens it in the browser. Ctrl+K on a link edits it; Remove Link
       turns it back into plain text. Links survive save/reopen and open in Word. Word documents with links
       (including HYPERLINK fields) show them as links.
+- [ ] Insert > Table of Contents: a "Contents" heading plus one line per Heading 1-3 paragraph with dot leaders and
+      page numbers; clicking it again refreshes it in place; it saves as toc 1-3 styles that Word recognizes **(new)**.
 - [ ] Insert > Date & Time...: pick a format (double-click or Insert); the text is inserted at the caret.
 
 ## 12. Find and replace
