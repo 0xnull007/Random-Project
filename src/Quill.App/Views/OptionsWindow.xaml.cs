@@ -19,6 +19,8 @@ public partial class OptionsWindow : Window
         SymbolsBox.IsChecked = settings.AutoCorrect.Symbols;
         CapitalizeBox.IsChecked = settings.AutoCorrect.CapitalizeSentences;
         ListsBox.IsChecked = settings.AutoCorrect.AutomaticLists;
+        SpellingBox.IsChecked = settings.CheckSpelling;
+        CheckSpelling = settings.CheckSpelling;
         UnitsBox.SelectedIndex = settings.Units switch
         {
             "Inches" => 1,
@@ -35,6 +37,8 @@ public partial class OptionsWindow : Window
     public AutoCorrectSettings AutoCorrect { get; private set; }
 
     public string Units { get; private set; }
+
+    public bool CheckSpelling { get; private set; }
 
     private void OnOk(object sender, RoutedEventArgs e)
     {
@@ -55,6 +59,7 @@ public partial class OptionsWindow : Window
             AutomaticLists = ListsBox.IsChecked == true,
         };
         Units = (UnitsBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "Auto";
+        CheckSpelling = SpellingBox.IsChecked == true;
         DialogResult = true;
     }
 }

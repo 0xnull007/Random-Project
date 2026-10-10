@@ -20,6 +20,9 @@
     <CheckBox x:Name="CapitalizeBox" Content="Capitalize the first letter of sentences" Margin="0,2" />
     <CheckBox x:Name="ListsBox" Content="Automatic bulleted and numbered lists (* and 1. followed by a space)" Margin="0,2" />
 
+    <TextBlock Text="Proofing" FontWeight="SemiBold" Margin="0,16,0,6" />
+    <CheckBox x:Name="SpellingBox" Content="Check spelling as you type (uses the Windows spell checker and its dictionaries)" Margin="0,2" />
+
     <TextBlock Text="Measurements" FontWeight="SemiBold" Margin="0,16,0,6" />
     <StackPanel Orientation="Horizontal">
       <TextBlock Text="Show lengths in" VerticalAlignment="Center" Margin="0,0,8,0" />

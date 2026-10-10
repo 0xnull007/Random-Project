@@ -39,6 +39,17 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Nothing is rewritten inside a hyperlink. File > Options turns each rule off; the autosave interval and the
       measurement unit (inches/centimeters) can be changed there too.
 
+## 2c. Spelling (new)
+
+- [ ] Misspelled words get a red wavy underline shortly after you finish typing them (the word at the caret is
+      not flagged until you move on). View > Spelling toggles it; it is remembered.
+- [ ] Right-click a flagged word: suggestions appear at the top of the menu; choosing one replaces the word.
+      Ignore All stops flagging the word for this session; Add to Dictionary adds it to the Windows dictionary
+      (shared with Edge/Word) and the underline disappears everywhere.
+- [ ] Hyperlink text, numbers and pictures are not flagged. Text marked with another language (e.g. a Word
+      document in German) is checked with that language when Windows has it installed.
+- [ ] Zoom in/out and scroll: underlines stay under the words; pages further down are checked when they appear.
+
 ## 3. Undo and redo
 
 - [ ] Ctrl+Z undoes a whole typed word/sentence at once (typing is grouped), Ctrl+Y redoes; the ↶ ↷ buttons too.
@@ -211,7 +222,7 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 ## Known limitations (expected, not bugs)
 
 - Tables are shown as placeholders and preserved on save, not editable.
-- No spell check, no footnotes, comments, track changes
+- No footnotes, comments, track changes
   or equations (dropped with a warning), single column only.
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app
   gives its text only.

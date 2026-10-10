@@ -254,6 +254,7 @@
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowNavigation}" Content="Navigation" ToolTip="Show the headings of the document in a side pane; click one to jump there" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding CheckSpelling}" Content="Spelling" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <TextBlock Text="Theme:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="90" ItemsSource="{Binding ThemeChoices}" SelectedItem="{Binding Theme}" ToolTip="Light, dark, or follow the Windows setting" />
@@ -341,7 +342,7 @@
                   VerticalScrollBarVisibility="Visible"
                   PanningMode="Both"
                   Focusable="False">
-      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" />
+      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" CheckSpelling="{Binding CheckSpelling}" />
     </ScrollViewer>
     </Grid>
   </DockPanel>

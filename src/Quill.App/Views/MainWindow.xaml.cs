@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 using Quill.App.Imaging;
+using Quill.App.Spelling;
 using Quill.App.ViewModels;
 using Quill.Core.Editing;
 using Quill.Core.Model;
@@ -226,7 +227,7 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
-    /// <summary>Shows the link and picture entries only when they apply.</summary>
+    /// <summary>Shows the link and picture entries only when they apply, and spelling suggestions for a misspelled word.</summary>
     private void OnEditorMenuOpened(object sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu)
@@ -234,8 +235,51 @@ public partial class MainWindow : Window
             return;
         }
 
+        foreach (FrameworkElement stale in menu.Items.OfType<FrameworkElement>().Where(i => i.Tag as string == "spell").ToList())
+        {
+            menu.Items.Remove(stale);
+        }
+
         EditingSession session = ViewModel.Session;
+        if (Editor.MisspellingAtCaret() is { } misspelling)
+        {
+            int at = 0;
+            foreach (string suggestion in SpellService.Shared.Suggest(misspelling.Word, misspelling.LanguageTag))
+            {
+                var item = new MenuItem { Header = suggestion.Replace("_", "__", StringComparison.Ordinal), FontWeight = FontWeights.SemiBold, Tag = "spell" };
+                item.Click += (_, _) =>
+                {
+                    session.ReplaceRange(misspelling.Range, suggestion);
+                    session.MoveCaret(session.Selection.End, extend: false);
+                    Editor.Focus();
+                };
+                menu.Items.Insert(at++, item);
+            }
+
+            if (at == 0)
+            {
+                menu.Items.Insert(at++, new MenuItem { Header = "(no spelling suggestions)", IsEnabled = false, Tag = "spell" });
+            }
+
+            var ignore = new MenuItem { Header = "_Ignore All", Tag = "spell" };
+            ignore.Click += (_, _) =>
+            {
+                SpellService.Shared.Ignore(misspelling.Word, misspelling.LanguageTag);
+                Editor.Focus();
+            };
+            var add = new MenuItem { Header = "_Add to Dictionary", Tag = "spell" };
+            add.Click += (_, _) =>
+            {
+                SpellService.Shared.Add(misspelling.Word, misspelling.LanguageTag);
+                Editor.Focus();
+            };
+            menu.Items.Insert(at++, ignore);
+            menu.Items.Insert(at++, add);
+            menu.Items.Insert(at, new Separator { Tag = "spell" });
+        }
+
         bool onLink = session.LinkAtCaret() is not null;
+
         bool onPicture = session.SelectedImage() is not null;
         foreach (MenuItem item in menu.Items.OfType<MenuItem>())
         {
@@ -511,6 +555,7 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() == true)
         {
             ViewModel.ApplyOptions(dialog.AutosaveMinutes, dialog.AutoCorrect, dialog.Units);
+            ViewModel.CheckSpelling = dialog.CheckSpelling;
         }
 
         Editor.Focus();

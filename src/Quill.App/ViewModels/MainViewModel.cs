@@ -54,6 +54,7 @@ public sealed partial class MainViewModel : ObservableObject
         Session.AutoCorrect = _settings.AutoCorrect.ToOptions();
         _headingsTimer.Tick += (_, _) => RefreshHeadings();
         ShowNavigation = _settings.ShowNavigation;
+        CheckSpelling = _settings.CheckSpelling;
         UnitPreference.Apply(_settings.Units);
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
         _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
@@ -608,8 +609,19 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>True while <see cref="CurrentHeading"/> is being set to follow the caret, so the list does not navigate back.</summary>
     public bool IsSyncingHeading => _syncingHeading;
 
+    /// <summary>Check spelling as you type (Windows Spell Checking API).</summary>
+    [ObservableProperty]
+    public partial bool CheckSpelling { get; set; } = true;
+
+    partial void OnCheckSpellingChanged(bool value)
+    {
+        _settings.CheckSpelling = value;
+        _settings.Save();
+    }
+
     [ObservableProperty]
     public partial bool ShowNavigation { get; set; }
+
 
     [ObservableProperty]
     public partial bool HasNoHeadings { get; set; } = true;

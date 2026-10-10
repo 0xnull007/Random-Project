@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Quill.App.Imaging;
+using Quill.App.Spelling;
 using Quill.Core.Editing;
 using Quill.Core.Text;
 using Quill.Core.Units;
@@ -41,7 +42,217 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         nameof(IsReadOnly), typeof(bool), typeof(DocumentView),
         new PropertyMetadata(false, (d, _) => ((DocumentView)d).OnReadOnlyChanged()));
 
-    public static readonly DependencyProperty ShowFormattingMarksProperty = DependencyProperty.Register(
+    public static readonly DependencyProperty CheckSpellingProperty = DependencyProperty.Register(
+        nameof(CheckSpelling), typeof(bool), typeof(DocumentView), new PropertyMetadata(false, (d, _) => ((DocumentView)d).OnCheckSpellingChanged()));
+
+    /// <summary>Underlines words the Windows spell checker does not know, checking visible pages in idle time.</summary>
+    public bool CheckSpelling
+    {
+        get => (bool)GetValue(CheckSpellingProperty);
+        set => SetValue(CheckSpellingProperty, value);
+    }
+
+    private static readonly Pen SquigglePen = FrozenPen(Color.FromArgb(0xE0, 0xE0, 0x24, 0x24), 1.0);
+    private readonly DispatcherTimer _spellTimer = new(DispatcherPriority.ApplicationIdle) { Interval = TimeSpan.FromMilliseconds(120) };
+
+    private static Pen FrozenPen(Color color, double thickness)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        var pen = new Pen(brush, thickness) { LineJoin = PenLineJoin.Round };
+        pen.Freeze();
+        return pen;
+    }
+
+    private void OnCheckSpellingChanged()
+    {
+        if (CheckSpelling)
+        {
+            ScheduleSpellCheck();
+        }
+        else
+        {
+            _spellTimer.Stop();
+            RedrawSquigglesAll();
+        }
+    }
+
+    private void ScheduleSpellCheck()
+    {
+        if (CheckSpelling && !IsReadOnly && !_spellTimer.IsEnabled && Session is not null)
+        {
+            _spellTimer.Start();
+        }
+    }
+
+    /// <summary>Checks a few unchecked paragraphs on the materialized pages per tick, so typing never waits on the checker.</summary>
+    private void OnSpellTick(object? sender, EventArgs e)
+    {
+        if (!CheckSpelling || IsReadOnly || Session is not { } session || !SpellService.Shared.IsAvailable)
+        {
+            _spellTimer.Stop();
+            return;
+        }
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var touched = new HashSet<int>();
+        bool pending = false;
+        foreach ((int index, PageVisuals _) in _pageVisuals)
+        {
+            if (index >= _layout.PageCount)
+            {
+                continue;
+            }
+
+            foreach (BlockFragment fragment in _layout.Pages[index].AllFragments())
+            {
+                if (fragment is not ParagraphFragment paragraph || SpellService.Shared.TryGetCached(paragraph.Paragraph, out _))
+                {
+                    continue;
+                }
+
+                if (watch.ElapsedMilliseconds > 8)
+                {
+                    pending = true;
+                    break;
+                }
+
+                SpellService.Shared.Check(paragraph.Paragraph, session.Resolver);
+                touched.Add(index);
+            }
+
+            if (pending)
+            {
+                break;
+            }
+        }
+
+        foreach (int index in touched)
+        {
+            if (_pageVisuals.TryGetValue(index, out PageVisuals? visuals))
+            {
+                DrawSquiggles(visuals.Squiggles, index);
+            }
+        }
+
+        if (!pending)
+        {
+            _spellTimer.Stop();
+        }
+    }
+
+    private void RedrawSquigglesAll()
+    {
+        foreach ((int index, PageVisuals visuals) in _pageVisuals)
+        {
+            DrawSquiggles(visuals.Squiggles, index);
+        }
+    }
+
+    /// <summary>After Ignore All or Add to Dictionary: every paragraph is checked again.</summary>
+    private void OnSpellingChanged(object? sender, EventArgs e)
+    {
+        RedrawSquigglesAll();
+        ScheduleSpellCheck();
+    }
+
+    private void DrawSquiggles(DrawingVisual visual, int index)
+    {
+        using DrawingContext dc = visual.RenderOpen();
+        if (!CheckSpelling || IsReadOnly || Session is not { } session || index >= _layout.PageCount)
+        {
+            return;
+        }
+
+        Rect rect = PageRect(index);
+        dc.PushTransform(new TranslateTransform(rect.X, rect.Y));
+        dc.PushClip(new RectangleGeometry(new Rect(0, 0, rect.Width, rect.Height)));
+        TextPosition caret = session.Selection.Active;
+        foreach (BlockFragment fragment in _layout.Pages[index].AllFragments())
+        {
+            if (fragment is not ParagraphFragment paragraph || !SpellService.Shared.TryGetCached(paragraph.Paragraph, out ParagraphSpelling? spelling) || spelling.Errors.IsEmpty)
+            {
+                continue;
+            }
+
+            bool caretHere = caret.Story == paragraph.Story && caret.Block.TopIndex == paragraph.Path.TopIndex;
+            foreach (Misspelling error in spelling.Errors)
+            {
+                if (caretHere && caret.Offset >= error.Start && caret.Offset <= error.End)
+                {
+                    continue; // the word being typed is not flagged until the caret leaves it
+                }
+
+                for (int i = paragraph.FirstLine; i <= paragraph.LastLine; i++)
+                {
+                    IFormattedLine line = paragraph.Layout.Lines[i];
+                    int start = Math.Max(error.Start, line.Start);
+                    int end = Math.Min(error.End, line.End - line.NewlineLength);
+                    if (end <= start)
+                    {
+                        continue;
+                    }
+
+                    PointD origin = paragraph.LineOrigin(i);
+                    double y = origin.Y + line.Baseline + 2;
+                    foreach (RectD box in line.GetTextBounds(start, end - start))
+                    {
+                        DrawWave(dc, origin.X + box.X, origin.X + box.X + box.Width, y);
+                    }
+                }
+            }
+        }
+
+        dc.Pop();
+        dc.Pop();
+    }
+
+    private static void DrawWave(DrawingContext dc, double x1, double x2, double y)
+    {
+        if (x2 - x1 < 1)
+        {
+            return;
+        }
+
+        var geometry = new StreamGeometry();
+        using (StreamGeometryContext context = geometry.Open())
+        {
+            context.BeginFigure(new Point(x1, y), false, false);
+            bool up = true;
+            for (double x = x1 + 2; x < x2 + 2; x += 2)
+            {
+                context.LineTo(new Point(Math.Min(x, x2), up ? y - 1.5 : y + 1.5), true, false);
+                up = !up;
+            }
+        }
+
+        geometry.Freeze();
+        dc.DrawGeometry(null, SquigglePen, geometry);
+    }
+
+    /// <summary>The misspelled word under the caret (checked on demand), for the context menu.</summary>
+    public (TextRange Range, string Word, string LanguageTag)? MisspellingAtCaret()
+    {
+        if (!CheckSpelling || Session is not { } session || session.Document.TryGetParagraph(session.Selection.Active) is not { } paragraph || !SpellService.Shared.IsAvailable)
+        {
+            return null;
+        }
+
+        TextPosition at = session.Selection.Active;
+        ParagraphSpelling spelling = SpellService.Shared.Check(paragraph, session.Resolver);
+        foreach (Misspelling error in spelling.Errors)
+        {
+            if (at.Offset >= error.Start && at.Offset <= error.End)
+            {
+                return (new TextRange(at.WithOffset(error.Start), at.WithOffset(error.End)), error.Word, spelling.LanguageTag);
+            }
+        }
+
+        return null;
+    }
+
+    public static readonly DependencyProperty ShowFormattingMarksProperty =
+ DependencyProperty.Register(
         nameof(ShowFormattingMarks), typeof(bool), typeof(DocumentView),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (d, _) => ((DocumentView)d).RedrawContent()));
 
@@ -81,6 +292,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         Focusable = true;
         FocusVisualStyle = null;
         Cursor = Cursors.IBeam;
+        _spellTimer.Tick += OnSpellTick;
+        SpellService.Shared.Changed += OnSpellingChanged;
         ClipToBounds = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.ClearType);
@@ -493,6 +706,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private void OnDocumentChanged(object? sender, DocumentChangedEventArgs e)
     {
         Relayout();
+        ScheduleSpellCheck();
+
         EnsureCaretVisible();
         _ime.UpdateCompositionWindow();
     }
@@ -504,7 +719,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         UpdateCaretAndSelection();
         EnsureCaretVisible();
         _ime.UpdateCompositionWindow();
+        RedrawSquigglesAll();
     }
+
 
     /// <summary>Caret rectangle in this element's coordinates (zoomed and scrolled), for IME placement.</summary>
     internal Rect? CaretRectInView()
@@ -695,10 +912,12 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             var visuals = new PageVisuals(index);
             DrawChrome(visuals.Chrome, index);
             DrawContent(visuals.Content, index);
+            DrawSquiggles(visuals.Squiggles, index);
             DrawOverlay(visuals.Overlay, index);
             DrawSelection(visuals.Selection, index);
             _pagesLayer.Children.Add(visuals.Root);
             _pageVisuals[index] = visuals;
+            ScheduleSpellCheck();
         }
 
         UpdateHostTransform();
@@ -1913,6 +2132,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             PageIndex = pageIndex;
             Root.Children.Add(Chrome);
             Root.Children.Add(Content);
+            Root.Children.Add(Squiggles);
             Root.Children.Add(Overlay);
             Root.Children.Add(Selection);
         }
@@ -1924,6 +2144,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         public DrawingVisual Chrome { get; } = new();
 
         public DrawingVisual Content { get; } = new();
+
+        /// <summary>Red wavy underlines from the spell checker.</summary>
+        public DrawingVisual Squiggles { get; } = new();
 
         /// <summary>Dimming and guides shown while editing a header or footer.</summary>
         public DrawingVisual Overlay { get; } = new();

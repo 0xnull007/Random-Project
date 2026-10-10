@@ -39,6 +39,9 @@ public sealed class AppSettings
 
     public bool ShowNavigation { get; set; }
 
+    /// <summary>Underline words the Windows spell checker does not know.</summary>
+    public bool CheckSpelling { get; set; } = true;
+
 
     public static string Directory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Quill");
 
