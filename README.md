@@ -48,9 +48,12 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 ## Roadmap
 
 Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). Done so far: editing with undo,
-character and paragraph formatting, styles, bulleted and numbered lists, change case, page and section breaks,
-headers and footers with page-number fields, Page Setup, inline pictures (insert, paste, drop, resize), symbols and
-date/time, .docx open and save (tables preserved opaquely), rich clipboard (RTF), find and replace, IME input,
-print, print preview, PDF export, recent files, autosave recovery, formatting marks, word count, light/dark theme,
-document properties. Next: the UI Automation text pattern, editable tables, hyperlinks, spell check, and packaging
-as MSIX. The full manual checklist is in [docs/TESTING.md](docs/TESTING.md).
+character and paragraph formatting (toolbar, Font and Paragraph dialogs, Format Painter, Modify Style), styles,
+bulleted and numbered lists with numbering styles, change case, AutoCorrect, page and section breaks, multi-column
+sections, headers and footers with page-number fields, Page Setup, a ruler with draggable indents and tab stops,
+inline pictures, hyperlinks, tables (displayed and preserved), a table of contents, symbols and date/time, .docx
+open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop, find and replace, spell
+checking (Windows Spell Checking API), IME input, print, print preview, PDF export, recent files, autosave
+recovery, formatting marks, navigation pane, word count, light/dark theme, document properties, and a UI
+Automation text pattern. Next: editable tables, footnotes and comments, and packaging as MSIX. The full manual
+checklist is in [docs/TESTING.md](docs/TESTING.md).

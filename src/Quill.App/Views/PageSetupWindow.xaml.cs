@@ -38,7 +38,7 @@ public partial class PageSetupWindow : Window
         Loaded += (_, _) => PopupThemeFix.AttachAll(this);
 
         string unitText = _unit == LengthUnit.Centimeters ? "cm" : "in";
-        foreach (TextBlock label in new[] { WidthUnit, HeightUnit, TopUnit, BottomUnit, LeftUnit, RightUnit, GutterUnit, HeaderUnit, FooterUnit })
+        foreach (TextBlock label in new[] { WidthUnit, HeightUnit, TopUnit, BottomUnit, LeftUnit, RightUnit, GutterUnit, HeaderUnit, FooterUnit, SpacingUnit })
         {
             label.Text = unitText;
         }
@@ -58,6 +58,10 @@ public partial class PageSetupWindow : Window
         FooterBox.Text = current.FooterDistance.Format(_unit);
         DifferentFirstPage.IsChecked = current.TitlePage;
         DifferentOddEven.IsChecked = evenAndOddHeaders;
+        NumberFormatBox.SelectedIndex = (int)current.PageNumberFormat;
+        StartAtBox.Text = current.PageNumberStart?.ToString(System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
+        ColumnsBox.SelectedIndex = Math.Clamp(current.ColumnCount - 1, 0, 3);
+        SpacingBox.Text = current.ColumnSpacing.Format(_unit);
         ApplyTo.SelectedIndex = 0;
         ApplyTo.IsEnabled = hasMultipleSections;
         PaperSize.SelectedIndex = MatchPaperSize(current.PageWidth, current.PageHeight);
@@ -142,6 +146,19 @@ public partial class PageSetupWindow : Window
         Twips gutter = Read(GutterBox, "Gutter", errors);
         Twips header = Read(HeaderBox, "Header distance", errors);
         Twips footer = Read(FooterBox, "Footer distance", errors);
+        Twips spacing = Read(SpacingBox, "Column spacing", errors);
+        int? startAt = null;
+        if (StartAtBox.Text.Trim().Length > 0)
+        {
+            if (int.TryParse(StartAtBox.Text.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.CurrentCulture, out int start) && start >= 0 && start <= 32767)
+            {
+                startAt = start;
+            }
+            else
+            {
+                errors.Add("Start at must be a whole number (or empty to continue numbering).");
+            }
+        }
 
         if (errors.Count == 0)
         {
@@ -192,6 +209,10 @@ public partial class PageSetupWindow : Window
             HeaderDistance = header,
             FooterDistance = footer,
             TitlePage = DifferentFirstPage.IsChecked == true,
+            PageNumberStart = startAt,
+            PageNumberFormat = (PageNumberFormat)Math.Max(0, NumberFormatBox.SelectedIndex),
+            ColumnCount = Math.Clamp(ColumnsBox.SelectedIndex + 1, 1, 4),
+            ColumnSpacing = spacing.IsNegative ? Twips.Zero : spacing,
         };
         DialogResult = true;
     }

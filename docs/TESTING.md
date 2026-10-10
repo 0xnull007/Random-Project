@@ -123,6 +123,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       same columns when the file is opened there **(new)**.
 - [ ] Page Setup...: paper size (Letter/A4/...), orientation, margins, header/footer distance, "Apply to whole
       document", "Different first page", "Different odd and even pages". Invalid values are rejected.
+- [ ] Page Setup also sets the page number format (1 / i / I / a / A) and "Start at" (empty continues from the
+      previous section), plus columns and column spacing; page-number fields follow **(new)**.
 - [ ] Keep-with-next: a heading at the bottom of a page moves to the next page with its paragraph.
 - [ ] Widow/orphan control: a paragraph never leaves a single line alone at the top or bottom of a page.
 

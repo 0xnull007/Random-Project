@@ -561,9 +561,6 @@ public sealed partial class MainViewModel : ObservableObject
             SectionProperties updated = setup with
             {
                 Start = existing.Start,
-                PageNumberStart = existing.PageNumberStart,
-                PageNumberFormat = existing.PageNumberFormat,
-                ColumnCount = existing.ColumnCount,
             };
             if (updated != existing)
             {

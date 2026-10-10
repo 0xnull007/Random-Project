@@ -109,7 +109,47 @@
     <CheckBox x:Name="DifferentFirstPage" Content="Different first page" Margin="0,8,0,0" />
     <CheckBox x:Name="DifferentOddEven" Content="Different odd and even pages (whole document)" Margin="0,4,0,0" />
 
+    <TextBlock Style="{StaticResource GroupHeading}" Text="Page numbers and columns" />
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition />
+        <RowDefinition />
+      </Grid.RowDefinitions>
+      <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Number format:" />
+      <ComboBox Grid.Row="0" Grid.Column="1" x:Name="NumberFormatBox" Width="110" Margin="0,3">
+        <ComboBoxItem Content="1, 2, 3" />
+        <ComboBoxItem Content="i, ii, iii" />
+        <ComboBoxItem Content="I, II, III" />
+        <ComboBoxItem Content="a, b, c" />
+        <ComboBoxItem Content="A, B, C" />
+      </ComboBox>
+      <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource UnitLabel}" Text="" />
+      <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource FieldLabel}" Text="Start at:" />
+      <TextBox Grid.Row="0" Grid.Column="4" x:Name="StartAtBox" Style="{StaticResource FieldBox}" Width="60" ToolTip="Leave empty to continue from the previous section" />
+      <TextBlock Grid.Row="0" Grid.Column="5" Style="{StaticResource UnitLabel}" Text="(empty = continue)" />
+      <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Columns:" />
+      <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ColumnsBox" Width="110" Margin="0,3">
+        <ComboBoxItem Content="1" />
+        <ComboBoxItem Content="2" />
+        <ComboBoxItem Content="3" />
+        <ComboBoxItem Content="4" />
+      </ComboBox>
+      <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource UnitLabel}" Text="" />
+      <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldLabel}" Text="Spacing:" />
+      <TextBox Grid.Row="1" Grid.Column="4" x:Name="SpacingBox" Style="{StaticResource FieldBox}" Width="60" />
+      <TextBlock Grid.Row="1" Grid.Column="5" x:Name="SpacingUnit" Style="{StaticResource UnitLabel}" />
+    </Grid>
+
     <TextBlock Style="{StaticResource GroupHeading}" Text="Apply to" />
+
     <ComboBox x:Name="ApplyTo" Width="200" HorizontalAlignment="Left">
       <ComboBoxItem Content="This section" />
       <ComboBoxItem Content="Whole document" />
