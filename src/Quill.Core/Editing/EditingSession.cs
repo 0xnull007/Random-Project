@@ -609,15 +609,44 @@ public sealed partial class EditingSession
         PendingFormat = null;
     }
 
+    /// <summary>Inserts an endnote reference at the caret and starts the note at the end of the document; the caret moves there.</summary>
+    public void InsertEndnote()
+    {
+        if (Selection.Story.IsNote)
+        {
+            return;
+        }
+
+        (Document working, TextPosition at, ChangeSet? deletion) = DeleteSelectionIfAny();
+        foreach (Style style in FootnoteSupport.RequiredEndnoteStyles(working.Styles))
+        {
+            if (!working.Styles.Contains(style.Id))
+            {
+                working = working.WithStyles(working.Styles.With(style));
+            }
+        }
+
+        int id = working.Endnotes.IsEmpty ? 1 : working.Endnotes.Keys.Max() + 1;
+        var mark = new FootnoteReference(id, isNoteMark: true, null, FootnoteSupport.EndnoteReferenceStyleId, isEndnote: true);
+        var note = ImmutableList.Create<Block>(new Paragraph([mark, new Run(" ")], FootnoteSupport.EndnoteTextStyleId));
+        working = working.WithEndnotes(working.Endnotes.SetItem(id, note));
+        EditResult inserted = DocumentEditor.InsertInline(working, at, new FootnoteReference(id, false, null, FootnoteSupport.EndnoteReferenceStyleId, isEndnote: true));
+        var caret = Selection.Caret(new TextPosition(StoryId.Endnote(id), BlockPath.Of(0), 2));
+        Commit(new EditResult(inserted.Document, caret, ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
+        _ = deletion;
+        PendingFormat = null;
+    }
+
     /// <summary>The body position just after the reference of the note the caret is in, or null.</summary>
     public TextPosition? FootnoteReferencePosition()
     {
-        if (!Selection.Story.IsFootnote)
+        if (!Selection.Story.IsNote)
         {
             return null;
         }
 
         int id = Selection.Story.Note;
+        bool endnote = Selection.Story.IsEndnote;
         for (int s = 0; s < Document.Sections.Count; s++)
         {
             ImmutableList<Block> body = Document.Sections[s].Body;
@@ -630,7 +659,7 @@ public sealed partial class EditingSession
 
                 foreach (InlineSpan span in paragraph.Spans())
                 {
-                    if (span.Inline is FootnoteReference { IsNoteMark: false } note && note.NoteId == id)
+                    if (span.Inline is FootnoteReference { IsNoteMark: false } note && note.NoteId == id && note.IsEndnote == endnote)
                     {
                         return new TextPosition(StoryId.Body(s), BlockPath.Of(b), span.End);
                     }

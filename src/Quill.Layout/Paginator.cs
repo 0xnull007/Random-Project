@@ -82,7 +82,7 @@ public sealed class Paginator
             _options = options;
             _totalPagesHint = totalPagesHint;
             _sectionPagesHint = sectionPagesHint;
-            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document) };
+            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document), EndnoteNumbers = FootnoteSupport.EndnoteNumbers(document) };
         }
 
         public bool UsedTotalDependentField { get; private set; }
@@ -130,17 +130,48 @@ public sealed class Paginator
             var body = new List<Placement>();
             foreach ((Block block, int index) in section.Body.Select((b, i) => (b, i)))
             {
-                body.Add(new Placement(block, BlockPath.Of(index)));
+                body.Add(new Placement(block, BlockPath.Of(index), StoryId.Body(sectionIndex)));
+            }
+
+            if (sectionIndex == _document.Sections.Count - 1)
+            {
+                bool first = true;
+                foreach (int noteId in FootnoteSupport.ReferencedEndnoteIds(_document))
+                {
+                    ImmutableList<Block> note = _document.Endnotes[noteId];
+                    for (int b = 0; b < note.Count; b++)
+                    {
+                        body.Add(new Placement(note[b], BlockPath.Of(b), StoryId.Endnote(noteId)) { StartsNotes = first && b == 0 });
+                        first = false;
+                    }
+                }
             }
 
             IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(section.Body, _document.Lists, _resolver);
+
             var page = NewPage(sectionIndex, pageNumber, isFirstOfSection: true);
             bool afterHardBreak = true; // document/section start keeps space-before
             int i = 0;
             while (i < body.Count)
             {
                 Placement placement = body[i];
+                if (placement.StartsNotes)
+                {
+                    const double separator = 12;
+                    if (!page.IsEmpty && page.Y + separator + 20 > page.Column.Bottom)
+                    {
+                        page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak);
+                        continue;
+                    }
+
+                    page.EndnoteSeparatorY = page.Y + separator / 2;
+                    page.Y += separator;
+                    page.IsEmpty = false;
+                    placement.StartsNotes = false;
+                }
+
                 if (placement.Block is Table table)
+
                 {
                     TableLayout tableLayout = GetTableLayout(table, page.Column.Width, _bodyFields);
                     if (tableLayout.Rows.IsEmpty)
@@ -169,7 +200,7 @@ public sealed class Paginator
                     }
 
                     int lastRow = firstRow + rows - 1;
-                    var tableFragment = new TableFragment(StoryId.Body(sectionIndex), placement.Path, tableLayout, firstRow, lastRow, page.Y, page.Column.Left);
+                    var tableFragment = new TableFragment(placement.Story, placement.Path, tableLayout, firstRow, lastRow, page.Y, page.Column.Left);
                     page.Fragments.Add(tableFragment);
                     page.Y = tableFragment.Bounds.Bottom;
                     page.IsEmpty = false;
@@ -197,7 +228,7 @@ public sealed class Paginator
                         continue;
                     }
 
-                    page.Fragments.Add(new OpaqueFragment(StoryId.Body(sectionIndex), placement.Path, opaque, new RectD(page.Column.Left, page.Y, page.Column.Width, height)));
+                    page.Fragments.Add(new OpaqueFragment(placement.Story, placement.Path, opaque, new RectD(page.Column.Left, page.Y, page.Column.Width, height)));
                     page.Y += height;
                     page.IsEmpty = false;
                     i++;
@@ -275,7 +306,7 @@ public sealed class Paginator
                 bool endsParagraph = lastLine == last;
                 double spaceAfter = endsParagraph ? EffectiveSpaceAfter(section, i, layout) : 0;
                 double top = page.Y;
-                var fragment = new ParagraphFragment(StoryId.Body(sectionIndex), placement.Path, layout, first, lastLine, top, page.Column.Left, spaceBefore, spaceAfter);
+                var fragment = new ParagraphFragment(placement.Story, placement.Path, layout, first, lastLine, top, page.Column.Left, spaceBefore, spaceAfter);
                 page.Fragments.Add(fragment);
                 page.Y = fragment.Bounds.Bottom;
                 page.IsEmpty = false;
@@ -327,7 +358,7 @@ public sealed class Paginator
                 return 0;
             }
 
-            if (layout.Properties.ContextualSpacing && blockIndex > 0 && section.Body[blockIndex - 1] is Paragraph previous
+            if (layout.Properties.ContextualSpacing && blockIndex > 0 && blockIndex < section.Body.Count && section.Body[blockIndex - 1] is Paragraph previous
                 && string.Equals(previous.StyleId, layout.Paragraph.StyleId, StringComparison.Ordinal))
             {
                 return 0;
@@ -532,7 +563,7 @@ public sealed class Paginator
             int end = layout.Lines[last].End;
             foreach (InlineSpan span in paragraph.Spans())
             {
-                if (span.Inline is FootnoteReference { IsNoteMark: false } note && span.Start >= start && span.Start < end
+                if (span.Inline is FootnoteReference { IsNoteMark: false, IsEndnote: false } note && span.Start >= start && span.Start < end
                     && _document.Footnotes.ContainsKey(note.NoteId) && !page.HasNote(note.NoteId) && !ids.Contains(note.NoteId))
                 {
                     ids.Add(note.NoteId);
@@ -601,7 +632,8 @@ public sealed class Paginator
                 isBlankFiller: false,
                 page.Variant,
                 notes,
-                separator));
+                separator,
+                page.EndnoteSeparatorY));
         }
 
 
@@ -815,7 +847,7 @@ public sealed class Paginator
 
         {
             string signature = (paragraph.Inlines.Any(i => i is Field or FootnoteReference) ? fields.Signature : string.Empty)
-                + (paragraph.Inlines.OfType<FootnoteReference>().Any() ? "|fn:" + string.Join(",", paragraph.Inlines.OfType<FootnoteReference>().Select(n => fields.FootnoteNumber(n.NoteId))) : string.Empty)
+                + (paragraph.Inlines.OfType<FootnoteReference>().Any() ? "|fn:" + string.Join(",", paragraph.Inlines.OfType<FootnoteReference>().Select(n => fields.NoteNumber(n))) : string.Empty)
                 + (marker is { } m ? "|" + m.Text : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {
@@ -880,11 +912,16 @@ public sealed class Paginator
 
         private static string FormatPageNumber(int number, PageNumberFormat format) => NumberText.Format(number, format);
 
-        private sealed class Placement(Block block, BlockPath path)
+        private sealed class Placement(Block block, BlockPath path, StoryId story)
         {
             public Block Block { get; } = block;
 
             public BlockPath Path { get; } = path;
+
+            public StoryId Story { get; } = story;
+
+            /// <summary>True for the first endnote placement: a separator rule goes before it.</summary>
+            public bool StartsNotes { get; set; }
 
             /// <summary>Next line of the paragraph to place (continuation after a page break).</summary>
             public int NextLine { get; set; }
@@ -923,6 +960,9 @@ public sealed class Paginator
             public double ColumnGap { get; init; }
 
             public int ColumnIndex { get; set; }
+
+            /// <summary>y of the rule above the endnotes when they start on this page.</summary>
+            public double? EndnoteSeparatorY { get; set; }
 
             /// <summary>Ids of the footnotes placed on this page, in order; their measured height shortens every column.</summary>
             public List<int> Footnotes { get; } = [];

@@ -229,6 +229,11 @@ public static class DocumentEditor
         {
             yield return (StoryId.Footnote(id), blocks);
         }
+
+        foreach ((int id, ImmutableList<Block> blocks) in document.Endnotes)
+        {
+            yield return (StoryId.Endnote(id), blocks);
+        }
     }
 
     /// <summary>Makes the range a hyperlink to <paramref name="url"/>, giving the runs the hyperlink character style (or direct formatting when the sheet has none).</summary>

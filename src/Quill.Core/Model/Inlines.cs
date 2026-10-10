@@ -1,3 +1,5 @@
+using Quill.Core.Text;
+
 namespace Quill.Core.Model;
 
 /// <summary>
@@ -152,11 +154,12 @@ public sealed class InlineImage : Inline
 /// </summary>
 public sealed class FootnoteReference : Inline
 {
-    public FootnoteReference(int noteId, bool isNoteMark = false, RunProperties? properties = null, string? styleId = null)
+    public FootnoteReference(int noteId, bool isNoteMark = false, RunProperties? properties = null, string? styleId = null, bool isEndnote = false)
         : base(styleId, properties)
     {
         NoteId = noteId;
         IsNoteMark = isNoteMark;
+        IsEndnote = isEndnote;
     }
 
     public int NoteId { get; }
@@ -164,13 +167,19 @@ public sealed class FootnoteReference : Inline
     /// <summary>True for the mark at the start of the note text (not a reference from the body).</summary>
     public bool IsNoteMark { get; }
 
+    /// <summary>True for endnotes (collected at the end of the document) rather than footnotes.</summary>
+    public bool IsEndnote { get; }
+
+    /// <summary>The story holding this note's text.</summary>
+    public StoryId Story => IsEndnote ? StoryId.Endnote(NoteId) : StoryId.Footnote(NoteId);
+
     public override int Length => 1;
 
-    public override FootnoteReference WithProperties(RunProperties properties) => new(NoteId, IsNoteMark, properties, StyleId);
+    public override FootnoteReference WithProperties(RunProperties properties) => new(NoteId, IsNoteMark, properties, StyleId, IsEndnote);
 
-    public override FootnoteReference WithStyle(string? styleId) => new(NoteId, IsNoteMark, Properties, styleId);
+    public override FootnoteReference WithStyle(string? styleId) => new(NoteId, IsNoteMark, Properties, styleId, IsEndnote);
 
     internal override void AppendFlatText(System.Text.StringBuilder builder) => builder.Append(Paragraph.ObjectReplacementChar);
 
-    public override string ToString() => IsNoteMark ? $"FootnoteMark({NoteId})" : $"FootnoteReference({NoteId})";
+    public override string ToString() => (IsEndnote ? "Endnote" : "Footnote") + (IsNoteMark ? "Mark" : "Reference") + "(" + NoteId + ")";
 }

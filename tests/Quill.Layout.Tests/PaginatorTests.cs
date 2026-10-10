@@ -538,3 +538,30 @@ public class FootnoteLayoutTests
         Assert.Contains(first.AllFragments(), f => f.Story == StoryId.Footnote(7));
     }
 }
+
+public class EndnoteLayoutTests
+{
+    [Fact]
+    public void Endnotes_follow_the_last_paragraph_under_a_separator()
+    {
+        var body = new Paragraph([new Run("text"), new FootnoteReference(2, isEndnote: true)]);
+        var notes = ImmutableDictionary<int, ImmutableList<Block>>.Empty.Add(2, ImmutableList.Create<Block>(new Paragraph([new FootnoteReference(2, true, isEndnote: true), new Run(" end")])));
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(140),
+            PageHeight = Twips.FromDips(140),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(body))), StyleSheet.Empty, endnotes: notes);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        PageLayout first = layout.Pages[0];
+        Assert.Equal(2, first.Body.Length);
+        Assert.Equal(StoryId.Endnote(2), first.Body[1].Story);
+        Assert.NotNull(first.EndnoteSeparatorY);
+        Assert.Equal(20 + 20 + 12, first.Body[1].Bounds.Top, 3);
+        Assert.Empty(first.Footnotes);
+    }
+}

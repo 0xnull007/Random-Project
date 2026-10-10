@@ -130,8 +130,10 @@ public sealed class PageLayout
         bool isBlankFiller,
         HeaderFooterVariant variant = HeaderFooterVariant.Default,
         ImmutableArray<StoryLayout> footnotes = default,
-        double? footnoteSeparatorY = null)
+        double? footnoteSeparatorY = null,
+        double? endnoteSeparatorY = null)
     {
+        EndnoteSeparatorY = endnoteSeparatorY;
         Footnotes = footnotes.IsDefault ? ImmutableArray<StoryLayout>.Empty : footnotes;
         FootnoteSeparatorY = footnoteSeparatorY;
         Index = index;
@@ -202,6 +204,9 @@ public sealed class PageLayout
 
     /// <summary>y of the short rule above the footnotes, or null when the page has none.</summary>
     public double? FootnoteSeparatorY { get; }
+
+    /// <summary>y of the rule above the endnotes, when they begin on this page.</summary>
+    public double? EndnoteSeparatorY { get; }
 
 
     public IEnumerable<BlockFragment> AllFragments()

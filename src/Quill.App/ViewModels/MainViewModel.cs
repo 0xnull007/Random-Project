@@ -537,7 +537,11 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void InsertEndnote() => Session.InsertEndnote();
+
+    [RelayCommand]
     private void InsertFootnote() => Session.InsertFootnote();
+
 
 
     [RelayCommand]

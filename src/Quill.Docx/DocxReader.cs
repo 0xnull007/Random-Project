@@ -28,6 +28,8 @@ public sealed class DocxReader
     private readonly Dictionary<string, string> _imageIdsByUri = new(StringComparer.Ordinal);
     private readonly ImmutableDictionary<int, ImmutableList<Block>>.Builder _footnotes = ImmutableDictionary.CreateBuilder<int, ImmutableList<Block>>();
     private int? _currentNoteId;
+    private int? _currentEndnoteId;
+    private readonly ImmutableDictionary<int, ImmutableList<Block>>.Builder _endnotes = ImmutableDictionary.CreateBuilder<int, ImmutableList<Block>>();
     private readonly List<int> _openComments = [];
     private readonly ImmutableDictionary<int, Comment>.Builder _comments = ImmutableDictionary.CreateBuilder<int, Comment>();
 
@@ -65,6 +67,7 @@ public sealed class DocxReader
         ImmutableList<Section> sections = ReadSections(body);
         ReadFootnotes(_main.FootnotesPart);
         ReadComments(_main.WordprocessingCommentsPart);
+        ReadEndnotes(_main.EndnotesPart);
         DocumentMetadata metadata = new()
         {
             Title = package.PackageProperties.Title,
@@ -74,7 +77,7 @@ public sealed class DocxReader
             Created = package.PackageProperties.Created,
             Modified = package.PackageProperties.Modified,
         };
-        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable()), _footnotes.ToImmutable(), _comments.ToImmutable()), _warnings);
+        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable()), _footnotes.ToImmutable(), _comments.ToImmutable(), _endnotes.ToImmutable()), _warnings);
     }
 
     // ------------------------------------------------------------------ sections and stories
@@ -460,9 +463,23 @@ public sealed class DocxReader
                     }
 
                     break;
-                case W.EndnoteReference or W.EndnoteReferenceMark:
-                    Warn("Endnotes are not supported and were dropped.");
+                case W.EndnoteReference endnoteReference:
+                    Flush();
+                    if (endnoteReference.Id?.Value is { } endnoteId)
+                    {
+                        builder.AddInline(new FootnoteReference((int)endnoteId, false, properties, styleId, isEndnote: true));
+                    }
+
                     break;
+                case W.EndnoteReferenceMark:
+                    Flush();
+                    if (_currentEndnoteId is { } currentEndnote)
+                    {
+                        builder.AddInline(new FootnoteReference(currentEndnote, true, properties, styleId, isEndnote: true));
+                    }
+
+                    break;
+
 
                 case W.CommentReference:
                     break;
@@ -587,7 +604,39 @@ public sealed class DocxReader
         }
     }
 
+    private void ReadEndnotes(EndnotesPart? part)
+    {
+        if (part?.Endnotes is not { } endnotes)
+        {
+            return;
+        }
+
+        foreach (W.Endnote note in endnotes.Elements<W.Endnote>())
+        {
+            if (note.Type?.Value is { } type && type != W.FootnoteEndnoteValues.Normal)
+            {
+                continue;
+            }
+
+            if (note.Id?.Value is not { } id)
+            {
+                continue;
+            }
+
+            _currentEndnoteId = (int)id;
+            try
+            {
+                _endnotes[(int)id] = ReadStory(note, part);
+            }
+            finally
+            {
+                _currentEndnoteId = null;
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ tables
+
 
 
     /// <summary>Reads a table for display; the original XML is kept so saving writes it back unchanged.</summary>

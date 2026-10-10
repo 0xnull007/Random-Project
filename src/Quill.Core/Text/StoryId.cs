@@ -10,6 +10,7 @@ public enum StoryKind
     FooterFirst,
     FooterEven,
     Footnote,
+    Endnote,
 }
 
 /// <summary>Identifies one editable story: the body of a section, one of its header/footer variants, or a footnote (by note id).</summary>
@@ -19,6 +20,8 @@ public readonly record struct StoryId(int SectionIndex, StoryKind Kind, int Note
 
     public static StoryId Footnote(int noteId) => new(0, StoryKind.Footnote, noteId);
 
+    public static StoryId Endnote(int noteId) => new(0, StoryKind.Endnote, noteId);
+
     public bool IsBody => Kind == StoryKind.Body;
 
     public bool IsHeader => Kind is StoryKind.HeaderDefault or StoryKind.HeaderFirst or StoryKind.HeaderEven;
@@ -26,6 +29,11 @@ public readonly record struct StoryId(int SectionIndex, StoryKind Kind, int Note
     public bool IsFooter => Kind is StoryKind.FooterDefault or StoryKind.FooterFirst or StoryKind.FooterEven;
 
     public bool IsFootnote => Kind == StoryKind.Footnote;
+
+    public bool IsEndnote => Kind == StoryKind.Endnote;
+
+    /// <summary>Footnote or endnote.</summary>
+    public bool IsNote => Kind is StoryKind.Footnote or StoryKind.Endnote;
 
     public int CompareTo(StoryId other)
     {

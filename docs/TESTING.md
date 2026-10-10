@@ -178,6 +178,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       pane opens on the right with a card (your name from Options, date) and the caret is in its text box; type the
       comment (saved when you leave the box); clicking a card selects its text; ✕ deletes it. Word documents with
       comments show them; saved comments open in Word's review pane **(new)**.
+- [ ] Insert > Endnote (Ctrl+Alt+D): a superscript roman numeral at the caret; the note text collects after the
+      last paragraph of the document under a separator line; Esc returns; round-trips through .docx **(new)**.
 - [ ] Insert > Date & Time...: pick a format (double-click or Insert); the text is inserted at the caret.
 
 ## 12. Find and replace
@@ -270,7 +272,7 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 ## Known limitations (expected, not bugs)
 
 - Tables are displayed (not editable) and preserved on save exactly as read.
-- No endnotes, track changes
+- No track changes
   or equations (dropped with a warning), single column only.
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app
   gives its text only.

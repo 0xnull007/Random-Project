@@ -2223,7 +2223,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 PendingFormatSample = null;
                 FormatPainterCancelled?.Invoke(this, EventArgs.Empty);
                 break;
-            case Key.Escape when session.Selection.Story.IsFootnote && session.FootnoteReferencePosition() is { } reference:
+            case Key.Escape when session.Selection.Story.IsNote && session.FootnoteReferencePosition() is { } reference:
                 session.MoveCaret(reference, extend: false);
                 break;
             case Key.Escape:

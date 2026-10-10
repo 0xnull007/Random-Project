@@ -40,7 +40,7 @@ public sealed record DocumentMetadata
 /// </summary>
 public sealed class Document
 {
-    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null, ListStore? lists = null, ImageStore? images = null, ImmutableDictionary<int, ImmutableList<Block>>? footnotes = null, ImmutableDictionary<int, Comment>? comments = null)
+    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null, ListStore? lists = null, ImageStore? images = null, ImmutableDictionary<int, ImmutableList<Block>>? footnotes = null, ImmutableDictionary<int, Comment>? comments = null, ImmutableDictionary<int, ImmutableList<Block>>? endnotes = null)
     {
         ArgumentNullException.ThrowIfNull(sections);
         ArgumentNullException.ThrowIfNull(styles);
@@ -57,6 +57,7 @@ public sealed class Document
         Images = images ?? ImageStore.Empty;
         Footnotes = footnotes ?? ImmutableDictionary<int, ImmutableList<Block>>.Empty;
         Comments = comments ?? ImmutableDictionary<int, Comment>.Empty;
+        Endnotes = endnotes ?? ImmutableDictionary<int, ImmutableList<Block>>.Empty;
     }
 
     /// <summary>A new blank document with one empty paragraph.</summary>
@@ -80,9 +81,9 @@ public sealed class Document
     /// <summary>Picture bytes referenced by <see cref="InlineImage"/> inlines.</summary>
     public ImageStore Images { get; }
 
-    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata, Lists, Images, Footnotes, Comments);
+    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata, Lists, Images, Footnotes, Comments, Endnotes);
 
-    public Document WithLists(ListStore lists) => new(Sections, Styles, Settings, Metadata, lists, Images, Footnotes, Comments);
+    public Document WithLists(ListStore lists) => new(Sections, Styles, Settings, Metadata, lists, Images, Footnotes, Comments, Endnotes);
 
     /// <summary>Footnote text by note id; a body paragraph refers to a note through a <see cref="FootnoteReference"/>.</summary>
     public ImmutableDictionary<int, ImmutableList<Block>> Footnotes { get; }
@@ -90,21 +91,27 @@ public sealed class Document
     /// <summary>Comments by id; runs carry the id of the comment they belong to.</summary>
     public ImmutableDictionary<int, Comment> Comments { get; }
 
-    public Document WithComments(ImmutableDictionary<int, Comment> comments) => new(Sections, Styles, Settings, Metadata, Lists, Images, Footnotes, comments);
+    /// <summary>Endnote text by note id, shown after the last section's text.</summary>
+    public ImmutableDictionary<int, ImmutableList<Block>> Endnotes { get; }
 
-    public Document WithFootnotes(ImmutableDictionary<int, ImmutableList<Block>> footnotes) => new(Sections, Styles, Settings, Metadata, Lists, Images, footnotes, Comments);
+    public Document WithEndnotes(ImmutableDictionary<int, ImmutableList<Block>> endnotes) => new(Sections, Styles, Settings, Metadata, Lists, Images, Footnotes, Comments, endnotes);
+
+    public Document WithComments(ImmutableDictionary<int, Comment> comments) => new(Sections, Styles, Settings, Metadata, Lists, Images, Footnotes, comments, Endnotes);
 
 
-    public Document WithImages(ImageStore images) => new(Sections, Styles, Settings, Metadata, Lists, images, Footnotes, Comments);
+    public Document WithFootnotes(ImmutableDictionary<int, ImmutableList<Block>> footnotes) => new(Sections, Styles, Settings, Metadata, Lists, Images, footnotes, Comments, Endnotes);
+
+
+    public Document WithImages(ImageStore images) => new(Sections, Styles, Settings, Metadata, Lists, images, Footnotes, Comments, Endnotes);
 
 
     public Document WithSection(int index, Section section) => WithSections(Sections.SetItem(index, section));
 
-    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata, Lists, Images, Footnotes, Comments);
+    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata, Lists, Images, Footnotes, Comments, Endnotes);
 
-    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata, Lists, Images, Footnotes, Comments);
+    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata, Lists, Images, Footnotes, Comments, Endnotes);
 
-    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata, Lists, Images, Footnotes, Comments);
+    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata, Lists, Images, Footnotes, Comments, Endnotes);
 
     /// <summary>The blocks of a story, or null when the section or header/footer variant does not exist.</summary>
     public ImmutableList<Block>? TryGetStory(StoryId story)
@@ -113,6 +120,11 @@ public sealed class Document
         {
             return Footnotes.TryGetValue(story.Note, out ImmutableList<Block>? note) ? note : null;
         }
+        if (story.Kind == StoryKind.Endnote)
+        {
+            return Endnotes.TryGetValue(story.Note, out ImmutableList<Block>? endnote) ? endnote : null;
+        }
+
 
         if (story.SectionIndex < 0 || story.SectionIndex >= Sections.Count)
         {
@@ -144,6 +156,11 @@ public sealed class Document
         {
             return WithFootnotes(Footnotes.SetItem(story.Note, blocks));
         }
+        if (story.Kind == StoryKind.Endnote)
+        {
+            return WithEndnotes(Endnotes.SetItem(story.Note, blocks));
+        }
+
 
         Section section = Sections[story.SectionIndex];
         Section updated = story.Kind switch

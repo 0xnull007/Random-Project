@@ -51,6 +51,13 @@ public sealed record FieldValues(string Page, string NumPages, string SectionPag
     /// <summary>Displayed number per footnote id (reference order); null outside a document layout.</summary>
     public IReadOnlyDictionary<int, int>? FootnoteNumbers { get; init; }
 
+    public IReadOnlyDictionary<int, int>? EndnoteNumbers { get; init; }
+
+    public string EndnoteNumber(int noteId) =>
+        EndnoteNumbers is not null && EndnoteNumbers.TryGetValue(noteId, out int number) ? NumberText.Format(number, NumberFormat.LowerRoman) : "?";
+
+    public string NoteNumber(FootnoteReference note) => note.IsEndnote ? EndnoteNumber(note.NoteId) : FootnoteNumber(note.NoteId);
+
     public string FootnoteNumber(int noteId) =>
         FootnoteNumbers is not null && FootnoteNumbers.TryGetValue(noteId, out int number) ? number.ToString(System.Globalization.CultureInfo.InvariantCulture) : "?";
 }
@@ -119,7 +126,7 @@ public sealed record ParagraphLayoutInput(
             string? fieldText = span.Inline switch
             {
                 Field field => fields.Resolve(field),
-                FootnoteReference note => fields.FootnoteNumber(note.NoteId),
+                FootnoteReference note => fields.NoteNumber(note),
                 _ => null,
             };
             InlineImage? image = span.Inline as InlineImage;

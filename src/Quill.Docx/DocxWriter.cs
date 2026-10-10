@@ -53,7 +53,14 @@ public static class DocxWriter
             WriteFootnotes(main, writerState, document);
         }
 
+        if (writerState.EndnoteIds.Count > 0)
+        {
+            settings.Append(new W.EndnoteDocumentWideProperties(new W.EndnoteSpecialReference { Id = -1 }, new W.EndnoteSpecialReference { Id = 0 }));
+            WriteEndnotes(main, writerState, document);
+        }
+
         WriteComments(main, writerState);
+
 
         settingsPart.Settings = settings;
 
@@ -305,14 +312,14 @@ public static class DocxWriter
                     {
                         var markRun = new W.Run();
                         AppendRunProperties(markRun, note.Properties, note.StyleId);
-                        markRun.Append(new W.FootnoteReferenceMark());
+                        markRun.Append(note.IsEndnote ? new W.EndnoteReferenceMark() : new W.FootnoteReferenceMark());
                         container.Append(markRun);
                     }
-                    else if (context.State.NoteIds.Contains(note.NoteId))
+                    else if (note.IsEndnote ? context.State.EndnoteIds.Contains(note.NoteId) : context.State.NoteIds.Contains(note.NoteId))
                     {
                         var referenceRun = new W.Run();
                         AppendRunProperties(referenceRun, note.Properties, note.StyleId);
-                        referenceRun.Append(new W.FootnoteReference { Id = note.NoteId });
+                        referenceRun.Append(note.IsEndnote ? new W.EndnoteReference { Id = note.NoteId } : new W.FootnoteReference { Id = note.NoteId });
                         container.Append(referenceRun);
                     }
 
@@ -779,7 +786,30 @@ public static class DocxWriter
         part.Footnotes = footnotes;
     }
 
+    private static void WriteEndnotes(MainDocumentPart main, WriterState state, Document document)
+    {
+        EndnotesPart part = main.AddNewPart<EndnotesPart>();
+        var endnotes = new W.Endnotes();
+        endnotes.Append(new W.Endnote(new W.Paragraph(
+            new W.ParagraphProperties(new W.SpacingBetweenLines { After = "0", Line = "240", LineRule = W.LineSpacingRuleValues.Auto }),
+            new W.Run(new W.SeparatorMark()))) { Type = W.FootnoteEndnoteValues.Separator, Id = -1 });
+        endnotes.Append(new W.Endnote(new W.Paragraph(
+            new W.ParagraphProperties(new W.SpacingBetweenLines { After = "0", Line = "240", LineRule = W.LineSpacingRuleValues.Auto }),
+            new W.Run(new W.ContinuationSeparatorMark()))) { Type = W.FootnoteEndnoteValues.ContinuationSeparator, Id = 0 });
+        var context = new PartContext(state, main, part);
+        foreach (int id in state.EndnoteIds)
+        {
+            var note = new W.Endnote { Id = id };
+            context.CurrentStory = StoryId.Endnote(id);
+            note.Append(document.Endnotes[id].Select((b, i) => { context.CurrentBlock = i; return BuildBlock(context, b); }));
+            endnotes.Append(note);
+        }
+
+        part.Endnotes = endnotes;
+    }
+
     // ------------------------------------------------------------------ hyperlinks
+
 
 
     /// <summary>A w:hyperlink for an external URL (through a relationship on the part) or an internal "#bookmark" anchor.</summary>
@@ -853,6 +883,7 @@ public static class DocxWriter
         {
             Images = images;
             NoteIds = noteIds;
+            EndnoteIds = FootnoteSupport.ReferencedEndnoteIds(document);
             Comments = document.Comments;
             foreach ((StoryId story, ImmutableList<Block> blocks) in DocumentEditor.AllStories(document))
             {
@@ -877,6 +908,8 @@ public static class DocxWriter
         public ImageStore Images { get; }
 
         public IReadOnlyList<int> NoteIds { get; }
+
+        public IReadOnlyList<int> EndnoteIds { get; }
 
         public ImmutableDictionary<int, Comment> Comments { get; }
 
@@ -929,6 +962,7 @@ public static class DocxWriter
                 HeaderPart h => h.AddImagePart(data.ContentType),
                 FooterPart f => f.AddImagePart(data.ContentType),
                 FootnotesPart n => n.AddImagePart(data.ContentType),
+                EndnotesPart e => e.AddImagePart(data.ContentType),
                 _ => throw new NotSupportedException("Pictures can only be written into the body, headers and footers."),
             };
             using (var stream = new MemoryStream(data.Bytes, writable: false))

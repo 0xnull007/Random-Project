@@ -46,3 +46,22 @@ public class FootnoteTests
         Assert.True(session.Document.Footnotes.IsEmpty);
     }
 }
+
+public class EndnoteTests
+{
+    [Fact]
+    public void Inserting_an_endnote_creates_its_story_and_numbers_it_in_roman()
+    {
+        var session = new EditingSession(WithParagraphs("Body"), new UndoStack(time: new FakeTime()));
+        session.MoveCaret(Pos(0, 4), extend: false);
+        session.InsertEndnote();
+        var reference = Assert.IsType<FootnoteReference>(session.Document.Para(0).Inlines[1]);
+        Assert.True(reference.IsEndnote);
+        Assert.Equal(StoryId.Endnote(reference.NoteId), session.Selection.Story);
+        Assert.Single(session.Document.Endnotes);
+        Assert.True(session.Document.Footnotes.IsEmpty);
+        Assert.Equal(1, FootnoteSupport.EndnoteNumbers(session.Document)[reference.NoteId]);
+        Assert.Empty(FootnoteSupport.ReferencedNoteIds(session.Document));
+        Assert.Equal(Pos(0, 5), session.FootnoteReferencePosition());
+    }
+}

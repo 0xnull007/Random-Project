@@ -45,3 +45,33 @@ public class DocxFootnoteTests
         Assert.Single(result.Document.Footnotes);
     }
 }
+
+public class DocxEndnoteTests
+{
+    [Fact]
+    public void Endnotes_round_trip()
+    {
+        var body = new Paragraph([new Run("Text"), new FootnoteReference(5, false, null, FootnoteSupport.EndnoteReferenceStyleId, isEndnote: true)]);
+        var note = ImmutableList.Create<Block>(new Paragraph([new FootnoteReference(5, true, null, FootnoteSupport.EndnoteReferenceStyleId, isEndnote: true), new Run(" The end note.")], FootnoteSupport.EndnoteTextStyleId));
+        var document = new Document(
+            ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(body))),
+            DefaultStyleSheet.Create(),
+            endnotes: ImmutableDictionary<int, ImmutableList<Block>>.Empty.Add(5, note));
+
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+            Assert.Equal(3, package.MainDocumentPart!.EndnotesPart!.Endnotes!.Elements<W.Endnote>().Count());
+        }
+
+        LoadResult result = DocxReader.Read(new MemoryStream(bytes));
+        Assert.Empty(result.Warnings);
+        var reference = Assert.IsType<FootnoteReference>(((Paragraph)result.Document.Sections[0].Body[0]).Inlines[1]);
+        Assert.True(reference.IsEndnote);
+        Assert.Equal("￼ The end note.", ((Paragraph)result.Document.Endnotes[reference.NoteId][0]).FlatText);
+        Assert.True(result.Document.Footnotes.IsEmpty);
+    }
+}

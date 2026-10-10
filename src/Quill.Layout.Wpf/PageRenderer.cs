@@ -13,9 +13,12 @@ public static class PageRenderer
     {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(target);
-        if (page.FootnoteSeparatorY is { } separator)
+        foreach (double? separator in new[] { page.FootnoteSeparatorY, page.EndnoteSeparatorY })
         {
-            target.DrawLine(new PointD(page.BodyArea.Left, separator), new PointD(page.BodyArea.Left + Math.Min(144, page.BodyArea.Width), separator), DocColor.Black, 0.75);
+            if (separator is { } y)
+            {
+                target.DrawLine(new PointD(page.BodyArea.Left, y), new PointD(page.BodyArea.Left + Math.Min(144, page.BodyArea.Width), y), DocColor.Black, 0.75);
+            }
         }
 
         foreach (BlockFragment fragment in page.AllFragments())
