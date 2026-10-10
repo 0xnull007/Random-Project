@@ -87,6 +87,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Align left/center/right/justify (Ctrl+L/E/R/J). Justified lines stretch; the last line does not.
 - [ ] Line spacing combo (Ctrl+1 / Ctrl+2 / Ctrl+5), space Before / After combos.
 - [ ] Styles combo: Normal, Heading 1-3, Title. Ctrl+Alt+1/2/3, Ctrl+Shift+N. Enter after a heading gives Normal.
+- [ ] Home > Modify Style...: change the font/paragraph formatting of the current style (preview and summary); every
+      paragraph in that style updates; "Update to Match Selection" copies the caret paragraph's formatting into the
+      style; the style list refreshes when a Word document brings its own styles **(new)**.
 - [ ] Increase / decrease indent buttons (⇥ ⇤).
 
 ## 6. Change case (new)

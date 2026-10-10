@@ -531,7 +531,49 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    // ----- Styles -----
+
+    /// <summary>Adds or replaces a style (Modify Style); every paragraph in that style follows.</summary>
+    public void ModifyStyle(Style style)
+    {
+        ArgumentNullException.ThrowIfNull(style);
+        if (Equals(Document.Styles.Get(style.Id), style))
+        {
+            return;
+        }
+
+        Commit(new EditResult(Document.WithStyles(Document.Styles.With(style)), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    /// <summary>Word's "Update style to match selection": the caret paragraph's direct formatting moves into its style.</summary>
+    public void UpdateStyleFromSelection()
+    {
+        Paragraph paragraph = Document.GetParagraph(Selection.Active);
+        string styleId = paragraph.StyleId ?? Document.Styles.DefaultParagraphStyleId;
+        if (Document.Styles.Get(styleId) is not { } style)
+        {
+            return;
+        }
+
+        (string? _, RunProperties runDirect) = paragraph.GetTypingFormatAt(Selection.Active.Offset);
+        Style updated = style with
+        {
+            ParagraphProperties = style.ParagraphProperties.Merge(paragraph.Properties with { List = null }),
+            RunProperties = style.RunProperties.Merge(runDirect with { Link = null }),
+        };
+        Document document = Document.WithStyles(Document.Styles.With(updated));
+        Paragraph cleared = paragraph.WithProperties(new ParagraphProperties { List = paragraph.Properties.List });
+        document = DocumentEditor.ReplaceBlock(document, Selection.Story, Selection.Active.Block, cleared);
+        Commit(new EditResult(document, Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    /// <summary>The character formatting a style produces on its own (for the Modify Style dialog).</summary>
+    public ResolvedRunProperties ResolveStyleRun(string styleId) => _resolver.ResolveRun(styleId, null, RunProperties.Empty);
+
+    public ResolvedParagraphProperties ResolveStyleParagraph(string styleId) => _resolver.ResolveParagraph(new Paragraph(ImmutableArray<Inline>.Empty, styleId));
+
     // ----- List numbering -----
+
 
     /// <summary>Restarts the list at the caret from 1 at this paragraph; later items of the same list follow on.</summary>
     public void RestartNumbering()

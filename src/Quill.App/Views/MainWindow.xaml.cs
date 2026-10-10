@@ -180,7 +180,37 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnModifyStyle(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        Paragraph current = session.Document.GetParagraph(session.Selection.Active);
+        Quill.Core.Model.Style? style = session.Document.Styles.Get(current.StyleId ?? session.Document.Styles.DefaultParagraphStyleId);
+        if (style is null)
+        {
+            Editor.Focus();
+            return;
+        }
+
+        var dialog = new ModifyStyleWindow(session, style, ViewModel.FontFamilies) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            if (dialog.UpdateFromSelection)
+            {
+                session.UpdateStyleFromSelection();
+            }
+            else
+            {
+                session.ModifyStyle(dialog.Result);
+            }
+
+            ViewModel.RefreshStyles();
+        }
+
+        Editor.Focus();
+    }
+
     private void OnFontDialogCommand(object sender, ExecutedRoutedEventArgs e) => OnFontDialog(sender, e);
+
 
     private void OnFontDialog(object sender, RoutedEventArgs e)
     {

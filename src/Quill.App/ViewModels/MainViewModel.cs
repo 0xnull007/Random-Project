@@ -67,6 +67,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         FontSizes = new ObservableCollection<double>(StandardSizes);
         ParagraphStyles = new ObservableCollection<Style>(Session.Document.Styles.ParagraphStyles.Where(s => s.QuickFormat).OrderBy(s => s.Priority));
+        _knownStyles = Session.Document.Styles;
         RefreshFormatState();
         UpdateTitle();
     }
@@ -1196,10 +1197,39 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    private StyleSheet? _knownStyles;
+
+    /// <summary>Rebuilds the style list when the document's style sheet changes (open, Modify Style).</summary>
+    public void RefreshStyles()
+    {
+        StyleSheet styles = Session.Document.Styles;
+        _knownStyles = styles;
+        _syncingFormat = true;
+        try
+        {
+            ParagraphStyles.Clear();
+            foreach (Style style in styles.ParagraphStyles.Where(s => s.QuickFormat).OrderBy(s => s.Priority).ThenBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase))
+            {
+                ParagraphStyles.Add(style);
+            }
+        }
+        finally
+        {
+            _syncingFormat = false;
+        }
+
+        RefreshFormatState();
+    }
+
     private void OnDocumentChanged()
     {
         CanUndo = Session.CanUndo;
         CanRedo = Session.CanRedo;
+        if (!ReferenceEquals(_knownStyles, Session.Document.Styles))
+        {
+            RefreshStyles();
+        }
+
         WordCount = CountWords(Session.Document);
         ScheduleHeadingsRefresh();
         RefreshFormatState();
