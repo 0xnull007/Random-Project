@@ -26,6 +26,8 @@ public sealed class DocxReader
     private OpenXmlPart? _part;
     private readonly ImmutableDictionary<string, ImageData>.Builder _images = ImmutableDictionary.CreateBuilder<string, ImageData>(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _imageIdsByUri = new(StringComparer.Ordinal);
+    private readonly ImmutableDictionary<int, ImmutableList<Block>>.Builder _footnotes = ImmutableDictionary.CreateBuilder<int, ImmutableList<Block>>();
+    private int? _currentNoteId;
 
     private DocxReader()
     {
@@ -59,6 +61,7 @@ public sealed class DocxReader
         ListStore lists = ReadNumbering(_main.NumberingDefinitionsPart);
         W.Body body = _main.Document?.Body ?? new W.Body();
         ImmutableList<Section> sections = ReadSections(body);
+        ReadFootnotes(_main.FootnotesPart);
         DocumentMetadata metadata = new()
         {
             Title = package.PackageProperties.Title,
@@ -68,7 +71,7 @@ public sealed class DocxReader
             Created = package.PackageProperties.Created,
             Modified = package.PackageProperties.Modified,
         };
-        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable())), _warnings);
+        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable()), _footnotes.ToImmutable()), _warnings);
     }
 
     // ------------------------------------------------------------------ sections and stories
@@ -424,9 +427,26 @@ public sealed class DocxReader
                     Warn("Legacy (VML) pictures and embedded objects are not supported and were dropped.");
                     break;
 
-                case W.FootnoteReference or W.EndnoteReference:
-                    Warn("Footnotes and endnotes are not supported and were dropped.");
+                case W.FootnoteReference footnoteReference:
+                    Flush();
+                    if (footnoteReference.Id?.Value is { } noteId)
+                    {
+                        builder.AddInline(new FootnoteReference((int)noteId, false, properties, styleId));
+                    }
+
                     break;
+                case W.FootnoteReferenceMark:
+                    Flush();
+                    if (_currentNoteId is { } currentNote)
+                    {
+                        builder.AddInline(new FootnoteReference(currentNote, true, properties, styleId));
+                    }
+
+                    break;
+                case W.EndnoteReference or W.EndnoteReferenceMark:
+                    Warn("Endnotes are not supported and were dropped.");
+                    break;
+
                 case W.CommentReference:
                     break;
                 default:
@@ -475,7 +495,41 @@ public sealed class DocxReader
         builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId));
     }
 
+    // ------------------------------------------------------------------ footnotes
+
+    private void ReadFootnotes(FootnotesPart? part)
+    {
+        if (part?.Footnotes is not { } footnotes)
+        {
+            return;
+        }
+
+        foreach (W.Footnote note in footnotes.Elements<W.Footnote>())
+        {
+            if (note.Type?.Value is { } type && type != W.FootnoteEndnoteValues.Normal)
+            {
+                continue; // separator and continuation notes are regenerated on save
+            }
+
+            if (note.Id?.Value is not { } id)
+            {
+                continue;
+            }
+
+            _currentNoteId = (int)id;
+            try
+            {
+                _footnotes[(int)id] = ReadStory(note, part);
+            }
+            finally
+            {
+                _currentNoteId = null;
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ tables
+
 
     /// <summary>Reads a table for display; the original XML is kept so saving writes it back unchanged.</summary>
     private Table ReadTable(W.Table table)

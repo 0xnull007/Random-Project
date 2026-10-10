@@ -40,7 +40,7 @@ public sealed record DocumentMetadata
 /// </summary>
 public sealed class Document
 {
-    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null, ListStore? lists = null, ImageStore? images = null)
+    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null, ListStore? lists = null, ImageStore? images = null, ImmutableDictionary<int, ImmutableList<Block>>? footnotes = null)
     {
         ArgumentNullException.ThrowIfNull(sections);
         ArgumentNullException.ThrowIfNull(styles);
@@ -55,6 +55,7 @@ public sealed class Document
         Metadata = metadata ?? DocumentMetadata.Empty;
         Lists = lists ?? ListStore.Empty;
         Images = images ?? ImageStore.Empty;
+        Footnotes = footnotes ?? ImmutableDictionary<int, ImmutableList<Block>>.Empty;
     }
 
     /// <summary>A new blank document with one empty paragraph.</summary>
@@ -78,23 +79,34 @@ public sealed class Document
     /// <summary>Picture bytes referenced by <see cref="InlineImage"/> inlines.</summary>
     public ImageStore Images { get; }
 
-    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata, Lists, Images);
+    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata, Lists, Images, Footnotes);
 
-    public Document WithLists(ListStore lists) => new(Sections, Styles, Settings, Metadata, lists, Images);
+    public Document WithLists(ListStore lists) => new(Sections, Styles, Settings, Metadata, lists, Images, Footnotes);
 
-    public Document WithImages(ImageStore images) => new(Sections, Styles, Settings, Metadata, Lists, images);
+    /// <summary>Footnote text by note id; a body paragraph refers to a note through a <see cref="FootnoteReference"/>.</summary>
+    public ImmutableDictionary<int, ImmutableList<Block>> Footnotes { get; }
+
+    public Document WithFootnotes(ImmutableDictionary<int, ImmutableList<Block>> footnotes) => new(Sections, Styles, Settings, Metadata, Lists, Images, footnotes);
+
+    public Document WithImages(ImageStore images) => new(Sections, Styles, Settings, Metadata, Lists, images, Footnotes);
+
 
     public Document WithSection(int index, Section section) => WithSections(Sections.SetItem(index, section));
 
-    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata, Lists, Images);
+    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata, Lists, Images, Footnotes);
 
-    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata, Lists, Images);
+    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata, Lists, Images, Footnotes);
 
-    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata, Lists, Images);
+    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata, Lists, Images, Footnotes);
 
     /// <summary>The blocks of a story, or null when the section or header/footer variant does not exist.</summary>
     public ImmutableList<Block>? TryGetStory(StoryId story)
     {
+        if (story.Kind == StoryKind.Footnote)
+        {
+            return Footnotes.TryGetValue(story.Note, out ImmutableList<Block>? note) ? note : null;
+        }
+
         if (story.SectionIndex < 0 || story.SectionIndex >= Sections.Count)
         {
             return null;
@@ -121,6 +133,11 @@ public sealed class Document
     public Document WithStory(StoryId story, ImmutableList<Block> blocks)
     {
         ArgumentNullException.ThrowIfNull(blocks);
+        if (story.Kind == StoryKind.Footnote)
+        {
+            return WithFootnotes(Footnotes.SetItem(story.Note, blocks));
+        }
+
         Section section = Sections[story.SectionIndex];
         Section updated = story.Kind switch
         {

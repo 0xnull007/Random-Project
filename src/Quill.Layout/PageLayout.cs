@@ -128,8 +128,12 @@ public sealed class PageLayout
         StoryLayout? header,
         StoryLayout? footer,
         bool isBlankFiller,
-        HeaderFooterVariant variant = HeaderFooterVariant.Default)
+        HeaderFooterVariant variant = HeaderFooterVariant.Default,
+        ImmutableArray<StoryLayout> footnotes = default,
+        double? footnoteSeparatorY = null)
     {
+        Footnotes = footnotes.IsDefault ? ImmutableArray<StoryLayout>.Empty : footnotes;
+        FootnoteSeparatorY = footnoteSeparatorY;
         Index = index;
         SectionIndex = sectionIndex;
         PageNumber = pageNumber;
@@ -193,8 +197,23 @@ public sealed class PageLayout
     /// <summary>A page inserted to satisfy an odd/even section start; it carries header and footer only.</summary>
     public bool IsBlankFiller { get; }
 
+    /// <summary>Footnotes shown at the bottom of this page's body, in order.</summary>
+    public ImmutableArray<StoryLayout> Footnotes { get; }
+
+    /// <summary>y of the short rule above the footnotes, or null when the page has none.</summary>
+    public double? FootnoteSeparatorY { get; }
+
+
     public IEnumerable<BlockFragment> AllFragments()
     {
+        foreach (StoryLayout note in Footnotes)
+        {
+            foreach (BlockFragment fragment in note.Fragments)
+            {
+                yield return fragment;
+            }
+        }
+
         if (Header is not null)
         {
             foreach (BlockFragment fragment in Header.Fragments)

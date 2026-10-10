@@ -100,6 +100,7 @@
     <KeyBinding Modifiers="Ctrl" Key="Q" Command="{Binding ResetParagraphCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="K" Command="{x:Static views:MainWindow.InsertLinkCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="D" Command="{x:Static views:MainWindow.FontDialogCommand}" />
+    <KeyBinding Modifiers="Ctrl+Alt" Key="F" Command="{Binding InsertFootnoteCommand}" />
   </Window.InputBindings>
   <Window.CommandBindings>
     <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
@@ -226,6 +227,7 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Footnote" Command="{Binding InsertFootnoteCommand}" ToolTip="Insert a footnote at the caret (Ctrl+Alt+F); Esc returns from the note to the text" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Table of Contents" Click="OnInsertToc" ToolTip="Insert (or refresh) a table of contents built from the Heading 1-3 paragraphs" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Link..." Click="OnInsertLink" ToolTip="Insert, edit or remove a hyperlink (Ctrl+K); Ctrl+Click a link to open it" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Symbol..." Click="OnInsertSymbol" ToolTip="Insert a special character" />

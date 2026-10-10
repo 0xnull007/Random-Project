@@ -13,6 +13,11 @@ public static class PageRenderer
     {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(target);
+        if (page.FootnoteSeparatorY is { } separator)
+        {
+            target.DrawLine(new PointD(page.BodyArea.Left, separator), new PointD(page.BodyArea.Left + Math.Min(144, page.BodyArea.Width), separator), DocColor.Black, 0.75);
+        }
+
         foreach (BlockFragment fragment in page.AllFragments())
         {
             switch (fragment)

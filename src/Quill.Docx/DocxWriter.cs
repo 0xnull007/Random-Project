@@ -27,7 +27,8 @@ public static class DocxWriter
         MainDocumentPart main = package.AddMainDocumentPart();
         var body = new W.Body();
         main.Document = new W.Document(body);
-        var bodyContext = new PartContext(new WriterState(document.Images), main, main);
+        var writerState = new WriterState(document.Images, FootnoteSupport.ReferencedNoteIds(document));
+        var bodyContext = new PartContext(writerState, main, main);
 
         StyleDefinitionsPart stylesPart = main.AddNewPart<StyleDefinitionsPart>();
         stylesPart.Styles = BuildStyles(document.Styles);
@@ -43,6 +44,12 @@ public static class DocxWriter
         if (document.Settings.EvenAndOddHeaders)
         {
             settings.Append(new W.EvenAndOddHeaders());
+        }
+
+        if (writerState.NoteIds.Count > 0)
+        {
+            settings.Append(new W.FootnoteDocumentWideProperties(new W.FootnoteSpecialReference { Id = -1 }, new W.FootnoteSpecialReference { Id = 0 }));
+            WriteFootnotes(main, writerState, document);
         }
 
         settingsPart.Settings = settings;
@@ -283,9 +290,30 @@ public static class DocxWriter
                     }
 
                     break;
+                case FootnoteReference note:
+                {
+                    if (note.IsNoteMark)
+                    {
+                        var markRun = new W.Run();
+                        AppendRunProperties(markRun, note.Properties, note.StyleId);
+                        markRun.Append(new W.FootnoteReferenceMark());
+                        container.Append(markRun);
+                    }
+                    else if (context.State.NoteIds.Contains(note.NoteId))
+                    {
+                        var referenceRun = new W.Run();
+                        AppendRunProperties(referenceRun, note.Properties, note.StyleId);
+                        referenceRun.Append(new W.FootnoteReference { Id = note.NoteId });
+                        container.Append(referenceRun);
+                    }
+
+                    break;
+                }
+
                 case Field field:
                 {
                     var simple = new W.SimpleField { Instruction = " " + field.Instruction + " " };
+
                     var element = new W.Run();
                     AppendRunProperties(element, field.Properties, field.StyleId);
                     element.Append(new W.Text(field.CachedResult) { Space = SpaceProcessingModeValues.Preserve });
@@ -625,7 +653,31 @@ public static class DocxWriter
         return sectPr;
     }
 
+    // ------------------------------------------------------------------ footnotes
+
+    private static void WriteFootnotes(MainDocumentPart main, WriterState state, Document document)
+    {
+        FootnotesPart part = main.AddNewPart<FootnotesPart>();
+        var footnotes = new W.Footnotes();
+        footnotes.Append(new W.Footnote(new W.Paragraph(
+            new W.ParagraphProperties(new W.SpacingBetweenLines { After = "0", Line = "240", LineRule = W.LineSpacingRuleValues.Auto }),
+            new W.Run(new W.SeparatorMark()))) { Type = W.FootnoteEndnoteValues.Separator, Id = -1 });
+        footnotes.Append(new W.Footnote(new W.Paragraph(
+            new W.ParagraphProperties(new W.SpacingBetweenLines { After = "0", Line = "240", LineRule = W.LineSpacingRuleValues.Auto }),
+            new W.Run(new W.ContinuationSeparatorMark()))) { Type = W.FootnoteEndnoteValues.ContinuationSeparator, Id = 0 });
+        var context = new PartContext(state, main, part);
+        foreach (int id in state.NoteIds)
+        {
+            var note = new W.Footnote { Id = id };
+            note.Append(document.Footnotes[id].Select(b => BuildBlock(context, b)));
+            footnotes.Append(note);
+        }
+
+        part.Footnotes = footnotes;
+    }
+
     // ------------------------------------------------------------------ hyperlinks
+
 
     /// <summary>A w:hyperlink for an external URL (through a relationship on the part) or an internal "#bookmark" anchor.</summary>
     private static W.Hyperlink? BuildHyperlink(PartContext context, string link)
@@ -689,15 +741,18 @@ public static class DocxWriter
         return run;
     }
 
-    /// <summary>State shared by every part of one package: the picture bytes and the running drawing id.</summary>
-    private sealed class WriterState(ImageStore images)
+    /// <summary>State shared by every part of one package: the picture bytes, the referenced footnotes and the running drawing id.</summary>
+    private sealed class WriterState(ImageStore images, IReadOnlyList<int> noteIds)
     {
         private uint _nextPictureId;
 
         public ImageStore Images { get; } = images;
 
+        public IReadOnlyList<int> NoteIds { get; } = noteIds;
+
         public uint NextPictureId() => ++_nextPictureId;
     }
+
 
     /// <summary>The part being written (body, a header or a footer); pictures become image parts related to it.</summary>
     private sealed class PartContext(WriterState state, MainDocumentPart main, OpenXmlPart part)
@@ -730,6 +785,7 @@ public static class DocxWriter
                 MainDocumentPart m => m.AddImagePart(data.ContentType),
                 HeaderPart h => h.AddImagePart(data.ContentType),
                 FooterPart f => f.AddImagePart(data.ContentType),
+                FootnotesPart n => n.AddImagePart(data.ContentType),
                 _ => throw new NotSupportedException("Pictures can only be written into the body, headers and footers."),
             };
             using (var stream = new MemoryStream(data.Bytes, writable: false))

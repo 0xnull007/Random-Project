@@ -47,6 +47,12 @@ public sealed record FieldValues(string Page, string NumPages, string SectionPag
     };
 
     public string Signature => string.Concat(Page, "|", NumPages, "|", SectionPages);
+
+    /// <summary>Displayed number per footnote id (reference order); null outside a document layout.</summary>
+    public IReadOnlyDictionary<int, int>? FootnoteNumbers { get; init; }
+
+    public string FootnoteNumber(int noteId) =>
+        FootnoteNumbers is not null && FootnoteNumbers.TryGetValue(noteId, out int number) ? number.ToString(System.Globalization.CultureInfo.InvariantCulture) : "?";
 }
 
 /// <summary>Everything a line formatter needs to break one paragraph into lines.</summary>
@@ -105,11 +111,17 @@ public sealed record ParagraphLayoutInput(
                 Break { Kind: BreakKind.Page } => RunKind.PageBreak,
                 Break => RunKind.ColumnBreak,
                 Field => RunKind.Field,
+                FootnoteReference => RunKind.Field,
                 _ when properties.Hidden => RunKind.Hidden,
                 InlineImage => RunKind.Image,
                 _ => RunKind.Text,
             };
-            string? fieldText = span.Inline is Field field ? fields.Resolve(field) : null;
+            string? fieldText = span.Inline switch
+            {
+                Field field => fields.Resolve(field),
+                FootnoteReference note => fields.FootnoteNumber(note.NoteId),
+                _ => null,
+            };
             InlineImage? image = span.Inline as InlineImage;
             runs.Add(new RunSpan(span.Start, span.Length, properties, kind, fieldText, image, image is null ? null : images?.Get(image.ImageId)));
 

@@ -145,3 +145,32 @@ public sealed class InlineImage : Inline
 
     public override string ToString() => $"Image({ImageId} {Width}x{Height})";
 }
+
+/// <summary>
+/// A footnote mark. In the body it refers to a note by id (<c>w:footnoteReference</c>); as the first inline of
+/// the note itself it shows the note's own number (<c>w:footnoteRef</c>). Occupies one character.
+/// </summary>
+public sealed class FootnoteReference : Inline
+{
+    public FootnoteReference(int noteId, bool isNoteMark = false, RunProperties? properties = null, string? styleId = null)
+        : base(styleId, properties)
+    {
+        NoteId = noteId;
+        IsNoteMark = isNoteMark;
+    }
+
+    public int NoteId { get; }
+
+    /// <summary>True for the mark at the start of the note text (not a reference from the body).</summary>
+    public bool IsNoteMark { get; }
+
+    public override int Length => 1;
+
+    public override FootnoteReference WithProperties(RunProperties properties) => new(NoteId, IsNoteMark, properties, StyleId);
+
+    public override FootnoteReference WithStyle(string? styleId) => new(NoteId, IsNoteMark, Properties, styleId);
+
+    internal override void AppendFlatText(System.Text.StringBuilder builder) => builder.Append(Paragraph.ObjectReplacementChar);
+
+    public override string ToString() => IsNoteMark ? $"FootnoteMark({NoteId})" : $"FootnoteReference({NoteId})";
+}

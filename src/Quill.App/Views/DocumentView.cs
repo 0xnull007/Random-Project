@@ -2138,7 +2138,11 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 PendingFormatSample = null;
                 FormatPainterCancelled?.Invoke(this, EventArgs.Empty);
                 break;
+            case Key.Escape when session.Selection.Story.IsFootnote && session.FootnoteReferencePosition() is { } reference:
+                session.MoveCaret(reference, extend: false);
+                break;
             case Key.Escape:
+
 
                 if (_headerFooterMode && session.Selection.IsCollapsed)
                 {

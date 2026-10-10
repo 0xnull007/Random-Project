@@ -531,7 +531,70 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    // ----- Footnotes -----
+
+    /// <summary>Inserts a footnote reference at the caret and starts the note; the caret moves into the note text.</summary>
+    public void InsertFootnote()
+    {
+        if (Selection.Story.IsFootnote)
+        {
+            return;
+        }
+
+        (Document working, TextPosition at, ChangeSet? deletion) = DeleteSelectionIfAny();
+        foreach (Style style in FootnoteSupport.RequiredStyles(working.Styles))
+        {
+            if (!working.Styles.Contains(style.Id))
+            {
+                working = working.WithStyles(working.Styles.With(style));
+            }
+        }
+
+        int id = working.Footnotes.IsEmpty ? 1 : working.Footnotes.Keys.Max() + 1;
+        var mark = new FootnoteReference(id, isNoteMark: true, null, FootnoteSupport.ReferenceStyleId);
+        var note = ImmutableList.Create<Block>(new Paragraph([mark, new Run(" ")], FootnoteSupport.TextStyleId));
+        working = working.WithFootnotes(working.Footnotes.SetItem(id, note));
+        EditResult inserted = DocumentEditor.InsertInline(working, at, new FootnoteReference(id, false, null, FootnoteSupport.ReferenceStyleId));
+        var caret = Selection.Caret(new TextPosition(StoryId.Footnote(id), BlockPath.Of(0), 2));
+        Commit(new EditResult(inserted.Document, caret, ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
+        _ = deletion;
+        PendingFormat = null;
+    }
+
+    /// <summary>The body position just after the reference of the note the caret is in, or null.</summary>
+    public TextPosition? FootnoteReferencePosition()
+    {
+        if (!Selection.Story.IsFootnote)
+        {
+            return null;
+        }
+
+        int id = Selection.Story.Note;
+        for (int s = 0; s < Document.Sections.Count; s++)
+        {
+            ImmutableList<Block> body = Document.Sections[s].Body;
+            for (int b = 0; b < body.Count; b++)
+            {
+                if (body[b] is not Paragraph paragraph)
+                {
+                    continue;
+                }
+
+                foreach (InlineSpan span in paragraph.Spans())
+                {
+                    if (span.Inline is FootnoteReference { IsNoteMark: false } note && note.NoteId == id)
+                    {
+                        return new TextPosition(StoryId.Body(s), BlockPath.Of(b), span.End);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     // ----- Drag and drop -----
+
 
     /// <summary>Moves (or copies) the text of <paramref name="source"/> to <paramref name="target"/> as one undo step; the dropped text ends up selected.</summary>
     public void MoveText(TextRange source, TextPosition target, bool copy)

@@ -523,7 +523,11 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void InsertFootnote() => Session.InsertFootnote();
+
+    [RelayCommand]
     private void InsertColumnBreak() => Session.InsertBreak(BreakKind.Column);
+
 
     [RelayCommand]
     private void SetMargins(string preset)

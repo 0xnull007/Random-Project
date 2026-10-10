@@ -68,6 +68,10 @@ public sealed class Paginator
         private readonly IReadOnlyList<int>? _sectionPagesHint;
         private readonly List<PageLayout> _pages = [];
         private readonly List<int> _sectionPageCounts = [];
+        private readonly FieldValues _bodyFields;
+        private readonly Dictionary<int, StoryLayout> _measuredNotes = [];
+        private const double FootnoteSeparatorHeight = 12;
+
 
         public Run(Document document, StyleResolver resolver, ILineFormatter formatter, LayoutCache cache, LayoutOptions options, int totalPagesHint, IReadOnlyList<int>? sectionPagesHint)
         {
@@ -78,6 +82,7 @@ public sealed class Paginator
             _options = options;
             _totalPagesHint = totalPagesHint;
             _sectionPagesHint = sectionPagesHint;
+            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document) };
         }
 
         public bool UsedTotalDependentField { get; private set; }
@@ -137,7 +142,7 @@ public sealed class Paginator
                 Placement placement = body[i];
                 if (placement.Block is Table table)
                 {
-                    TableLayout tableLayout = GetTableLayout(table, page.Column.Width, FieldValues.Placeholder);
+                    TableLayout tableLayout = GetTableLayout(table, page.Column.Width, _bodyFields);
                     if (tableLayout.Rows.IsEmpty)
                     {
                         i++;
@@ -200,7 +205,7 @@ public sealed class Paginator
                 }
 
                 var paragraph = (Paragraph)placement.Block;
-                ParagraphLayout layout = GetLayout(paragraph, page.Column.Width, FieldValues.Placeholder, markers.TryGetValue(i, out ListMarker bodyMarker) ? bodyMarker : null);
+                ParagraphLayout layout = GetLayout(paragraph, page.Column.Width, _bodyFields, markers.TryGetValue(i, out ListMarker bodyMarker) ? bodyMarker : null);
                 ResolvedParagraphProperties pp = layout.Properties;
 
                 if (pp.PageBreakBefore && !page.IsEmpty && placement.NextLine == 0)
@@ -230,6 +235,22 @@ public sealed class Paginator
                     take = Math.Min(take, forcedAt - first + 1);
                 }
 
+                // Footnotes referenced on the lines being placed need room at the bottom of the page.
+                List<int> newNotes = NotesInLines(paragraph, layout, first, first + take - 1, page);
+                while (take > 0 && newNotes.Count > 0 && layout.HeightOfLines(first, first + take - 1) + MeasureNotes(newNotes, page) > available + 0.001)
+                {
+                    take--;
+                    newNotes = NotesInLines(paragraph, layout, first, first + take - 1, page);
+                }
+
+                if (take <= 0 && page.IsEmpty && newNotes.Count == 0 && fit > 0)
+                {
+                    take = 1;
+                    newNotes = NotesInLines(paragraph, layout, first, first, page);
+                }
+
+
+
                 if (take <= 0)
                 {
                     if (page.IsEmpty)
@@ -258,6 +279,12 @@ public sealed class Paginator
                 page.Fragments.Add(fragment);
                 page.Y = fragment.Bounds.Bottom;
                 page.IsEmpty = false;
+                foreach (int noteId in newNotes)
+                {
+                    page.AddNote(placement.Path, noteId, MeasureNote(noteId, page));
+                }
+
+
 
                 // Keep-with-next bookkeeping: remember that this paragraph (entire) sits on this page.
                 placement.PlacedWholeOnPage = first == 0 && endsParagraph;
@@ -421,6 +448,7 @@ public sealed class Paginator
                 }
 
                 page.Fragments.RemoveAt(page.Fragments.Count - 1);
+                page.RemoveNotesOf(previous.Path);
                 page.Y = page.Fragments.Count == 0 ? page.BodyArea.Top : page.Fragments[^1].Bounds.Bottom;
                 previous.PlacedWholeOnPage = false;
                 previous.FragmentsOnPage = 0;
@@ -491,8 +519,75 @@ public sealed class Paginator
             };
         }
 
+        /// <summary>Ids of notes referenced on lines [first, last] of the paragraph that are not yet on the page, in document order.</summary>
+        private List<int> NotesInLines(Paragraph paragraph, ParagraphLayout layout, int first, int last, PageBuilder page)
+        {
+            var ids = new List<int>();
+            if (last < first || _document.Footnotes.IsEmpty)
+            {
+                return ids;
+            }
+
+            int start = layout.Lines[first].Start;
+            int end = layout.Lines[last].End;
+            foreach (InlineSpan span in paragraph.Spans())
+            {
+                if (span.Inline is FootnoteReference { IsNoteMark: false } note && span.Start >= start && span.Start < end
+                    && _document.Footnotes.ContainsKey(note.NoteId) && !page.HasNote(note.NoteId) && !ids.Contains(note.NoteId))
+                {
+                    ids.Add(note.NoteId);
+                }
+            }
+
+            return ids;
+        }
+
+        private double MeasureNotes(List<int> ids, PageBuilder page)
+        {
+            double height = page.Footnotes.Count == 0 && ids.Count > 0 ? FootnoteSeparatorHeight : 0;
+            foreach (int id in ids)
+            {
+                height += MeasureNote(id, page).Height;
+            }
+
+            return height;
+        }
+
+        private StoryLayout MeasureNote(int id, PageBuilder page)
+        {
+            if (!_measuredNotes.TryGetValue(id, out StoryLayout? measured))
+            {
+                measured = LayoutStory(StoryId.Footnote(id), _document.Footnotes[id], new RectD(page.BodyArea.Left, 0, page.BodyArea.Width, 0), _bodyFields);
+                _measuredNotes[id] = measured;
+            }
+
+            return measured;
+        }
+
+        /// <summary>Lays the page's footnotes out at their final place: a short separator rule, then the notes in order.</summary>
+        private (ImmutableArray<StoryLayout> Notes, double? SeparatorY) PlaceFootnotes(PageBuilder page)
+        {
+            if (page.Footnotes.Count == 0)
+            {
+                return (ImmutableArray<StoryLayout>.Empty, null);
+            }
+
+            double top = page.BodyArea.Bottom - page.FootnoteHeight;
+            double y = top + FootnoteSeparatorHeight;
+            var notes = ImmutableArray.CreateBuilder<StoryLayout>(page.Footnotes.Count);
+            foreach (int id in page.Footnotes)
+            {
+                StoryLayout placed = LayoutStory(StoryId.Footnote(id), _document.Footnotes[id], new RectD(page.BodyArea.Left, y, page.BodyArea.Width, 0), _bodyFields);
+                notes.Add(placed);
+                y += placed.Height;
+            }
+
+            return (notes.ToImmutable(), top + FootnoteSeparatorHeight / 2);
+        }
+
         private void FinishPage(PageBuilder page, int pageNumber, int sectionIndex)
         {
+            (ImmutableArray<StoryLayout> notes, double? separator) = PlaceFootnotes(page);
             _pages.Add(new PageLayout(
                 _pages.Count,
                 sectionIndex,
@@ -504,8 +599,11 @@ public sealed class Paginator
                 page.Header,
                 page.Footer,
                 isBlankFiller: false,
-                page.Variant));
+                page.Variant,
+                notes,
+                separator));
         }
+
 
         private void AddBlankPage(int sectionIndex, int pageNumber, bool isFirstOfSection)
         {
@@ -716,7 +814,8 @@ public sealed class Paginator
         private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields, ListMarker? marker)
 
         {
-            string signature = (paragraph.Inlines.Any(i => i is Field) ? fields.Signature : string.Empty)
+            string signature = (paragraph.Inlines.Any(i => i is Field or FootnoteReference) ? fields.Signature : string.Empty)
+                + (paragraph.Inlines.OfType<FootnoteReference>().Any() ? "|fn:" + string.Join(",", paragraph.Inlines.OfType<FootnoteReference>().Select(n => fields.FootnoteNumber(n.NoteId))) : string.Empty)
                 + (marker is { } m ? "|" + m.Text : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {
@@ -825,21 +924,57 @@ public sealed class Paginator
 
             public int ColumnIndex { get; set; }
 
-            /// <summary>The column being filled; the whole body when the section has a single column.</summary>
+            /// <summary>Ids of the footnotes placed on this page, in order; their measured height shortens every column.</summary>
+            public List<int> Footnotes { get; } = [];
+
+            private readonly List<(BlockPath Path, int NoteId, double Height)> _notePlacements = [];
+
+            public double FootnoteHeight { get; private set; }
+
+            public bool HasNote(int noteId) => Footnotes.Contains(noteId);
+
+            public void AddNote(BlockPath path, int noteId, StoryLayout measured)
+            {
+                if (HasNote(noteId))
+                {
+                    return;
+                }
+
+                Footnotes.Add(noteId);
+                _notePlacements.Add((path, noteId, measured.Height));
+                RecomputeFootnoteHeight();
+            }
+
+            public void RemoveNotesOf(BlockPath path)
+            {
+                if (_notePlacements.RemoveAll(p => p.Path == path) > 0)
+                {
+                    Footnotes.Clear();
+                    Footnotes.AddRange(_notePlacements.Select(p => p.NoteId));
+                    RecomputeFootnoteHeight();
+                }
+            }
+
+            private void RecomputeFootnoteHeight() =>
+                FootnoteHeight = _notePlacements.Count == 0 ? 0 : 12 + _notePlacements.Sum(p => p.Height);
+
+            /// <summary>The column being filled; the whole body when the section has a single column. Footnotes shorten it.</summary>
             public RectD Column
             {
                 get
                 {
+                    double bottom = Math.Max(BodyArea.Top + 1, BodyArea.Bottom - FootnoteHeight);
                     if (ColumnCount <= 1)
                     {
-                        return BodyArea;
+                        return RectD.FromEdges(BodyArea.Left, BodyArea.Top, BodyArea.Right, bottom);
                     }
 
                     double width = Math.Max(1, (BodyArea.Width - ColumnGap * (ColumnCount - 1)) / ColumnCount);
                     double left = BodyArea.Left + ColumnIndex * (width + ColumnGap);
-                    return RectD.FromEdges(left, BodyArea.Top, left + width, BodyArea.Bottom);
+                    return RectD.FromEdges(left, BodyArea.Top, left + width, bottom);
                 }
             }
+
 
         }
     }

@@ -502,3 +502,39 @@ public class ColumnTests
         Assert.Equal(Margin, Paragraphs(layout.Pages[1])[0].Bounds.Left, 3);
     }
 }
+
+public class FootnoteLayoutTests
+{
+    private const double Margin = 20;
+
+    private static SectionProperties Page(int lines) => new()
+    {
+        PageWidth = Twips.FromDips(10 * FakeLineFormatter.CharWidth + 2 * Margin),
+        PageHeight = Twips.FromDips(lines * FakeLineFormatter.LineHeight + 2 * Margin),
+        MarginTop = Twips.FromDips(Margin),
+        MarginBottom = Twips.FromDips(Margin),
+        MarginLeft = Twips.FromDips(Margin),
+        MarginRight = Twips.FromDips(Margin),
+    };
+
+    [Fact]
+    public void Footnote_sits_at_the_page_bottom_and_shortens_the_body()
+    {
+        var withNote = new Paragraph([new Run("a"), new FootnoteReference(7), new Run("b")]);
+        Block[] body = [withNote, .. Enumerable.Range(0, 5).Select(i => (Block)new Paragraph([new Run("p" + i)]))];
+        var notes = ImmutableDictionary<int, ImmutableList<Block>>.Empty.Add(7, ImmutableList.Create<Block>(new Paragraph([new FootnoteReference(7, true), new Run(" note")])));
+        var document = new Document(ImmutableList.Create(new Section(Page(5), body.ToImmutableList())), StyleSheet.Empty, footnotes: notes);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+
+        PageLayout first = layout.Pages[0];
+        StoryLayout note = Assert.Single(first.Footnotes);
+        Assert.Equal(StoryId.Footnote(7), note.Story);
+        // Body is 100 tall: the note (20) plus the separator (12) leave 68, so three 20-DIP lines fit.
+        Assert.Equal(3, first.Body.Length);
+        Assert.Equal(Margin + 100 - 20, note.Bounds.Top, 3);
+        Assert.NotNull(first.FootnoteSeparatorY);
+        Assert.Equal(2, layout.PageCount);
+        Assert.Empty(layout.Pages[1].Footnotes);
+        Assert.Contains(first.AllFragments(), f => f.Story == StoryId.Footnote(7));
+    }
+}

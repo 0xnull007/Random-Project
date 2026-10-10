@@ -129,7 +129,26 @@ public static class DefaultStyleSheet
             },
             new()
             {
+                Id = FootnoteSupport.TextStyleId,
+                Name = "footnote text",
+                BasedOn = StyleSheet.NormalStyleId,
+                Priority = 99,
+                ParagraphProperties = new ParagraphProperties { SpaceAfter = Twips.Zero, LineSpacing = LineSpacing.Single },
+                RunProperties = new RunProperties { FontSize = HalfPoints.FromPoints(10) },
+            },
+            new()
+            {
+                Id = FootnoteSupport.ReferenceStyleId,
+                Name = "footnote reference",
+                Type = StyleType.Character,
+                BasedOn = StyleSheet.DefaultParagraphFontStyleId,
+                Priority = 99,
+                RunProperties = new RunProperties { VerticalAlignment = VerticalTextAlignment.Superscript },
+            },
+            new()
+            {
                 Id = HeaderId,
+
                 Name = "header",
                 BasedOn = StyleSheet.NormalStyleId,
                 Priority = 99,
