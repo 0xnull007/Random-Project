@@ -48,6 +48,11 @@
       <MenuItem Tag="unlink" Header="_Remove Link" Click="OnRemoveLink" />
       <MenuItem Tag="comment" Header="New Co_mment" Click="OnInsertComment" InputGestureText="Ctrl+Alt+M" />
       <MenuItem Tag="picture" Header="Picture _Size..." Click="OnPictureSize" />
+      <MenuItem Tag="table" Header="Insert Row _Below" Command="{Binding InsertRowBelowCommand}" />
+      <MenuItem Tag="table" Header="Insert Column Ri_ght" Command="{Binding InsertColumnRightCommand}" />
+      <MenuItem Tag="table" Header="Delete Ro_w" Command="{Binding DeleteRowCommand}" />
+      <MenuItem Tag="table" Header="Delete Col_umn" Command="{Binding DeleteColumnCommand}" />
+      <MenuItem Tag="table" Header="Delete _Table" Command="{Binding DeleteTableCommand}" />
       <Separator />
       <MenuItem Header="Select _All" Click="OnSelectAll" InputGestureText="Ctrl+A" />
     </ContextMenu>
@@ -235,6 +240,7 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Endnote" Command="{Binding InsertEndnoteCommand}" ToolTip="Insert an endnote (Ctrl+Alt+D); the notes collect at the end of the document" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Footnote" Command="{Binding InsertFootnoteCommand}" ToolTip="Insert a footnote at the caret (Ctrl+Alt+F); Esc returns from the note to the text" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Table..." Click="OnInsertTable" ToolTip="Insert a table with the given number of rows and columns" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Table of Contents" Click="OnInsertToc" ToolTip="Insert (or refresh) a table of contents built from the Heading 1-3 paragraphs" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Link..." Click="OnInsertLink" ToolTip="Insert, edit or remove a hyperlink (Ctrl+K); Ctrl+Click a link to open it" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Symbol..." Click="OnInsertSymbol" ToolTip="Insert a special character" />
@@ -306,6 +312,24 @@
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Replace..." Click="OnReplacePicture" ToolTip="Swap in another picture file at the same width" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Delete" Click="OnDeletePicture" />
+        </WrapPanel>
+      </TabItem>
+      <!-- Contextual tab: appears while the caret is inside a table, like Word's Table Layout. -->
+      <TabItem x:Name="TableTab" Header="Table" Visibility="{Binding IsInTable, Converter={StaticResource BoolToVis}}">
+        <WrapPanel Orientation="Horizontal">
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Row Above" Command="{Binding InsertRowAboveCommand}" ToolTip="Insert a row above the current one" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Row Below" Command="{Binding InsertRowBelowCommand}" ToolTip="Insert a row below the current one (Tab in the last cell does the same)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Column Left" Command="{Binding InsertColumnLeftCommand}" ToolTip="Insert a column to the left of the current cell" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Column Right" Command="{Binding InsertColumnRightCommand}" ToolTip="Insert a column to the right of the current cell" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Row" Command="{Binding DeleteRowCommand}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Column" Command="{Binding DeleteColumnCommand}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Table" Command="{Binding DeleteTableCommand}" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Borders" Command="{Binding ToggleTableBordersCommand}" ToolTip="Show or hide the grid lines" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Left" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Cell paragraph alignment" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Center" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Cell paragraph alignment" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Right" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Cell paragraph alignment" />
         </WrapPanel>
       </TabItem>
     </TabControl>

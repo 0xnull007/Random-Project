@@ -160,6 +160,21 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Pictures appear in Print Preview, on paper and in the exported PDF.
 - [ ] Pictures in a header or footer work too.
 
+## 10b. Tables (new)
+
+- [ ] Insert > Table...: enter 3 columns and 2 rows; a bordered grid as wide as the text column appears at the
+      caret (before the paragraph when the caret is at its start, after it at its end, splitting it in the middle)
+      and the caret is in the first cell. The Table tab appears while the caret is inside a table and disappears
+      when it leaves (if it was the selected tab, the previous tab comes back).
+- [ ] Type in cells; rows grow with their content; Tab in the last cell adds a row; the Table tab's Row Above/Below
+      and Column Left/Right add rows and columns (the table keeps its width, other columns shrink); Delete Row,
+      Delete Column and Delete Table remove them; deleting the only row removes the table and leaves the paragraphs
+      around it intact; Borders hides and shows the grid lines; Align Left/Center/Right align the cell paragraph.
+- [ ] Right-click inside a table: Insert Row Below, Insert Column Right, Delete Row/Column/Table are offered only there.
+- [ ] Undo (Ctrl+Z) reverts each table command in one step.
+- [ ] Save as .docx and open in Word: the inserted table has its borders, equal columns and cell text; no repair prompt.
+- [ ] Export to PDF and print preview show the table like the page does.
+
 ## 11. Link, Symbol and Date & Time (new)
 
 - [ ] Insert > Symbol...: clicking a symbol inserts it; the window stays open for more; typing a hex code
@@ -279,8 +294,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## Known limitations (expected, not bugs)
 
-- Tables: text in cells can be edited, but rows and columns cannot be added or removed yet and there is no Insert
-  Table; unedited tables are saved exactly as read.
+- Tables: no merging or splitting of cells, cell shading or dragging of column widths yet; unedited tables are saved
+  exactly as read, edited and inserted ones are written as plain grids.
 - No track changes
   or equations (dropped with a warning), single column only.
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app

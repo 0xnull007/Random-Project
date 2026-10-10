@@ -386,6 +386,10 @@ public partial class MainWindow : Window
                 case "picture":
                     item.Visibility = onPicture ? Visibility.Visible : Visibility.Collapsed;
                     break;
+                case "table":
+                    item.Visibility = session.IsInTable ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+
                 case "list":
                     item.Visibility = session.ListKind(session.Document.GetParagraph(session.Selection.Active)) is not null ? Visibility.Visible : Visibility.Collapsed;
                     break;
@@ -447,7 +451,19 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnInsertTable(object sender, RoutedEventArgs e)
+    {
+        var dialog = new InsertTableWindow { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            ViewModel.Session.InsertTable(dialog.Rows, dialog.Columns, Editor.TextColumnWidth());
+        }
+
+        Editor.Focus();
+    }
+
     private void OnPictureSize(object sender, RoutedEventArgs e)
+
     {
         EditingSession session = ViewModel.Session;
         if (session.SelectedImage() is not (_, { } image))
@@ -760,13 +776,27 @@ public partial class MainWindow : Window
 
     private int _tabBeforePicture = 1;
 
-    /// <summary>Shows the Picture tab while a picture is selected and returns to the previous tab afterwards.</summary>
+    /// <summary>
+    /// Shows the Picture tab while a picture is selected and returns to the previous tab afterwards; the Table tab
+    /// only appears (Word does not switch to it either) but gives way to the previous tab when the caret leaves the table.
+    /// </summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MainViewModel.IsInTable))
+        {
+            if (!ViewModel.IsInTable && ReferenceEquals(Tabs.SelectedItem, TableTab))
+            {
+                Tabs.SelectedIndex = Math.Max(0, Math.Min(_tabBeforePicture, Tabs.Items.Count - 1));
+            }
+
+            return;
+        }
+
         if (e.PropertyName != nameof(MainViewModel.IsPictureSelected))
         {
             return;
         }
+
 
         if (ViewModel.IsPictureSelected)
         {
@@ -788,6 +818,11 @@ public partial class MainWindow : Window
         if (!ReferenceEquals(e.OriginalSource, Tabs))
         {
             return;
+        }
+
+        if (ReferenceEquals(Tabs.SelectedItem, TableTab) && e.RemovedItems.Count > 0 && !ReferenceEquals(e.RemovedItems[0], PictureTab) && !ReferenceEquals(e.RemovedItems[0], TableTab))
+        {
+            _tabBeforePicture = Tabs.Items.IndexOf(e.RemovedItems[0]); // where to go back to when the caret leaves the table
         }
 
         Dispatcher.BeginInvoke(() => PopupThemeFix.AttachAll(this), System.Windows.Threading.DispatcherPriority.Loaded);

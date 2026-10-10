@@ -136,4 +136,28 @@ public class DocxTableTests
         Assert.Equal(2, read.Rows[0].Cells[0].GridSpan);
         Assert.Equal(3, read.ColumnCount);
     }
+
+    [Fact]
+    public void Inserted_tables_round_trip()
+    {
+        var session = new EditingSession(new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(Paragraph.FromText("Intro")))), DefaultStyleSheet.Create()));
+        session.MoveCaret(new TextPosition(StoryId.Body(0), BlockPath.Of(0), 5), extend: false);
+        session.InsertTable(2, 2, Twips.FromInches(6));
+        session.InsertText("cell");
+        byte[] bytes = DocxWriter.ToBytes(session.Document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+        }
+
+        LoadResult reread = DocxReader.Read(new MemoryStream(bytes));
+        var read = Assert.IsType<Table>(reread.Document.Sections[0].Body[1]);
+        Assert.Equal(2, read.Rows.Length);
+        Assert.Equal(2, read.ColumnCount);
+        Assert.Equal("cell", ((Paragraph)read.Rows[0].Cells[0].Blocks[0]).FlatText);
+        Assert.Equal(Twips.FromInches(3).Value, read.ColumnWidths[0].Value);
+        Assert.Equal(3, reread.Document.Sections[0].Body.Count);
+    }
 }

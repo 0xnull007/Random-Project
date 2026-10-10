@@ -38,6 +38,7 @@ public partial class ShortcutsWindow : Window
         new("Ctrl+Alt+1 / 2 / 3", "Heading 1 / 2 / 3"),
         new("Ctrl+Shift+N", "Normal style"),
         new("Tab / Shift+Tab (start of list item)", "Increase / decrease list level"),
+        new("Tab / Shift+Tab (in a table)", "Select the next / previous cell; Tab in the last cell adds a row"),
         new("Enter (empty list item)", "End the list"),
         new("Enter / Shift+Enter / Ctrl+Enter", "New paragraph / line break / page break"),
         new("Ctrl+Shift+Enter", "Column break"),

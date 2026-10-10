@@ -124,6 +124,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsPictureSelected { get; set; }
 
+    /// <summary>True while the caret is inside a table; shows the contextual Table tab.</summary>
+    [ObservableProperty]
+    public partial bool IsInTable { get; set; }
+
+
     [ObservableProperty]
     public partial RecentFile? SelectedRecent { get; set; }
 
@@ -542,6 +547,29 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void InsertFootnote() => Session.InsertFootnote();
 
+    [RelayCommand]
+    private void InsertRowAbove() => Session.InsertRow(below: false);
+
+    [RelayCommand]
+    private void InsertRowBelow() => Session.InsertRow(below: true);
+
+    [RelayCommand]
+    private void InsertColumnLeft() => Session.InsertColumn(right: false);
+
+    [RelayCommand]
+    private void InsertColumnRight() => Session.InsertColumn(right: true);
+
+    [RelayCommand]
+    private void DeleteRow() => Session.DeleteRow();
+
+    [RelayCommand]
+    private void DeleteColumn() => Session.DeleteColumn();
+
+    [RelayCommand]
+    private void DeleteTable() => Session.DeleteTable();
+
+    [RelayCommand]
+    private void ToggleTableBorders() => Session.ToggleTableBorders();
 
 
     [RelayCommand]
@@ -1396,6 +1424,7 @@ public sealed partial class MainViewModel : ObservableObject
             CurrentStyle = ParagraphStyles.FirstOrDefault(s => s.Id == (current.StyleId ?? Session.Document.Styles.DefaultParagraphStyleId));
             bool? listKind = Session.ListKind(current);
             IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
+            IsInTable = Session.IsInTable;
             UpdateCurrentHeading();
             UpdateWordCountText();
             IsBulleted = listKind == true;

@@ -883,8 +883,22 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             : TextNavigation.PreviousCell(session.Document, session.Selection.Active);
         if (start is not { } cellStart)
         {
-            return;
+            if (direction < 0 || session.Selection.Active.Block.TablePath is not { } tablePath)
+            {
+                return;
+            }
+
+            // Tab in the last cell: a new row, like Word.
+            session.InsertRow(below: true);
+            int row = session.Selection.Active.Block.CellIndices?.Row ?? 0;
+            if (TextNavigation.CellStart(session.Document, session.Selection.Story, tablePath, row, 0) is not { } firstCell)
+            {
+                return;
+            }
+
+            cellStart = firstCell;
         }
+
 
         session.MoveCaret(cellStart, extend: false);
         session.MoveCaret(TextNavigation.ContainerEnd(session.Document, cellStart), extend: true);
