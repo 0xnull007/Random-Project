@@ -51,6 +51,8 @@ public sealed partial class MainViewModel : ObservableObject
         Zoom = Math.Clamp(_settings.Zoom, 0.1, 5.0);
         ShowFormattingMarks = _settings.ShowFormattingMarks;
         Theme = ThemeChoices.Contains(_settings.Theme) ? _settings.Theme : "System";
+        Session.AutoCorrect = _settings.AutoCorrect.ToOptions();
+        UnitPreference.Apply(_settings.Units);
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
         _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
         _autosaveTimer.Tick += (_, _) => Autosave();
@@ -594,8 +596,27 @@ public sealed partial class MainViewModel : ObservableObject
         PainterChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Saves and applies what the Options dialog returned.</summary>
+    public void ApplyOptions(int autosaveMinutes, AutoCorrectSettings autoCorrect, string units)
+    {
+        ArgumentNullException.ThrowIfNull(autoCorrect);
+        _settings.AutosaveMinutes = Math.Clamp(autosaveMinutes, 0, 120);
+        _settings.AutoCorrect = autoCorrect;
+        _settings.Units = units;
+        _settings.Save();
+        Session.AutoCorrect = autoCorrect.ToOptions();
+        UnitPreference.Apply(units);
+        _autosaveTimer.Stop();
+        if (_settings.AutosaveMinutes > 0)
+        {
+            _autosaveTimer.Interval = TimeSpan.FromMinutes(_settings.AutosaveMinutes);
+            _autosaveTimer.Start();
+        }
+    }
+
     [RelayCommand]
     private void ClearFormatting()
+
     {
         Session.ClearFormatting();
         RefreshFormatState();

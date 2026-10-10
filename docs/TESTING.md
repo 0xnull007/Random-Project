@@ -28,6 +28,17 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] IME (Japanese/Chinese/Korean, Win+Space to switch): composition text appears at the caret with the candidate
       window next to it; committing inserts the text. **(not yet verified)**
 
+## 2b. AutoCorrect (new)
+
+- [ ] Type `"hello"` and `it's`: curly quotes and a curly apostrophe appear.
+- [ ] Type `(c)`, `(r)`, `(tm)`, `...`, `-->`: they become © ® ™ … →. Type `1/2 ` (with the space): ½.
+- [ ] Type `word--word ` : the hyphens become an em dash; `word -- word ` gives an en dash.
+- [ ] Type `hello. this is` : "this" is capitalized after the sentence end; the first word of a paragraph too;
+      `e.g.` and words with capitals or dots are left alone. Ctrl+Z undoes just the capitalization.
+- [ ] Type `* ` or `1. ` at the start of a paragraph: it becomes a bullet or numbered item (Ctrl+Z reverts).
+- [ ] Nothing is rewritten inside a hyperlink. File > Options turns each rule off; the autosave interval and the
+      measurement unit (inches/centimeters) can be changed there too.
+
 ## 3. Undo and redo
 
 - [ ] Ctrl+Z undoes a whole typed word/sentence at once (typing is grouped), Ctrl+Y redoes; the ↶ ↷ buttons too.

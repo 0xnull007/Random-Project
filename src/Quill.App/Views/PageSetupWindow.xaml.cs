@@ -34,7 +34,7 @@ public partial class PageSetupWindow : Window
     {
         ArgumentNullException.ThrowIfNull(current);
         InitializeComponent();
-        _unit = RegionInfo.CurrentRegion.IsMetric ? LengthUnit.Centimeters : LengthUnit.Inches;
+        _unit = Quill.App.Settings.UnitPreference.Current;
         Loaded += (_, _) => PopupThemeFix.AttachAll(this);
 
         string unitText = _unit == LengthUnit.Centimeters ? "cm" : "in";

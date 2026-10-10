@@ -23,7 +23,7 @@ public partial class PictureSizeWindow : Window
     {
         ArgumentNullException.ThrowIfNull(image);
         InitializeComponent();
-        _unit = RegionInfo.CurrentRegion.IsMetric ? LengthUnit.Centimeters : LengthUnit.Inches;
+        _unit = Quill.App.Settings.UnitPreference.Current;
         _unitName = _unit == LengthUnit.Centimeters ? "cm" : "in";
         _aspect = image.Height.Value > 0 ? image.Width.Value / (double)image.Height.Value : 1;
         _original = data is null ? null : OriginalSize(data);

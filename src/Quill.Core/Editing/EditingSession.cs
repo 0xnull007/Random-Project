@@ -20,7 +20,7 @@ public sealed class DocumentChangedEventArgs(Document oldDocument, Document newD
 /// undo/redo and dirty tracking. Views call these methods from input handlers; layout-dependent
 /// movement (lines, pages) computes a <see cref="TextPosition"/> and calls <see cref="MoveCaret"/>.
 /// </summary>
-public sealed class EditingSession
+public sealed partial class EditingSession
 {
     private readonly UndoStack _undo;
     private StyleResolver _resolver;

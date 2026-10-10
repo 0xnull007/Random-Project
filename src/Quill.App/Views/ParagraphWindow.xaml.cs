@@ -19,7 +19,7 @@ public partial class ParagraphWindow : Window
         ArgumentNullException.ThrowIfNull(current);
         InitializeComponent();
         _initial = current;
-        _unit = RegionInfo.CurrentRegion.IsMetric ? LengthUnit.Centimeters : LengthUnit.Inches;
+        _unit = Quill.App.Settings.UnitPreference.Current;
         _unitName = _unit == LengthUnit.Centimeters ? "cm" : "in";
         UnitHint.Text = "Indents in " + (_unit == LengthUnit.Centimeters ? "centimeters" : "inches");
         AlignmentBox.SelectedIndex = (int)current.Alignment;

@@ -462,7 +462,19 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnOptions(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OptionsWindow(ViewModel.Settings) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            ViewModel.ApplyOptions(dialog.AutosaveMinutes, dialog.AutoCorrect, dialog.Units);
+        }
+
+        Editor.Focus();
+    }
+
     private void OnShortcutsCommand(object sender, ExecutedRoutedEventArgs e) => OnShortcuts(sender, e);
+
 
     private void OnShortcuts(object sender, RoutedEventArgs e)
     {

@@ -32,6 +32,12 @@ public sealed class AppSettings
     /// <summary>"System", "Light" or "Dark".</summary>
     public string Theme { get; set; } = "System";
 
+    /// <summary>"Auto" (from the Windows region), "Inches" or "Centimeters".</summary>
+    public string Units { get; set; } = "Auto";
+
+    public AutoCorrectSettings AutoCorrect { get; set; } = new();
+
+
     public static string Directory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Quill");
 
     public static string FilePath => Path.Combine(Directory, "settings.json");
@@ -78,4 +84,22 @@ public sealed class AppSettings
     }
 
     public void RemoveRecent(string path) => RecentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>AutoCorrect switches as stored in settings.json.</summary>
+public sealed class AutoCorrectSettings
+{
+    public bool SmartQuotes { get; set; } = true;
+
+    public bool Dashes { get; set; } = true;
+
+    public bool Symbols { get; set; } = true;
+
+    public bool CapitalizeSentences { get; set; } = true;
+
+    public bool AutomaticLists { get; set; } = true;
+
+    public Quill.Core.Editing.AutoCorrectOptions ToOptions() => new(SmartQuotes, Dashes, Symbols, CapitalizeSentences, AutomaticLists);
+
+    public AutoCorrectSettings Clone() => (AutoCorrectSettings)MemberwiseClone();
 }

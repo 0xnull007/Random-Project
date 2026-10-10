@@ -1419,7 +1419,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         _desiredCaretX = null;
-        session.InsertText(text.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal));
+        session.TypeText(text.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal));
         e.Handled = true;
     }
 

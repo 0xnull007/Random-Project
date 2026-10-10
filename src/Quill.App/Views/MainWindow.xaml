@@ -108,6 +108,7 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Export PDF..." Command="{Binding ExportPdfCommand}" ToolTip="Save the document as a PDF file" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Properties..." Click="OnProperties" ToolTip="Title, author, subject and comments stored in the file" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Options..." Click="OnOptions" ToolTip="Autosave, AutoCorrect and measurement units" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Shortcuts" Click="OnShortcuts" ToolTip="Keyboard shortcuts (F1)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="About" Click="OnAbout" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
