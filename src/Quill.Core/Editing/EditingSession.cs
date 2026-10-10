@@ -531,7 +531,63 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    // ----- Drag and drop -----
+
+    /// <summary>Moves (or copies) the text of <paramref name="source"/> to <paramref name="target"/> as one undo step; the dropped text ends up selected.</summary>
+    public void MoveText(TextRange source, TextPosition target, bool copy)
+    {
+        if (source.IsEmpty || !Document.IsValid(source.Start) || !Document.IsValid(source.End) || !Document.IsValid(target))
+        {
+            return;
+        }
+
+        if (!copy && source.Story == target.Story && (source.Contains(target) || target == source.End))
+        {
+            return; // dropped onto itself
+        }
+
+        DocumentFragment fragment = DocumentEditor.ExtractFragment(Document, source);
+        Document document = Document;
+        TextPosition at = target;
+        ChangeSet? change = null;
+        if (!copy)
+        {
+            EditResult deleted = DocumentEditor.DeleteRange(document, source);
+            document = deleted.Document;
+            change = deleted.Change;
+            at = AdjustAfterDelete(target, source);
+        }
+
+        EditResult inserted = DocumentEditor.InsertFragment(document, at, fragment);
+        ChangeSet total = change is { } first ? first.Union(inserted.Change) : inserted.Change;
+        Commit(new EditResult(inserted.Document, new Selection(at, inserted.Selection.Active), total), EditKind.Paste, startsNewGroup: true);
+        PendingFormat = null;
+    }
+
+    /// <summary>Where a position lands after the text before it was removed.</summary>
+    private static TextPosition AdjustAfterDelete(TextPosition target, TextRange removed)
+    {
+        if (target.Story != removed.Story || target <= removed.Start)
+        {
+            return target;
+        }
+
+        if (target < removed.End)
+        {
+            return removed.Start;
+        }
+
+        int removedBlocks = removed.End.Block.TopIndex - removed.Start.Block.TopIndex;
+        if (target.Block.TopIndex == removed.End.Block.TopIndex)
+        {
+            return new TextPosition(target.Story, removed.Start.Block, removed.Start.Offset + (target.Offset - removed.End.Offset));
+        }
+
+        return new TextPosition(target.Story, BlockPath.Of(target.Block.TopIndex - removedBlocks), target.Offset);
+    }
+
     // ----- Table of contents -----
+
 
     /// <summary>Inserts a table of contents before the caret paragraph, or replaces the existing one in place; the caret lands after it.</summary>
     public void InsertTableOfContents(IReadOnlyList<TocEntry> entries, Twips columnWidth, string? title = "Contents")

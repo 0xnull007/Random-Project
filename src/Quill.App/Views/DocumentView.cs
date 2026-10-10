@@ -292,6 +292,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         Focusable = true;
         FocusVisualStyle = null;
         Cursor = Cursors.IBeam;
+        AllowDrop = true;
         _spellTimer.Tick += OnSpellTick;
         SpellService.Shared.Changed += OnSpellingChanged;
         ClipToBounds = true;
@@ -1657,6 +1658,15 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 session.SelectParagraphAt(hit.Position);
                 break;
             default:
+                if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) && !session.Selection.IsCollapsed && session.Selection.Range.Contains(hit.Position) && _pendingFormatSample is null)
+                {
+                    // Pressing inside the selection starts a text drag (or, released in place, just moves the caret there).
+                    _textDragStart = viewPoint;
+                    _textDragHit = hit;
+                    CaptureMouse();
+                    break;
+                }
+
                 SafeMove(session, hit.Position, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift), hit.Affinity);
                 if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
                 {
@@ -1666,6 +1676,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 _dragging = true;
                 CaptureMouse();
                 break;
+
 
         }
 
@@ -1717,6 +1728,25 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (_textDragStart is { } dragStart)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _textDragStart = null;
+                _textDragHit = null;
+                ReleaseMouseCapture();
+            }
+            else if (Math.Abs(e.GetPosition(this).X - dragStart.X) > SystemParameters.MinimumHorizontalDragDistance
+                || Math.Abs(e.GetPosition(this).Y - dragStart.Y) > SystemParameters.MinimumVerticalDragDistance)
+            {
+                _textDragStart = null;
+                _textDragHit = null;
+                StartTextDrag();
+            }
+
+            return;
+        }
+
         if (!_dragging && !IsReadOnly)
         {
             string? url = LinkUnder(e.GetPosition(this))?.Url;
@@ -1790,10 +1820,123 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
     }
 
-    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    private Point? _textDragStart;
+    private (TextPosition Position, CaretAffinity Affinity)? _textDragHit;
+    private static DragPayload? s_dragPayload;
 
+    /// <summary>What an in-app text drag carries, besides the text and RTF other apps see.</summary>
+    private sealed record DragPayload(EditingSession Session, TextRange Source, DocumentFragment Fragment);
+
+    private void StartTextDrag()
+    {
+        if (Session is not { } session || session.Selection.IsCollapsed)
+        {
+            return;
+        }
+
+        DocumentFragment fragment = session.Copy();
+        var data = new DataObject();
+        data.SetText(fragment.ToPlainText());
+        try
+        {
+            data.SetData(DataFormats.Rtf, RichTextConverter.ToRtf(fragment, session.Resolver, session.Document.Lists));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException)
+        {
+            // Plain text is enough for other apps.
+        }
+
+        s_dragPayload = new DragPayload(session, session.Selection.Range, fragment);
+        ReleaseMouseCapture();
+        try
+        {
+            DragDropEffects result = DragDrop.DoDragDrop(this, data, DragDropEffects.Copy | DragDropEffects.Move);
+            if (result == DragDropEffects.Move && s_dragPayload is { } payload && !_droppedHere && ReferenceEquals(payload.Session, session))
+            {
+                // Moved into another application: remove the source text.
+                session.MoveCaret(payload.Source.Start, extend: false);
+                session.MoveCaret(payload.Source.End, extend: true);
+                session.DeleteSelection();
+            }
+        }
+        finally
+        {
+            s_dragPayload = null;
+            _droppedHere = false;
+        }
+    }
+
+    private bool _droppedHere;
+
+    protected override void OnDragOver(DragEventArgs e)
+    {
+        base.OnDragOver(e);
+        if (s_dragPayload is null || IsReadOnly)
+        {
+            return; // file drops are handled by the window
+        }
+
+        e.Effects = (e.KeyStates & DragDropKeyStates.ControlKey) != 0 ? DragDropEffects.Copy : DragDropEffects.Move;
+        if (HitTest(e.GetPosition(this)) is { } hit && Session is { } session && session.Document.IsValid(hit.Position))
+        {
+            _dropPreview = hit.Position;
+        }
+
+        e.Handled = true;
+    }
+
+    private TextPosition? _dropPreview;
+
+    protected override void OnDrop(DragEventArgs e)
+    {
+        base.OnDrop(e);
+        if (s_dragPayload is not { } payload || IsReadOnly || Session is not { } session)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        _droppedHere = true;
+        if (HitTest(e.GetPosition(this)) is not { } hit)
+        {
+            return;
+        }
+
+        bool copy = (e.KeyStates & DragDropKeyStates.ControlKey) != 0;
+        if (ReferenceEquals(payload.Session, session))
+        {
+            session.MoveText(payload.Source, hit.Position, copy);
+        }
+        else
+        {
+            // From another Quill window: paste a copy here; the source removes its text when the effect is Move.
+            session.MoveCaret(hit.Position, extend: false);
+            session.Paste(payload.Fragment);
+            _droppedHere = copy;
+        }
+
+        e.Effects = copy ? DragDropEffects.Copy : DragDropEffects.Move;
+        Focus();
+    }
+
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
+        if (_textDragStart is not null)
+        {
+            // Released without dragging: the click just moves the caret, like Word.
+            _textDragStart = null;
+            ReleaseMouseCapture();
+            if (_textDragHit is { } hit && Session is { } session)
+            {
+                SafeMove(session, hit.Position, extend: false, hit.Affinity);
+            }
+
+            _textDragHit = null;
+            e.Handled = true;
+            return;
+        }
+
         if (_dragging)
         {
             _dragging = false;

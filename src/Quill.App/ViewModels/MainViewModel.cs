@@ -305,8 +305,26 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial int PageCount { get; set; }
 
+    /// <summary>"12 of 345 words" while text is selected, "345 words" otherwise.</summary>
+    [ObservableProperty]
+    public partial string WordCountText { get; set; } = "0 words";
+
+    private void UpdateWordCountText()
+    {
+        string total = WordCount.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+        if (Session.Selection.IsCollapsed || !Session.Selection.Range.IsWithinOneParagraph && Session.Selection.Range.End.Block.TopIndex - Session.Selection.Range.Start.Block.TopIndex > 2000)
+        {
+            WordCountText = total + " words";
+            return;
+        }
+
+        int selected = DocumentStatistics.Compute(DocumentEditor.ExtractFragment(Session.Document, Session.Selection.Range).Paragraphs).Words;
+        WordCountText = selected.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) + " of " + total + " words";
+    }
+
     [ObservableProperty]
     public partial int WordCount { get; set; }
+
 
     [ObservableProperty]
     public partial bool IsBold { get; set; }
@@ -975,7 +993,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         try
         {
-            if (PrintService.Print(Session.Document, Session.Resolver, _documentName))
+            if (PrintService.Print(Session.Document, Session.Resolver, _documentName, CurrentPage))
             {
                 StatusMessage = "Sent to printer";
             }
@@ -1282,6 +1300,7 @@ public sealed partial class MainViewModel : ObservableObject
             bool? listKind = Session.ListKind(current);
             IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
             UpdateCurrentHeading();
+            UpdateWordCountText();
             IsBulleted = listKind == true;
             IsNumbered = listKind == false;
             CanUndo = Session.CanUndo;

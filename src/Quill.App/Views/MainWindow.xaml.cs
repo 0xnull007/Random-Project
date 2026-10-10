@@ -65,20 +65,28 @@ public partial class MainWindow : Window
         ViewModel.PageCount = Editor.PageCount;
         PopupThemeFix.AttachAll(this);
         Dispatcher.BeginInvoke(() => PopupThemeFix.AttachAll(this), System.Windows.Threading.DispatcherPriority.Loaded);
-        if (Application.Current is App { StartupFile: { } startupFile })
+        if (!s_startupFileConsumed && Application.Current is App { StartupFile: { } startupFile })
         {
+            s_startupFileConsumed = true;
             ViewModel.OpenFile(startupFile);
         }
-        else
+        else if (!s_recoveryOffered)
         {
+            s_recoveryOffered = true;
             Dispatcher.BeginInvoke(ViewModel.OfferRecovery, System.Windows.Threading.DispatcherPriority.Background);
         }
+
 
         Editor.Focus();
     }
 
     private void OnDragOver(object sender, DragEventArgs e)
     {
+        if (e.Handled)
+        {
+            return;
+        }
+
         e.Effects = DroppedFile(e) is not null ? DragDropEffects.Copy : DragDropEffects.None;
         e.Handled = true;
     }
@@ -468,7 +476,13 @@ public partial class MainWindow : Window
         }
     }
 
+    private static bool s_startupFileConsumed;
+    private static bool s_recoveryOffered;
+
+    private void OnNewWindow(object sender, RoutedEventArgs e) => new MainWindow().Show();
+
     private void OnExit(object sender, RoutedEventArgs e) => Close();
+
 
     private void OnCut(object sender, RoutedEventArgs e) => Editor.CutSelection();
 

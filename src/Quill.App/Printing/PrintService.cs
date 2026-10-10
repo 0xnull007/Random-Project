@@ -14,12 +14,12 @@ namespace Quill.App.Printing;
 /// <summary>Prints a document through the standard WPF print dialog using the same renderer as the screen.</summary>
 public static class PrintService
 {
-    public static bool Print(Document document, StyleResolver resolver, string title)
+    public static bool Print(Document document, StyleResolver resolver, string title, int currentPage = 0)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(resolver);
 
-        var dialog = new PrintDialog { UserPageRangeEnabled = true };
+        var dialog = new PrintDialog { UserPageRangeEnabled = true, CurrentPageEnabled = currentPage > 0 };
         SectionProperties first = document.Sections[0].Properties;
         dialog.PrintTicket.PageMediaSize = new PageMediaSize(first.PageWidth.ToDips(), first.PageHeight.ToDips());
         dialog.PrintTicket.PageOrientation = first.Orientation == Orientation.Landscape ? PageOrientation.Landscape : PageOrientation.Portrait;
@@ -33,7 +33,12 @@ public static class PrintService
         LayoutDocument layout = paginator.Layout(document, resolver);
         int from = 0;
         int to = layout.PageCount - 1;
-        if (dialog.PageRangeSelection == PageRangeSelection.UserPages)
+        if (dialog.PageRangeSelection == PageRangeSelection.CurrentPage && currentPage > 0)
+        {
+            from = Math.Clamp(currentPage - 1, 0, to);
+            to = from;
+        }
+        else if (dialog.PageRangeSelection == PageRangeSelection.UserPages)
         {
             from = Math.Clamp(dialog.PageRange.PageFrom - 1, 0, to);
             to = Math.Clamp(dialog.PageRange.PageTo - 1, from, to);

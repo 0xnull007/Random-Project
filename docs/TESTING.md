@@ -23,6 +23,11 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Shift + any of the above extends the selection; selection highlight follows across pages.
 - [ ] Mouse: click places the caret, drag selects, double-click selects a word, triple-click a paragraph; dragging
       below the window autoscrolls.
+- [ ] Drag and drop: select text, press inside the selection and drag it elsewhere (a drop cursor follows the
+      mouse): the text moves there and stays selected; hold Ctrl to copy instead; drag into WordPad to copy it out;
+      click inside a selection without dragging just places the caret **(new)**.
+- [ ] Status bar shows "12 of 345 words" while text is selected **(new)**. Print offers "Current page" **(new)**.
+      File > New Window opens a second window for another document **(new)**.
 - [ ] Emoji and combining characters: Backspace removes one unit at a time without breaking the text.
 - [ ] Dead keys / AltGr (e.g. `´` + `e` on an international layout) produce the accented letter.
 - [ ] IME (Japanese/Chinese/Korean, Win+Space to switch): composition text appears at the caret with the candidate

@@ -120,6 +120,7 @@
       <TabItem Header="File">
         <StackPanel Orientation="Horizontal">
           <Button Style="{StaticResource Quill.CommandButton}" Content="New" Command="{Binding NewDocumentCommand}" ToolTip="New document (Ctrl+N)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="New Window" Click="OnNewWindow" ToolTip="Open another Quill window (for a second document)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Open..." Command="{Binding OpenCommand}" ToolTip="Open a .docx (Ctrl+O)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Save" Command="{Binding SaveCommand}" ToolTip="Save (Ctrl+S)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Save As..." Command="{Binding SaveAsCommand}" />
@@ -308,7 +309,7 @@
       <Separator />
       <StatusBarItem Padding="4,0">
         <TextBlock>
-          <Run Text="{Binding WordCount, Mode=OneWay}" /><Run Text=" words" />
+          <Run Text="{Binding WordCountText, Mode=OneWay}" />
         </TextBlock>
       </StatusBarItem>
       <Separator />
