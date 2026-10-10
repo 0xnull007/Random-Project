@@ -113,6 +113,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 - [ ] Page Break (Ctrl+Enter) starts a new page; Section Break starts a new section on the next page.
 - [ ] Layout > Orientation toggles portrait/landscape for the current section; Margins Normal/Narrow/Moderate.
+- [ ] Layout > Columns One/Two/Three: the section's text flows down the first column and then the next; Column
+      Break (Ctrl+Shift+Enter) jumps to the next column; a page break skips the remaining columns; Word shows the
+      same columns when the file is opened there **(new)**.
 - [ ] Page Setup...: paper size (Letter/A4/...), orientation, margins, header/footer distance, "Apply to whole
       document", "Different first page", "Different odd and even pages". Invalid values are rejected.
 - [ ] Keep-with-next: a heading at the bottom of a page moves to the next page with its paragraph.

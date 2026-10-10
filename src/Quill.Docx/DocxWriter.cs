@@ -614,7 +614,7 @@ public static class DocxWriter
 
         if (p.ColumnCount > 1)
         {
-            sectPr.Append(new W.Columns { ColumnCount = (short)p.ColumnCount });
+            sectPr.Append(new W.Columns { ColumnCount = (short)p.ColumnCount, Space = p.ColumnSpacing.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), EqualWidth = true });
         }
 
         if (p.TitlePage)

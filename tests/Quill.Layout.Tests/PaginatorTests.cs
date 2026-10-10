@@ -444,3 +444,61 @@ public class PaginatorTests
         Assert.True(fragment.ContainsOffset(0));
     }
 }
+
+public class ColumnTests
+{
+    private const double Margin = 20;
+
+    private static SectionProperties Page(int lines, int charsPerLine, int columns, double gap) => new()
+    {
+        PageWidth = Twips.FromDips(charsPerLine * FakeLineFormatter.CharWidth + 2 * Margin),
+        PageHeight = Twips.FromDips(lines * FakeLineFormatter.LineHeight + 2 * Margin),
+        MarginTop = Twips.FromDips(Margin),
+        MarginBottom = Twips.FromDips(Margin),
+        MarginLeft = Twips.FromDips(Margin),
+        MarginRight = Twips.FromDips(Margin),
+        ColumnCount = columns,
+        ColumnSpacing = Twips.FromDips(gap),
+    };
+
+    private static LayoutDocument Layout(SectionProperties page, params Block[] blocks)
+    {
+        var document = new Document(ImmutableList.Create(new Section(page, blocks.ToImmutableList())), StyleSheet.Empty);
+        return new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+    }
+
+    private static ParagraphFragment[] Paragraphs(PageLayout page) => page.Body.OfType<ParagraphFragment>().ToArray();
+
+    [Fact]
+    public void Two_columns_fill_left_then_right_before_the_next_page()
+    {
+        // Body 200 wide; two columns with a 20 gap are 90 wide (9 characters), three lines each.
+        Block[] lines = Enumerable.Range(0, 8).Select(i => (Block)new Paragraph([new Run("line" + i)])).ToArray();
+        LayoutDocument layout = Layout(Page(3, 20, 2, 20), lines);
+        Assert.Equal(2, layout.PageCount);
+        ParagraphFragment[] first = Paragraphs(layout.Pages[0]);
+        Assert.Equal(6, first.Length);
+        Assert.Equal(Margin, first[0].Bounds.Left, 3);
+        Assert.Equal(90, first[0].Bounds.Width, 3);
+        Assert.Equal(Margin + 90 + 20, first[3].Bounds.Left, 3);
+        Assert.Equal(Margin, first[3].Bounds.Top, 3);
+        Assert.Equal(Margin + 2 * FakeLineFormatter.LineHeight, first[2].Bounds.Top, 3);
+        Assert.Equal(2, Paragraphs(layout.Pages[1]).Length);
+        Assert.Equal(Margin, Paragraphs(layout.Pages[1])[0].Bounds.Left, 3);
+    }
+
+    [Fact]
+    public void Column_break_moves_to_the_next_column_and_page_break_to_the_next_page()
+    {
+        var first = new Paragraph([new Run("a"), new Break(BreakKind.Column), new Run("b")]);
+        var second = new Paragraph([new Run("c"), new Break(BreakKind.Page), new Run("d")]);
+        LayoutDocument layout = Layout(Page(5, 20, 2, 20), first, second);
+        Assert.Equal(2, layout.PageCount);
+        ParagraphFragment[] page1 = Paragraphs(layout.Pages[0]);
+        Assert.Equal(3, page1.Length);
+        Assert.Equal(Margin, page1[0].Bounds.Left, 3);
+        Assert.Equal(Margin + 110, page1[1].Bounds.Left, 3);
+        Assert.Equal(Margin + 110, page1[2].Bounds.Left, 3);
+        Assert.Equal(Margin, Paragraphs(layout.Pages[1])[0].Bounds.Left, 3);
+    }
+}

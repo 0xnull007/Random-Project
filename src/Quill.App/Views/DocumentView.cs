@@ -1807,7 +1807,11 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
                 break;
             case Key.Return:
-                if (shift)
+                if (ctrl && shift)
+                {
+                    session.InsertBreak(Core.Model.BreakKind.Column);
+                }
+                else if (shift)
                 {
                     session.InsertBreak(Core.Model.BreakKind.Line);
                 }

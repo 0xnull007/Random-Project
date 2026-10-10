@@ -40,6 +40,7 @@ public partial class ShortcutsWindow : Window
         new("Tab / Shift+Tab (start of list item)", "Increase / decrease list level"),
         new("Enter (empty list item)", "End the list"),
         new("Enter / Shift+Enter / Ctrl+Enter", "New paragraph / line break / page break"),
+        new("Ctrl+Shift+Enter", "Column break"),
         new("Ctrl+Backspace / Ctrl+Delete", "Delete word left / right"),
         new("Ctrl+Left / Ctrl+Right", "Move by word"),
         new("Home / End", "Start / end of line"),

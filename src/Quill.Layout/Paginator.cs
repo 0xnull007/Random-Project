@@ -137,7 +137,7 @@ public sealed class Paginator
                 Placement placement = body[i];
                 if (placement.Block is Table table)
                 {
-                    TableLayout tableLayout = GetTableLayout(table, page.BodyArea.Width, FieldValues.Placeholder);
+                    TableLayout tableLayout = GetTableLayout(table, page.Column.Width, FieldValues.Placeholder);
                     if (tableLayout.Rows.IsEmpty)
                     {
                         i++;
@@ -145,7 +145,7 @@ public sealed class Paginator
                     }
 
                     int firstRow = placement.NextLine;
-                    double availableHeight = page.BodyArea.Bottom - page.Y;
+                    double availableHeight = page.Column.Bottom - page.Y;
                     int rows = 0;
                     while (firstRow + rows < tableLayout.Rows.Length && tableLayout.HeightOfRows(firstRow, firstRow + rows) <= availableHeight + 0.001)
                     {
@@ -156,7 +156,7 @@ public sealed class Paginator
                     {
                         if (!page.IsEmpty)
                         {
-                            page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                            page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak);
                             continue;
                         }
 
@@ -164,7 +164,7 @@ public sealed class Paginator
                     }
 
                     int lastRow = firstRow + rows - 1;
-                    var tableFragment = new TableFragment(StoryId.Body(sectionIndex), placement.Path, tableLayout, firstRow, lastRow, page.Y, page.BodyArea.Left);
+                    var tableFragment = new TableFragment(StoryId.Body(sectionIndex), placement.Path, tableLayout, firstRow, lastRow, page.Y, page.Column.Left);
                     page.Fragments.Add(tableFragment);
                     page.Y = tableFragment.Bounds.Bottom;
                     page.IsEmpty = false;
@@ -176,7 +176,7 @@ public sealed class Paginator
                     else
                     {
                         placement.NextLine = lastRow + 1;
-                        page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                        page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak);
                     }
 
                     continue;
@@ -186,13 +186,13 @@ public sealed class Paginator
 
                 {
                     double height = OpaqueFragment.PlaceholderHeight;
-                    if (!page.IsEmpty && page.Y + height > page.BodyArea.Bottom)
+                    if (!page.IsEmpty && page.Y + height > page.Column.Bottom)
                     {
-                        page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                        page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak);
                         continue;
                     }
 
-                    page.Fragments.Add(new OpaqueFragment(StoryId.Body(sectionIndex), placement.Path, opaque, new RectD(page.BodyArea.Left, page.Y, page.BodyArea.Width, height)));
+                    page.Fragments.Add(new OpaqueFragment(StoryId.Body(sectionIndex), placement.Path, opaque, new RectD(page.Column.Left, page.Y, page.Column.Width, height)));
                     page.Y += height;
                     page.IsEmpty = false;
                     i++;
@@ -200,18 +200,18 @@ public sealed class Paginator
                 }
 
                 var paragraph = (Paragraph)placement.Block;
-                ParagraphLayout layout = GetLayout(paragraph, page.BodyArea.Width, FieldValues.Placeholder, markers.TryGetValue(i, out ListMarker bodyMarker) ? bodyMarker : null);
+                ParagraphLayout layout = GetLayout(paragraph, page.Column.Width, FieldValues.Placeholder, markers.TryGetValue(i, out ListMarker bodyMarker) ? bodyMarker : null);
                 ResolvedParagraphProperties pp = layout.Properties;
 
                 if (pp.PageBreakBefore && !page.IsEmpty && placement.NextLine == 0)
                 {
-                    page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                    page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak, forcePage: true);
                     afterHardBreak = true;
                     continue;
                 }
 
                 double spaceBefore = placement.NextLine == 0 ? EffectiveSpaceBefore(section, i, layout, page.IsEmpty, afterHardBreak) : 0;
-                double available = page.BodyArea.Bottom - page.Y - spaceBefore;
+                double available = page.Column.Bottom - page.Y - spaceBefore;
                 int first = placement.NextLine;
                 int last = layout.LineCount - 1;
 
@@ -245,7 +245,7 @@ public sealed class Paginator
                             i = rewindTo;
                         }
 
-                        page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                        page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak);
                         continue;
                     }
                 }
@@ -254,7 +254,7 @@ public sealed class Paginator
                 bool endsParagraph = lastLine == last;
                 double spaceAfter = endsParagraph ? EffectiveSpaceAfter(section, i, layout) : 0;
                 double top = page.Y;
-                var fragment = new ParagraphFragment(StoryId.Body(sectionIndex), placement.Path, layout, first, lastLine, top, page.BodyArea.Left, spaceBefore, spaceAfter);
+                var fragment = new ParagraphFragment(StoryId.Body(sectionIndex), placement.Path, layout, first, lastLine, top, page.Column.Left, spaceBefore, spaceAfter);
                 page.Fragments.Add(fragment);
                 page.Y = fragment.Bounds.Bottom;
                 page.IsEmpty = false;
@@ -267,7 +267,7 @@ public sealed class Paginator
                 {
                     if (forcedBreak is not null)
                     {
-                        page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                        page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak, forcePage: forcedBreak == BreakKind.Page);
                         afterHardBreak = true;
                         placement.NextLine = 0;
                     }
@@ -277,14 +277,14 @@ public sealed class Paginator
                 else
                 {
                     placement.NextLine = lastLine + 1;
-                    page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                    page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak, forcePage: forcedBreak == BreakKind.Page);
                     afterHardBreak = forcedBreak is not null;
                 }
 
                 afterHardBreak = afterHardBreak && (forcedBreak is not null);
             }
 
-            if (!page.IsEmpty || _pages.Count == 0)
+            if (page.Fragments.Count > 0 || _pages.Count == 0)
             {
                 FinishPage(page, pageNumber++, sectionIndex);
             }
@@ -438,7 +438,25 @@ public sealed class Paginator
             return resume;
         }
 
+        /// <summary>Moves to the next column of a multi-column page, or (when the columns are used up or a page break demands it) to a new page.</summary>
+        private PageBuilder NextColumn(PageBuilder page, ref int pageNumber, int sectionIndex, ref bool afterHardBreak, bool forcePage = false)
+        {
+            if (!forcePage && page.ColumnIndex < page.ColumnCount - 1)
+            {
+                page.ColumnIndex++;
+                page.Y = page.BodyArea.Top;
+                page.IsEmpty = true;
+                afterHardBreak = false;
+                return page;
+            }
+
+            PageBuilder next = Flush(page, pageNumber, sectionIndex, ref afterHardBreak);
+            pageNumber++;
+            return next;
+        }
+
         private PageBuilder Flush(PageBuilder page, int pageNumber, int sectionIndex, ref bool afterHardBreak)
+
         {
             FinishPage(page, pageNumber, sectionIndex);
             afterHardBreak = false;
@@ -466,7 +484,11 @@ public sealed class Paginator
             double left = (props.MarginLeft + props.Gutter).ToDips();
             double width = Math.Max(1, size.Width - left - props.MarginRight.ToDips());
             var bodyArea = RectD.FromEdges(left, bodyTop, left + width, Math.Max(bodyTop + 1, bodyBottom));
-            return new PageBuilder(sectionIndex, pageNumber, size, bodyArea, header, footer, isFirstOfSection, variant);
+            return new PageBuilder(sectionIndex, pageNumber, size, bodyArea, header, footer, isFirstOfSection, variant)
+            {
+                ColumnCount = Math.Clamp(props.ColumnCount, 1, 12),
+                ColumnGap = Math.Max(0, props.ColumnSpacing.ToDips()),
+            };
         }
 
         private void FinishPage(PageBuilder page, int pageNumber, int sectionIndex)
@@ -796,6 +818,29 @@ public sealed class Paginator
             public double Y { get; set; } = bodyArea.Top;
 
             public bool IsEmpty { get; set; } = true;
+
+            public int ColumnCount { get; init; } = 1;
+
+            public double ColumnGap { get; init; }
+
+            public int ColumnIndex { get; set; }
+
+            /// <summary>The column being filled; the whole body when the section has a single column.</summary>
+            public RectD Column
+            {
+                get
+                {
+                    if (ColumnCount <= 1)
+                    {
+                        return BodyArea;
+                    }
+
+                    double width = Math.Max(1, (BodyArea.Width - ColumnGap * (ColumnCount - 1)) / ColumnCount);
+                    double left = BodyArea.Left + ColumnIndex * (width + ColumnGap);
+                    return RectD.FromEdges(left, BodyArea.Top, left + width, BodyArea.Bottom);
+                }
+            }
+
         }
     }
 }

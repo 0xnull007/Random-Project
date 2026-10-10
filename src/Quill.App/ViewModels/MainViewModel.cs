@@ -492,7 +492,24 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SetColumns(string count)
+    {
+        if (!int.TryParse(count, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int columns))
+        {
+            return;
+        }
+
+        int section = Session.Selection.Story.SectionIndex;
+        SectionProperties props = Session.Document.Sections[section].Properties;
+        Session.SetSectionProperties(section, props with { ColumnCount = Math.Clamp(columns, 1, 4) });
+    }
+
+    [RelayCommand]
+    private void InsertColumnBreak() => Session.InsertBreak(BreakKind.Column);
+
+    [RelayCommand]
     private void SetMargins(string preset)
+
     {
         int section = Session.Selection.Story.SectionIndex;
         SectionProperties props = Session.Document.Sections[section].Properties;

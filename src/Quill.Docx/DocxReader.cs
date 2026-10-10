@@ -213,11 +213,15 @@ public sealed class DocxReader
             };
         }
 
-        if (sectPr.GetFirstChild<W.Columns>()?.ColumnCount?.Value is { } columns && columns > 1)
+        if (sectPr.GetFirstChild<W.Columns>() is { } cols && cols.ColumnCount?.Value is { } columns && columns > 1)
         {
             props = props with { ColumnCount = columns };
-            Warn("Multiple columns are laid out as a single column in this version.");
+            if (int.TryParse(cols.Space?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int space) && space >= 0)
+            {
+                props = props with { ColumnSpacing = new Twips(space) };
+            }
         }
+
 
         HeaderFooterSet headers = HeaderFooterSet.Empty;
         foreach (W.HeaderReference reference in sectPr.Elements<W.HeaderReference>())
