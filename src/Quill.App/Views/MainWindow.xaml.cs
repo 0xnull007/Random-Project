@@ -197,17 +197,17 @@ public partial class MainWindow : Window
         Document document = session.Document;
         for (int s = 0; s < document.Sections.Count; s++)
         {
-            var body = document.Sections[s].Body;
-            for (int i = 0; i < body.Count; i++)
+            foreach ((BlockPath path, Paragraph paragraph) in BlockWalker.Paragraphs(document.Sections[s].Body))
             {
-                if (body[i] is Paragraph paragraph && !TableOfContents.IsTocStyle(paragraph.StyleId)
+                if (!TableOfContents.IsTocStyle(paragraph.StyleId)
                     && session.Resolver.ResolveParagraph(paragraph).OutlineLevel is { } level && level < 3 && paragraph.FlatText.Trim().Length > 0)
                 {
-                    var position = new TextPosition(StoryId.Body(s), BlockPath.Of(i), 0);
+                    var position = new TextPosition(StoryId.Body(s), path, 0);
                     entries.Add(new TocEntry(paragraph.FlatText.Trim(), level, Editor.PageNumberTextOf(position) ?? "?"));
                 }
             }
         }
+
 
         return entries;
     }

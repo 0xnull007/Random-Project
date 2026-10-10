@@ -57,62 +57,38 @@ public sealed partial class EditingSession
         }
 
         document = document.WithComments(document.Comments.Remove(id));
-        foreach ((StoryId story, ImmutableList<Block> blocks) in DocumentEditor.AllStories(Document))
-        {
-            ImmutableList<Block>.Builder? builder = null;
-            for (int b = 0; b < blocks.Count; b++)
-            {
-                if (blocks[b] is not Paragraph paragraph || !paragraph.Inlines.Any(i => i.Properties.CommentId == id))
-                {
-                    continue;
-                }
-
-                builder ??= blocks.ToBuilder();
-                builder[b] = paragraph.WithInlines(InlineOps.Normalize(paragraph.Inlines.Select(i => i.Properties.CommentId == id ? i.WithProperties(i.Properties with { CommentId = null }) : i)));
-            }
-
-            if (builder is not null)
-            {
-                document = document.WithStory(story, builder.ToImmutable());
-            }
-        }
+        document = DocumentEditor.MapParagraphs(document, paragraph => paragraph.Inlines.Any(i => i.Properties.CommentId == id)
+            ? paragraph.WithInlines(InlineOps.Normalize(paragraph.Inlines.Select(i => i.Properties.CommentId == id ? i.WithProperties(i.Properties with { CommentId = null }) : i)))
+            : paragraph);
 
         Commit(new EditResult(document, Selection, ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
     }
 
-    /// <summary>The first run of text a comment is attached to, as a range (within one story), or null when it has none.</summary>
+    /// <summary>The first run of text a comment is attached to, as a range (within one story and one table cell), or null when it has none.</summary>
     public TextRange? CommentRange(int id)
     {
-        foreach ((StoryId story, ImmutableList<Block> blocks) in DocumentEditor.AllStories(Document))
+        TextPosition? start = null;
+        TextPosition? end = null;
+        foreach ((StoryId story, BlockPath path, Paragraph paragraph) in DocumentEditor.AllParagraphs(Document))
         {
-            TextPosition? start = null;
-            TextPosition? end = null;
-            for (int b = 0; b < blocks.Count; b++)
+            if (start is { } found && (found.Story != story || !found.Block.SameContainer(path)))
             {
-                if (blocks[b] is not Paragraph paragraph)
+                break;
+            }
+
+            foreach (InlineSpan span in paragraph.Spans())
+            {
+                if (span.Inline.Properties.CommentId != id)
                 {
                     continue;
                 }
 
-                foreach (InlineSpan span in paragraph.Spans())
-                {
-                    if (span.Inline.Properties.CommentId != id)
-                    {
-                        continue;
-                    }
-
-                    start ??= new TextPosition(story, BlockPath.Of(b), span.Start);
-                    end = new TextPosition(story, BlockPath.Of(b), span.End);
-                }
-            }
-
-            if (start is { } s && end is { } e)
-            {
-                return new TextRange(s, e);
+                start ??= new TextPosition(story, path, span.Start);
+                end = new TextPosition(story, path, span.End);
             }
         }
 
-        return null;
+        return start is { } s && end is { } e ? new TextRange(s, e) : null;
     }
 
     /// <summary>Comment ids attached at the caret (or anywhere in the selection).</summary>

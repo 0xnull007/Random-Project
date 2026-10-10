@@ -35,7 +35,7 @@ public sealed partial class EditingSession
     public IReadOnlyList<TextRange> TrackedChanges()
     {
         var ranges = new List<TextRange>();
-        foreach ((StoryId story, BlockPath path, Paragraph paragraph) in AllParagraphs(Document))
+        foreach ((StoryId story, BlockPath path, Paragraph paragraph) in DocumentEditor.AllParagraphs(Document))
         {
             foreach ((int start, int end) in RevisionSpans(paragraph))
             {
@@ -94,7 +94,7 @@ public sealed partial class EditingSession
         Revision mark = Revision.Insertion(Author, Now());
         Paragraph Mark(Paragraph p) => p.WithInlines(InlineOps.Normalize(
             p.Inlines.Where(i => i.Properties.Revision is not { IsDeletion: true }).Select(i => i.WithProperties(i.Properties with { Revision = mark }))));
-        ImmutableList<Block> marked = MapBlocks(ImmutableList.CreateRange(fragment.Blocks), Mark);
+        ImmutableList<Block> marked = BlockWalker.MapParagraphs(ImmutableList.CreateRange(fragment.Blocks), Mark);
         return new DocumentFragment(marked.ToImmutableArray(), fragment.Images);
 
     }
@@ -208,7 +208,7 @@ public sealed partial class EditingSession
 
     private void ResolveAll(bool accept)
     {
-        Document document = MapAllParagraphs(Document, p => Resolve(p, 0, p.Length, accept));
+        Document document = DocumentEditor.MapParagraphs(Document, p => Resolve(p, 0, p.Length, accept));
         if (ReferenceEquals(document, Document))
         {
             return;
@@ -302,6 +302,7 @@ public sealed partial class EditingSession
 
     // ----- walking -----
 
+    /// <summary>Runs of contiguous inlines carrying the same kind of mark, as [start, end) offsets.</summary>
     private static IEnumerable<(int Start, int End)> RevisionSpans(Paragraph paragraph)
     {
         int? start = null;
@@ -336,6 +337,7 @@ public sealed partial class EditingSession
     }
 
     private static Dictionary<StoryId, int> StoryOrder(Document document)
+
     {
         var order = new Dictionary<StoryId, int>();
         foreach ((StoryId story, _) in DocumentEditor.AllStories(document))
@@ -344,101 +346,5 @@ public sealed partial class EditingSession
         }
 
         return order;
-    }
-
-    /// <summary>Every paragraph of every story, table cells included, with its path.</summary>
-    internal static IEnumerable<(StoryId Story, BlockPath Path, Paragraph Paragraph)> AllParagraphs(Document document)
-    {
-        foreach ((StoryId story, ImmutableList<Block> blocks) in DocumentEditor.AllStories(document))
-        {
-            foreach ((BlockPath path, Paragraph paragraph) in WalkParagraphs(blocks, null))
-            {
-                yield return (story, path, paragraph);
-            }
-        }
-    }
-
-    private static IEnumerable<(BlockPath Path, Paragraph Paragraph)> WalkParagraphs(ImmutableList<Block> blocks, BlockPath? parent)
-    {
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            BlockPath path = parent?.WithLast(i) ?? BlockPath.Of(i);
-            switch (blocks[i])
-            {
-                case Paragraph paragraph:
-                    yield return (path, paragraph);
-                    break;
-                case Table table:
-                    for (int r = 0; r < table.Rows.Length; r++)
-                    {
-                        for (int c = 0; c < table.Rows[r].Cells.Length; c++)
-                        {
-                            foreach ((BlockPath, Paragraph) inner in WalkParagraphs(table.Rows[r].Cells[c].Blocks, path.Child(r, c, 0)))
-                            {
-                                yield return inner;
-                            }
-                        }
-                    }
-
-                    break;
-            }
-        }
-    }
-
-    /// <summary>Applies <paramref name="map"/> to every paragraph (table cells included), sharing everything unchanged.</summary>
-    internal static Document MapAllParagraphs(Document document, Func<Paragraph, Paragraph> map)
-    {
-        foreach ((StoryId story, ImmutableList<Block> blocks) in DocumentEditor.AllStories(document).ToList())
-        {
-            ImmutableList<Block> mapped = MapBlocks(blocks, map);
-            if (!ReferenceEquals(mapped, blocks))
-            {
-                document = document.WithStory(story, mapped);
-            }
-        }
-
-        return document;
-    }
-
-    private static ImmutableList<Block> MapBlocks(ImmutableList<Block> blocks, Func<Paragraph, Paragraph> map)
-    {
-        ImmutableList<Block> result = blocks;
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            switch (blocks[i])
-            {
-                case Paragraph paragraph:
-                    Paragraph mappedParagraph = map(paragraph);
-                    if (!ReferenceEquals(mappedParagraph, paragraph))
-                    {
-                        result = result.SetItem(i, mappedParagraph);
-                    }
-
-                    break;
-                case Table table:
-                    Table mappedTable = table;
-                    for (int r = 0; r < table.Rows.Length; r++)
-                    {
-                        for (int c = 0; c < table.Rows[r].Cells.Length; c++)
-                        {
-                            ImmutableList<Block> cellBlocks = table.Rows[r].Cells[c].Blocks;
-                            ImmutableList<Block> mappedCell = MapBlocks(cellBlocks, map);
-                            if (!ReferenceEquals(mappedCell, cellBlocks))
-                            {
-                                mappedTable = mappedTable.WithCellBlocks(r, c, mappedCell);
-                            }
-                        }
-                    }
-
-                    if (!ReferenceEquals(mappedTable, table))
-                    {
-                        result = result.SetItem(i, mappedTable);
-                    }
-
-                    break;
-            }
-        }
-
-        return result;
     }
 }

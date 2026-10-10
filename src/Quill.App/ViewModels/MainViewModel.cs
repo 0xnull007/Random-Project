@@ -899,15 +899,15 @@ public sealed partial class MainViewModel : ObservableObject
         Document document = Session.Document;
         for (int s = 0; s < document.Sections.Count; s++)
         {
-            System.Collections.Immutable.ImmutableList<Block> body = document.Sections[s].Body;
-            for (int i = 0; i < body.Count; i++)
+            foreach ((BlockPath path, Paragraph paragraph) in BlockWalker.Paragraphs(document.Sections[s].Body))
             {
-                if (body[i] is Paragraph paragraph && Session.Resolver.ResolveParagraph(paragraph).OutlineLevel is { } level && level < 9)
+                if (Session.Resolver.ResolveParagraph(paragraph).OutlineLevel is { } level && level < 9)
                 {
-                    Headings.Add(new HeadingEntry(paragraph.FlatText.Trim(), level, new TextPosition(StoryId.Body(s), BlockPath.Of(i), 0)));
+                    Headings.Add(new HeadingEntry(paragraph.FlatText.Trim(), level, new TextPosition(StoryId.Body(s), path, 0)));
                 }
             }
         }
+
 
         HasNoHeadings = Headings.Count == 0;
         UpdateCurrentHeading();

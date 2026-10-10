@@ -736,12 +736,26 @@ public sealed class Paginator
             double y = area.Top;
             for (int i = 0; i < blocks.Count; i++)
             {
+                if (blocks[i] is Table table)
+                {
+                    TableLayout tableLayout = GetTableLayout(table, area.Width, fields);
+                    if (!tableLayout.Rows.IsEmpty)
+                    {
+                        var tableFragment = new TableFragment(story, BlockPath.Of(i), tableLayout, 0, tableLayout.Rows.Length - 1, y, area.Left);
+                        fragments.Add(tableFragment);
+                        y = tableFragment.Bounds.Bottom;
+                    }
+
+                    continue;
+                }
+
                 if (blocks[i] is not Paragraph paragraph)
                 {
                     continue;
                 }
 
                 ParagraphLayout layout = GetLayout(paragraph, area.Width, fields, markers.TryGetValue(i, out ListMarker storyMarker) ? storyMarker : null);
+
                 if (layout.Input.ContainsFields && layout.Input.Runs.Any(r => r.Kind == RunKind.Field && r.FieldText != null)
                     && paragraph.Inlines.OfType<Field>().Any(f => f.Kind is FieldKind.NumPages or FieldKind.SectionPages))
                 {

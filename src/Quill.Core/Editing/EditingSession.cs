@@ -655,21 +655,16 @@ public sealed partial class EditingSession
         bool endnote = Selection.Story.IsEndnote;
         for (int s = 0; s < Document.Sections.Count; s++)
         {
-            ImmutableList<Block> body = Document.Sections[s].Body;
-            for (int b = 0; b < body.Count; b++)
+            foreach ((BlockPath path, Paragraph paragraph) in BlockWalker.Paragraphs(Document.Sections[s].Body))
             {
-                if (body[b] is not Paragraph paragraph)
-                {
-                    continue;
-                }
-
                 foreach (InlineSpan span in paragraph.Spans())
                 {
                     if (span.Inline is FootnoteReference { IsNoteMark: false } note && note.NoteId == id && note.IsEndnote == endnote)
                     {
-                        return new TextPosition(StoryId.Body(s), BlockPath.Of(b), span.End);
+                        return new TextPosition(StoryId.Body(s), path, span.End);
                     }
                 }
+
             }
         }
 

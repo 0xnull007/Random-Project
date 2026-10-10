@@ -178,6 +178,11 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       is drawn again at the top of the continuation (not editable there); Header Row off stops that **(new)**.
 - [ ] Table tab > shading swatch: pick a colour and the caret's cell is filled (text stays readable); "Automatic"
       clears it; the swatch shows the current cell's colour; saved files keep the shading **(new)**.
+- [ ] Headings, comments and footnotes inside table cells behave like elsewhere: the heading appears in the
+      navigation pane and the table of contents, the comment pane jumps to the commented cell text, Esc from a
+      footnote returns to the cell, and word count includes cell text **(new)**.
+- [ ] Open a Word document whose header holds a table (a typical letterhead): the header table is drawn and its
+      cells can be edited in header mode **(new)**.
 - [ ] Undo (Ctrl+Z) reverts each table command in one step.
 - [ ] Save as .docx and open in Word: the inserted table has its borders, equal columns and cell text; no repair prompt.
 - [ ] Export to PDF and print preview show the table like the page does.

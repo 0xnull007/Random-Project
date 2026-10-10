@@ -1,3 +1,6 @@
+using Quill.Core.Units;
+using Quill.Core.Text;
+using Quill.Core.Editing;
 using System.Collections.Immutable;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -47,5 +50,35 @@ public class DocxCommentTests
         Assert.Equal(read.Id, p2.Inlines[0].Properties.CommentId);
         Assert.Null(p2.Inlines[1].Properties.CommentId);
     }
-}
 
+    [Fact]
+    public void Comments_inside_table_cells_round_trip()
+    {
+        var session = new EditingSession(new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(Paragraph.FromText("Before"), Paragraph.FromText("After")))), DefaultStyleSheet.Create()));
+        session.MoveCaret(new TextPosition(StoryId.Body(0), BlockPath.Of(1), 0), extend: false);
+        session.InsertTable(1, 2, Twips.FromInches(6));
+        session.InsertText("noted");
+        TextPosition start = new(StoryId.Body(0), BlockPath.Of(1).Child(0, 0, 0), 0);
+        session.MoveCaret(start, extend: false);
+        session.MoveCaret(start.WithOffset(5), extend: true);
+        int id = session.AddComment("Ada");
+        session.SetCommentText(id, "Check this");
+
+        byte[] bytes = DocxWriter.ToBytes(session.Document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+            W.TableCell cell = package.MainDocumentPart!.Document!.Body!.Descendants<W.TableCell>().First();
+            Assert.Single(cell.Descendants<W.CommentRangeStart>());
+            Assert.Single(cell.Descendants<W.CommentRangeEnd>());
+        }
+
+        LoadResult reread = DocxReader.Read(new MemoryStream(bytes));
+        var again = new EditingSession(reread.Document);
+        int readId = Assert.Single(reread.Document.Comments.Keys);
+        Assert.Equal("Check this", reread.Document.Comments[readId].Text);
+        Assert.Equal(new TextRange(start, start.WithOffset(5)), again.CommentRange(readId));
+    }
+}

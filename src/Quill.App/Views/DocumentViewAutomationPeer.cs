@@ -328,15 +328,11 @@ internal sealed class TextRangeProvider : ITextRangeProvider
         {
             StoryId story = StoryId.Body(s);
             ImmutableList<Block> blocks = document.Sections[s].Body;
-            for (int b = 0; b < blocks.Count; b++)
+            foreach ((BlockPath path, Paragraph paragraph) in BlockWalker.Paragraphs(blocks))
             {
-                if (blocks[b] is not Paragraph paragraph)
-                {
-                    continue;
-                }
+                var blockStart = new TextPosition(story, path, 0);
+                var blockEnd = new TextPosition(story, path, paragraph.Length);
 
-                var blockStart = new TextPosition(story, BlockPath.Of(b), 0);
-                var blockEnd = new TextPosition(story, BlockPath.Of(b), paragraph.Length);
                 if (Compare(blockEnd, Start) < 0 || Compare(blockStart, End) > 0)
                 {
                     continue;
@@ -543,32 +539,30 @@ internal sealed class TextRangeProvider : ITextRangeProvider
     {
         var text = new StringBuilder();
         Document document = Document;
+        bool first = true;
         for (int s = Start.Story.SectionIndex; s <= End.Story.SectionIndex && s < document.Sections.Count; s++)
         {
             StoryId story = StoryId.Body(s);
-            ImmutableList<Block> blocks = document.Sections[s].Body;
-            bool firstSection = s == Start.Story.SectionIndex;
-            bool lastSection = s == End.Story.SectionIndex;
-            int firstBlock = firstSection && Start.Story == story ? Math.Min(Start.Block.TopIndex, blocks.Count - 1) : 0;
-            int lastBlock = lastSection && End.Story == story ? Math.Min(End.Block.TopIndex, blocks.Count - 1) : blocks.Count - 1;
-            for (int b = firstBlock; b <= lastBlock && b >= 0; b++)
+            foreach ((BlockPath path, Paragraph paragraph) in BlockWalker.Paragraphs(document.Sections[s].Body))
             {
-                if (blocks[b] is not Paragraph paragraph)
+                var blockStart = new TextPosition(story, path, 0);
+                var blockEnd = new TextPosition(story, path, paragraph.Length);
+                if (Compare(blockEnd, Start) < 0 || Compare(blockStart, End) > 0)
                 {
                     continue;
                 }
 
-                int from = b == firstBlock && firstSection && Start.Story == story ? Math.Min(Start.Offset, paragraph.Length) : 0;
-                int to = b == lastBlock && lastSection && End.Story == story ? Math.Min(End.Offset, paragraph.Length) : paragraph.Length;
+                if (!first)
+                {
+                    text.Append('\n');
+                }
+
+                first = false;
+                int from = Compare(blockStart, Start) < 0 ? Math.Min(Start.Offset, paragraph.Length) : 0;
+                int to = Compare(blockEnd, End) > 0 ? Math.Min(End.Offset, paragraph.Length) : paragraph.Length;
                 if (to > from)
                 {
                     text.Append(paragraph.FlatText, from, to - from);
-                }
-
-                bool last = b == lastBlock && lastSection;
-                if (!last)
-                {
-                    text.Append('\n');
                 }
 
                 if (maxLength >= 0 && text.Length >= maxLength)

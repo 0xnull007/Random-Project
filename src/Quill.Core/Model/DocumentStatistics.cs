@@ -76,7 +76,7 @@ public readonly record struct DocumentStatistics(int Words, int Characters, int 
     public static DocumentStatistics Compute(Document document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        return Compute(document.Sections.SelectMany(s => s.Body).OfType<Paragraph>());
+        return Compute(document.Sections.SelectMany(s => BlockWalker.Paragraphs(s.Body)).Select(p => p.Paragraph));
     }
 
     public static DocumentStatistics Compute(ImmutableArray<Paragraph> paragraphs) => Compute((IEnumerable<Paragraph>)paragraphs);

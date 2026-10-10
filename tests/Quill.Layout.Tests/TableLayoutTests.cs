@@ -161,3 +161,40 @@ public class TableHeaderRowTests
         Assert.Equal((second, 2, 0), second.CellAt(new PointD(second.Bounds.Left + 5, second.Bounds.Top + 25)));
     }
 }
+
+public class HeaderTableTests
+{
+    [Fact]
+    public void Tables_in_headers_are_laid_out_and_push_the_body_down()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(240),
+            PageHeight = Twips.FromDips(400),
+            MarginTop = Twips.FromDips(40),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+            HeaderDistance = Twips.FromDips(10),
+        };
+        var headerTable = new Table(
+            [new TableRow([new TableCell(ImmutableList.Create<Block>(Paragraph.FromText("Logo"))), new TableCell(ImmutableList.Create<Block>(Paragraph.FromText("Address")))])],
+            [Twips.FromDips(100), Twips.FromDips(100)],
+            hasBorders: false,
+            Twips.Zero);
+        var headers = new HeaderFooterSet(ImmutableList.Create<Block>(headerTable), null, null);
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(Paragraph.FromText("body")), headers)), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        PageLayout first = layout.Pages[0];
+
+        TableFragment table = Assert.Single(first.AllFragments().OfType<TableFragment>());
+        Assert.False(table.Story.IsBody);
+        Assert.Equal(10, table.Bounds.Top, 3);
+        Assert.Equal(2, table.CellParagraphs.Length);
+        Assert.Equal(new BlockPath([0, 0, 1, 0]), table.CellParagraphs[1].Path);
+        Assert.Contains(first.AllFragments(), f => f is ParagraphFragment { Path.IsTopLevel: false, Story.IsBody: false });
+        ParagraphFragment body = first.Body.OfType<ParagraphFragment>().Single();
+        Assert.True(body.Bounds.Top >= table.Bounds.Bottom);
+        Assert.Equal((table, 0, 1), table.CellAt(new PointD(table.Bounds.Left + 150, table.Bounds.Top + 5)));
+    }
+}

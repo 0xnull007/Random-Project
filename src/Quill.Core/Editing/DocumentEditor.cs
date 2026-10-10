@@ -215,7 +215,37 @@ public static class DocumentEditor
     }
 
     /// <summary>Every story of the document with its blocks: section bodies, header/footer variants and footnotes.</summary>
+    /// <summary>Every paragraph of every story, table cells included, with its story and path.</summary>
+    public static IEnumerable<(StoryId Story, BlockPath Path, Paragraph Paragraph)> AllParagraphs(Document document)
+    {
+        foreach ((StoryId story, ImmutableList<Block> blocks) in AllStories(document))
+        {
+            foreach ((BlockPath path, Paragraph paragraph) in BlockWalker.Paragraphs(blocks))
+            {
+                yield return (story, path, paragraph);
+            }
+        }
+    }
+
+    /// <summary>Applies <paramref name="map"/> to every paragraph of every story (table cells included), sharing everything unchanged.</summary>
+    public static Document MapParagraphs(Document document, Func<Paragraph, Paragraph> map)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(map);
+        foreach ((StoryId story, ImmutableList<Block> blocks) in AllStories(document).ToList())
+        {
+            ImmutableList<Block> mapped = BlockWalker.MapParagraphs(blocks, map);
+            if (!ReferenceEquals(mapped, blocks))
+            {
+                document = document.WithStory(story, mapped);
+            }
+        }
+
+        return document;
+    }
+
     public static IEnumerable<(StoryId Story, ImmutableList<Block> Blocks)> AllStories(Document document)
+
     {
         ArgumentNullException.ThrowIfNull(document);
         for (int s = 0; s < document.Sections.Count; s++)

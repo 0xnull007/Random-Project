@@ -79,7 +79,7 @@ public static class DocxWriter
             bodyContext.CurrentStory = StoryId.Body(s);
             for (int b = 0; b < section.Body.Count; b++)
             {
-                bodyContext.CurrentBlock = b;
+                bodyContext.CurrentBlock = BlockPath.Of(b);
                 blocks.Add(BuildBlock(bodyContext, section.Body[b]));
             }
 
@@ -208,8 +208,10 @@ public static class DocxWriter
         }
 
         element.Append(grid);
-        foreach (TableRow row in table.Rows)
+        BlockPath? tablePath = context.CurrentBlock;
+        for (int r = 0; r < table.Rows.Length; r++)
         {
+            TableRow row = table.Rows[r];
             var tr = new W.TableRow();
             var trPr = new W.TableRowProperties();
             if (row.Height is { } height)
@@ -228,8 +230,9 @@ public static class DocxWriter
             }
 
 
-            foreach (TableCell cell in row.Cells)
+            for (int c = 0; c < row.Cells.Length; c++)
             {
+                TableCell cell = row.Cells[c];
                 var tcPr = new W.TableCellProperties();
                 if (cell.GridSpan > 1)
                 {
@@ -247,7 +250,13 @@ public static class DocxWriter
                 }
 
                 var tc = new W.TableCell(tcPr);
-                tc.Append(cell.Blocks.Select(b => BuildBlock(context, b)));
+                for (int k = 0; k < cell.Blocks.Count; k++)
+                {
+                    context.CurrentBlock = tablePath?.Child(r, c, k);
+                    tc.Append(BuildBlock(context, cell.Blocks[k]));
+                }
+
+                context.CurrentBlock = tablePath;
                 if (tc.Elements<W.Paragraph>().LastOrDefault() is null || tc.LastChild is not W.Paragraph)
                 {
                     tc.Append(new W.Paragraph());
@@ -806,7 +815,7 @@ public static class DocxWriter
             return;
         }
 
-        if (context.State.CommentLastRun.TryGetValue(id, out (StoryId Story, int Block, int Inline) last) && last.Story == story && last.Block == context.CurrentBlock && last.Inline == inlineIndex)
+        if (context.State.CommentLastRun.TryGetValue(id, out (StoryId Story, BlockPath Block, int Inline) last) && last.Story == story && context.CurrentBlock is { } currentBlock && last.Block == currentBlock && last.Inline == inlineIndex)
         {
             context.State.OpenComments.Remove(id);
             string idText = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -854,7 +863,7 @@ public static class DocxWriter
         {
             var note = new W.Endnote { Id = id };
             context.CurrentStory = StoryId.Endnote(id);
-            note.Append(document.Endnotes[id].Select((b, i) => { context.CurrentBlock = i; return BuildBlock(context, b); }));
+            note.Append(document.Endnotes[id].Select((b, i) => { context.CurrentBlock = BlockPath.Of(i); return BuildBlock(context, b); }));
             endnotes.Append(note);
         }
 
@@ -941,21 +950,13 @@ public static class DocxWriter
             NoteIds = noteIds;
             EndnoteIds = FootnoteSupport.ReferencedEndnoteIds(document);
             Comments = document.Comments;
-            foreach ((StoryId story, ImmutableList<Block> blocks) in DocumentEditor.AllStories(document))
+            foreach ((StoryId story, BlockPath path, Paragraph paragraph) in DocumentEditor.AllParagraphs(document))
             {
-                for (int b = 0; b < blocks.Count; b++)
+                for (int i = 0; i < paragraph.Inlines.Length; i++)
                 {
-                    if (blocks[b] is not Paragraph paragraph)
+                    if (paragraph.Inlines[i].Properties.CommentId is { } id && Comments.ContainsKey(id))
                     {
-                        continue;
-                    }
-
-                    for (int i = 0; i < paragraph.Inlines.Length; i++)
-                    {
-                        if (paragraph.Inlines[i].Properties.CommentId is { } id && Comments.ContainsKey(id))
-                        {
-                            CommentLastRun[id] = (story, b, i);
-                        }
+                        CommentLastRun[id] = (story, path, i);
                     }
                 }
             }
@@ -970,7 +971,7 @@ public static class DocxWriter
         public ImmutableDictionary<int, Comment> Comments { get; }
 
         /// <summary>Where each comment's range ends (story, block, inline index), so the end marker goes after that run.</summary>
-        public Dictionary<int, (StoryId Story, int Block, int Inline)> CommentLastRun { get; } = [];
+        public Dictionary<int, (StoryId Story, BlockPath Block, int Inline)> CommentLastRun { get; } = [];
 
         public HashSet<int> OpenComments { get; } = [];
 
@@ -995,7 +996,7 @@ public static class DocxWriter
         /// <summary>The story and block being written (set by the callers that walk stories), for comment range markers.</summary>
         public StoryId? CurrentStory { get; set; }
 
-        public int CurrentBlock { get; set; }
+        public BlockPath? CurrentBlock { get; set; }
 
         public uint NextPictureId() => State.NextPictureId();
 
