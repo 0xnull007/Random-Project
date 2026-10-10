@@ -92,9 +92,11 @@ public sealed partial class EditingSession
         }
 
         Revision mark = Revision.Insertion(Author, Now());
-        var paragraphs = fragment.Paragraphs.Select(p => p.WithInlines(InlineOps.Normalize(
-            p.Inlines.Where(i => i.Properties.Revision is not { IsDeletion: true }).Select(i => i.WithProperties(i.Properties with { Revision = mark }))))).ToImmutableArray();
-        return new DocumentFragment(paragraphs, fragment.Images);
+        Paragraph Mark(Paragraph p) => p.WithInlines(InlineOps.Normalize(
+            p.Inlines.Where(i => i.Properties.Revision is not { IsDeletion: true }).Select(i => i.WithProperties(i.Properties with { Revision = mark }))));
+        ImmutableList<Block> marked = MapBlocks(ImmutableList.CreateRange(fragment.Blocks), Mark);
+        return new DocumentFragment(marked.ToImmutableArray(), fragment.Images);
+
     }
 
     /// <summary>

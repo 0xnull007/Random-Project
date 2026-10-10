@@ -53,7 +53,7 @@ bulleted and numbered lists with numbering styles, change case, AutoCorrect, pag
 sections, headers and footers with page-number fields, Page Setup, a ruler with draggable indents and tab stops,
 inline pictures, hyperlinks, tables (editable cells, rows and columns, draggable column borders, shading, repeating header rows), a table of contents, footnotes and endnotes,
 comments, track changes (Review tab), heading numbering, symbols and date/time, .docx
-open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop, find and replace, spell
+open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop (tables included, HTML tables from Excel and browsers), find and replace, spell
 checking (Windows Spell Checking API), IME input, print, print preview, PDF export, recent files, autosave
 recovery, formatting marks, navigation pane, word count, light/dark theme, document properties, and a UI
 Automation text pattern. Next: packaging as MSIX, cell merging, and table styles. The full manual

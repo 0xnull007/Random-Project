@@ -371,7 +371,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        int selected = DocumentStatistics.Compute(DocumentEditor.ExtractFragment(Session.Document, Session.Selection.Range).Paragraphs).Words;
+        int selected = DocumentStatistics.Compute(DocumentEditor.ExtractFragment(Session.Document, Session.Selection.Range).AllParagraphs()).Words;
         WordCountText = selected.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) + " of " + total + " words";
     }
 

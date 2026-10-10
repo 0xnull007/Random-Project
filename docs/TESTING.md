@@ -232,6 +232,12 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 13. Clipboard
 
+- [ ] Select from a paragraph above a table to one below it and Copy, then Paste elsewhere: the table arrives with
+      its cells, widths, shading and header rows, the paragraphs around it join the target as usual; Cut removes the
+      table; dragging such a selection moves the table **(new)**.
+- [ ] Copy a table in Excel or a web page and paste: it arrives as a real table (cells, column spans, cell colours,
+      header cells bold), not tab-separated text; paste as plain text (Ctrl+Alt+V) gives the tab-separated form **(new)**.
+- [ ] Copy a table here and paste into Word, Outlook or a browser: it is a table there too (HTML clipboard) **(new)**.
 - [ ] Copy/paste inside Quill keeps formatting, lists and pictures.
 - [ ] Copy from Quill and paste into Word or WordPad: fonts, bold/italic/colors, alignment and list bullets arrive.
 - [ ] Copy from a web page (Chrome/Edge) and paste: headings, bold/italic, links, colors, lists and table rows

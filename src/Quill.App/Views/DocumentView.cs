@@ -2656,10 +2656,17 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 rtf = data.GetData(DataFormats.Rtf) as string;
             }
 
-            if (!plainTextOnly && rtf is null && data.GetDataPresent(DataFormats.Html))
+            if (!plainTextOnly && data.GetDataPresent(DataFormats.Html))
             {
-                html = data.GetData(DataFormats.Html) as string;
+                // Browsers and Excel describe tables only in HTML; RTF from them flattens the cells.
+                string? candidate = data.GetData(DataFormats.Html) as string;
+                if (candidate is not null && (rtf is null || candidate.Contains("<table", StringComparison.OrdinalIgnoreCase)))
+                {
+                    html = candidate;
+                    rtf = null;
+                }
             }
+
 
             if (!plainTextOnly && rtf is null && html is null && data.GetDataPresent(DataFormats.Bitmap))
 

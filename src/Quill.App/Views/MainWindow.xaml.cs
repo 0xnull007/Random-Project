@@ -629,7 +629,7 @@ public partial class MainWindow : Window
         EditingSession session = ViewModel.Session;
         bool forSelection = !session.Selection.IsCollapsed;
         DocumentStatistics statistics = forSelection
-            ? DocumentStatistics.Compute(DocumentEditor.ExtractFragment(session.Document, session.Selection.Range).Paragraphs)
+            ? DocumentStatistics.Compute(DocumentEditor.ExtractFragment(session.Document, session.Selection.Range).AllParagraphs())
             : DocumentStatistics.Compute(session.Document);
         int lines = forSelection ? Editor.SelectionLineCount() : Editor.BodyLineCount;
         int pages = forSelection ? Editor.SelectionPageCount() : Editor.PageCount;

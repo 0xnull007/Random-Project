@@ -17,7 +17,7 @@ public static class HtmlConverter
 {
     private static readonly HashSet<string> BlockTags = new(StringComparer.OrdinalIgnoreCase)
     {
-        "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "tr", "blockquote", "pre", "section", "article", "header", "footer", "dd", "dt", "figcaption", "hr",
+        "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "pre", "section", "article", "header", "footer", "dd", "dt", "figcaption", "hr",
     };
 
     private static readonly HashSet<string> SkippedTags = new(StringComparer.OrdinalIgnoreCase) { "script", "style", "head", "title", "template", "noscript" };
@@ -137,7 +137,9 @@ public static class HtmlConverter
 
     private sealed class ImportBuilder
     {
-        private readonly ImmutableArray<Paragraph>.Builder _paragraphs = ImmutableArray.CreateBuilder<Paragraph>();
+        private readonly List<Block> _blocks = [];
+        private readonly Stack<TableBuild> _tables = new();
+
         private readonly List<Inline> _inlines = [];
         private readonly Stack<(string Tag, RunProperties Format, string? Link)> _stack = new();
         private readonly Stack<(bool Ordered, int Count)> _lists = new();
@@ -186,15 +188,46 @@ public static class HtmlConverter
                 EndParagraph();
                 _lists.Push((tag == "ol", 0));
             }
+            else if (tag == "table")
+            {
+                EndParagraph();
+                string? border = Attribute(attributes, "border");
+                _tables.Push(new TableBuild { Borders = border is null || border.Trim() != "0" });
+            }
+            else if (tag == "tr" && _tables.Count > 0)
+            {
+                EndParagraph();
+                _tables.Peek().StartRow();
+            }
+            else if (tag == "tr")
+            {
+                EndParagraph();
+                _inParagraph = true;
+            }
             else if (tag is "td" or "th")
             {
-                if (_inlines.Count > 0)
+                if (_tables.Count > 0)
+                {
+                    EndParagraph();
+                    TableBuild table = _tables.Peek();
+                    int span = int.TryParse(Attribute(attributes, "colspan"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int colspan) ? Math.Max(1, colspan) : 1;
+                    DocColor? shading = Attribute(attributes, "bgcolor") is { } bg ? ParseColor(bg) : StyleBackground(style);
+                    if (style is not null && style.Contains("border", StringComparison.OrdinalIgnoreCase) && !style.Contains("border:none", StringComparison.OrdinalIgnoreCase) && !style.Contains("border: none", StringComparison.OrdinalIgnoreCase))
+                    {
+                        table.Borders = true;
+                    }
+
+                    table.StartCell(span, shading, CellParagraphProperties(style));
+
+                }
+                else if (_inlines.Count > 0)
                 {
                     _inlines.Add(new Run("\t", CurrentFormat));
                 }
 
                 _lastWasSpace = true;
             }
+
             else if (tag == "br")
             {
                 EnsureParagraph();
@@ -306,7 +339,33 @@ public static class HtmlConverter
                     _lists.Pop();
                 }
             }
+            else if (tag is "td" or "th" && _tables.Count > 0)
+            {
+                EndParagraph();
+                _tables.Peek().EndCell();
+            }
+            else if (tag == "tr")
+            {
+                EndParagraph();
+                if (_tables.Count > 0)
+                {
+                    _tables.Peek().EndRow();
+                }
+            }
+            else if (tag == "table" && _tables.Count > 0)
+            {
+                EndParagraph();
+                TableBuild finished = _tables.Pop();
+                if (finished.ToTable() is { } table)
+                {
+                    Target.Add(table);
+                }
+            }
         }
+
+        /// <summary>Where finished blocks go: the open table cell, or the fragment itself.</summary>
+        private List<Block> Target => _tables.Count > 0 && _tables.Peek().CurrentCell is { } cell ? cell : _blocks;
+
 
         public void Text(string text)
         {
@@ -367,18 +426,29 @@ public static class HtmlConverter
         public DocumentFragment ToFragment()
         {
             EndParagraph();
-            return new DocumentFragment(_paragraphs.ToImmutable());
+            while (_tables.Count > 0)
+            {
+                TableBuild unclosed = _tables.Pop();
+                if (unclosed.ToTable() is { } table)
+                {
+                    Target.Add(table);
+                }
+            }
+
+            return new DocumentFragment(_blocks.ToImmutableArray());
         }
+
 
         private void EnsureParagraph()
         {
             if (!_inParagraph)
             {
                 _inParagraph = true;
-                _paragraphProperties = ParagraphProperties.Empty;
+                _paragraphProperties = _tables.Count > 0 && _tables.Peek().CurrentCell is not null ? _tables.Peek().CellDefaults : ParagraphProperties.Empty;
                 _paragraphStyle = null;
             }
         }
+
 
         private void EndParagraph()
         {
@@ -397,7 +467,7 @@ public static class HtmlConverter
                 _inlines[^1] = trailing.WithText(trailing.Text.TrimEnd(' '));
             }
 
-            _paragraphs.Add(new Paragraph([.. _inlines], _paragraphStyle, _paragraphProperties));
+            Target.Add(new Paragraph([.. _inlines], _paragraphStyle, _paragraphProperties));
             _inlines.Clear();
             _inParagraph = false;
             _lastWasSpace = true;
@@ -428,7 +498,7 @@ public static class HtmlConverter
             _lastWasSpace = true;
         }
 
-        private static ParagraphProperties BlockProperties(string tag, string? style)
+        internal static ParagraphProperties BlockProperties(string tag, string? style)
         {
             var properties = ParagraphProperties.Empty;
             if (tag == "blockquote")
@@ -545,7 +615,109 @@ public static class HtmlConverter
 
     // ------------------------------------------------------------------ helpers
 
+    /// <summary>Collects the rows and cells of an HTML table while its content is parsed.</summary>
+    private sealed class TableBuild
+    {
+        private readonly List<List<(List<Block> Blocks, int Span, DocColor? Shading)>> _rows = [];
+        private List<(List<Block> Blocks, int Span, DocColor? Shading)>? _row;
+
+        public bool Borders { get; set; }
+
+        public List<Block>? CurrentCell { get; private set; }
+
+        /// <summary>Paragraph formatting for text typed straight into the open cell (no space after, single spacing).</summary>
+        public ParagraphProperties CellDefaults { get; private set; } = ParagraphProperties.Empty;
+
+        public void StartRow()
+        {
+            _row = [];
+            _rows.Add(_row);
+            CurrentCell = null;
+        }
+
+        public void StartCell(int span, DocColor? shading, ParagraphProperties defaults)
+        {
+            if (_row is null)
+            {
+                StartRow();
+            }
+
+            CurrentCell = [];
+            CellDefaults = defaults;
+            _row!.Add((CurrentCell, span, shading));
+        }
+
+
+        public void EndCell() => CurrentCell = null;
+
+        public void EndRow()
+        {
+            CurrentCell = null;
+            _row = null;
+        }
+
+        public Table? ToTable()
+        {
+            var rows = ImmutableArray.CreateBuilder<TableRow>();
+            foreach (var row in _rows)
+            {
+                if (row.Count == 0)
+                {
+                    continue;
+                }
+
+                rows.Add(new TableRow(row.Select(c => new TableCell(
+                    c.Blocks.Count == 0 ? ImmutableList.Create<Block>(Paragraph.Empty()) : ImmutableList.CreateRange(c.Blocks),
+                    c.Span,
+                    VerticalMerge.None,
+                    c.Shading)).ToImmutableArray()));
+            }
+
+            if (rows.Count == 0)
+            {
+                return null;
+            }
+
+            int columns = Math.Max(1, rows.Max(r => r.GridWidth));
+            var width = new Twips(Twips.FromInches(6.5).Value / columns);
+            return new Table(rows.ToImmutable(), Enumerable.Repeat(width, columns).ToImmutableArray(), Borders, Twips.Zero);
+        }
+    }
+
+    private static ParagraphProperties CellParagraphProperties(string? style)
+    {
+        ParagraphProperties properties = ImportBuilder.BlockProperties("td", style);
+        return properties with { SpaceBefore = properties.SpaceBefore ?? Twips.Zero, SpaceAfter = properties.SpaceAfter ?? Twips.Zero, LineSpacing = properties.LineSpacing ?? LineSpacing.Single };
+    }
+
+    private static DocColor? StyleBackground(string? style)
+    {
+        if (style is null)
+        {
+            return null;
+        }
+
+        foreach (string declaration in style.Split(';'))
+        {
+            int colon = declaration.IndexOf(':', StringComparison.Ordinal);
+            if (colon < 0)
+            {
+                continue;
+            }
+
+            string name = declaration[..colon].Trim();
+            if (name.Equals("background-color", StringComparison.OrdinalIgnoreCase) || name.Equals("background", StringComparison.OrdinalIgnoreCase))
+            {
+                string value = declaration[(colon + 1)..].Trim();
+                return ParseColor(value.Split(' ')[0]);
+            }
+        }
+
+        return null;
+    }
+
     private static string? Attribute(string attributes, string name)
+
     {
         int index = 0;
         while (index < attributes.Length)
@@ -797,62 +969,117 @@ public static class HtmlConverter
         ArgumentNullException.ThrowIfNull(fragment);
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(lists);
-        IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(ImmutableList.CreateRange<Block>(fragment.Paragraphs), lists, resolver);
         var html = new StringBuilder();
-        for (int i = 0; i < fragment.Paragraphs.Length; i++)
+        AppendBlocks(html, ImmutableList.CreateRange(fragment.Blocks), resolver, lists);
+        return html.ToString();
+    }
+
+    private static void AppendBlocks(StringBuilder html, ImmutableList<Block> blocks, StyleResolver resolver, ListStore lists)
+    {
+        IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(blocks, lists, resolver);
+        for (int i = 0; i < blocks.Count; i++)
         {
-            Paragraph paragraph = fragment.Paragraphs[i];
-            ResolvedParagraphProperties pp = resolver.ResolveParagraph(paragraph);
-            string tag = paragraph.StyleId switch
+            switch (blocks[i])
             {
-                DefaultStyleSheet.Heading1Id => "h1",
-                DefaultStyleSheet.Heading2Id => "h2",
-                DefaultStyleSheet.Heading3Id => "h3",
-                _ => "p",
-            };
-            var style = new StringBuilder();
-            if (pp.Alignment != Alignment.Left)
-            {
-                style.Append("text-align:").Append(pp.Alignment switch { Alignment.Center => "center", Alignment.Right => "right", _ => "justify" }).Append(';');
+                case Paragraph paragraph:
+                    AppendParagraph(html, paragraph, markers.TryGetValue(i, out ListMarker marker) ? marker : null, resolver);
+                    break;
+                case Table table:
+                    AppendTable(html, table, resolver, lists);
+                    break;
             }
+        }
+    }
 
-            if (pp.LeftIndent.Value > 0)
+    private static void AppendTable(StringBuilder html, Table table, StyleResolver resolver, ListStore lists)
+    {
+        html.Append(table.HasBorders ? "<table border=\"1\" cellspacing=\"0\" cellpadding=\"4\" style=\"border-collapse:collapse\">\r\n" : "<table cellspacing=\"0\" cellpadding=\"4\">\r\n");
+        int columns = Math.Max(1, table.ColumnCount);
+        foreach (TableRow row in table.Rows)
+        {
+            html.Append("<tr>");
+            foreach (TableCell cell in row.Cells)
             {
-                style.Append("margin-left:").Append(pp.LeftIndent.ToPoints().ToString("0.#", CultureInfo.InvariantCulture)).Append("pt;");
-            }
-
-            html.Append('<').Append(tag);
-            if (style.Length > 0)
-            {
-                html.Append(" style=\"").Append(style).Append('"');
-            }
-
-            html.Append('>');
-            if (markers.TryGetValue(i, out ListMarker marker))
-            {
-                html.Append(WebUtility.HtmlEncode(marker.Text)).Append("&nbsp;");
-            }
-
-            foreach (Inline inline in paragraph.Inlines)
-            {
-                switch (inline)
+                if (cell.VerticalMerge == VerticalMerge.Continue)
                 {
-                    case Run run:
-                        AppendRun(html, run.Text, resolver.ResolveRun(paragraph, run), run.Properties.Link);
-                        break;
-                    case Break { Kind: BreakKind.Line }:
-                        html.Append("<br>");
-                        break;
-                    case Field field:
-                        AppendRun(html, field.CachedResult, resolver.ResolveRun(paragraph, field), null);
-                        break;
+                    continue;
                 }
+
+                html.Append("<td");
+                if (cell.GridSpan > 1)
+                {
+                    html.Append(" colspan=\"").Append(cell.GridSpan).Append('"');
+                }
+
+                int gridStart = row.Cells.TakeWhile(c => !ReferenceEquals(c, cell)).Sum(c => c.GridSpan);
+                double percent = 100.0 * Math.Min(cell.GridSpan, columns - gridStart) / columns;
+                var style = new StringBuilder("width:").Append(percent.ToString("0.#", CultureInfo.InvariantCulture)).Append("%;vertical-align:top;");
+                if (cell.Shading is { IsAuto: false } shading)
+                {
+                    style.Append("background-color:#").Append(shading.ToHex()).Append(';');
+                }
+
+                html.Append(" style=\"").Append(style).Append("\">");
+                AppendBlocks(html, cell.Blocks, resolver, lists);
+                html.Append("</td>");
             }
 
-            html.Append("</").Append(tag).Append(">\r\n");
+            html.Append("</tr>\r\n");
         }
 
-        return html.ToString();
+        html.Append("</table>\r\n");
+    }
+
+    private static void AppendParagraph(StringBuilder html, Paragraph paragraph, ListMarker? marker, StyleResolver resolver)
+    {
+        ResolvedParagraphProperties pp = resolver.ResolveParagraph(paragraph);
+        string tag = paragraph.StyleId switch
+        {
+            DefaultStyleSheet.Heading1Id => "h1",
+            DefaultStyleSheet.Heading2Id => "h2",
+            DefaultStyleSheet.Heading3Id => "h3",
+            _ => "p",
+        };
+        var style = new StringBuilder();
+        if (pp.Alignment != Alignment.Left)
+        {
+            style.Append("text-align:").Append(pp.Alignment switch { Alignment.Center => "center", Alignment.Right => "right", _ => "justify" }).Append(';');
+        }
+
+        if (pp.LeftIndent.Value > 0)
+        {
+            style.Append("margin-left:").Append(pp.LeftIndent.ToPoints().ToString("0.#", CultureInfo.InvariantCulture)).Append("pt;");
+        }
+
+        html.Append('<').Append(tag);
+        if (style.Length > 0)
+        {
+            html.Append(" style=\"").Append(style).Append('"');
+        }
+
+        html.Append('>');
+        if (marker is { } listMarker)
+        {
+            html.Append(WebUtility.HtmlEncode(listMarker.Text)).Append("&nbsp;");
+        }
+
+        foreach (Inline inline in paragraph.Inlines)
+        {
+            switch (inline)
+            {
+                case Run run:
+                    AppendRun(html, run.Text, resolver.ResolveRun(paragraph, run), run.Properties.Link);
+                    break;
+                case Break { Kind: BreakKind.Line }:
+                    html.Append("<br>");
+                    break;
+                case Field field:
+                    AppendRun(html, field.CachedResult, resolver.ResolveRun(paragraph, field), null);
+                    break;
+            }
+        }
+
+        html.Append("</").Append(tag).Append(">\r\n");
     }
 
     private static void AppendRun(StringBuilder html, string text, ResolvedRunProperties p, string? link)

@@ -373,9 +373,15 @@ public static class DocumentEditor
         int firstIndex = range.Start.Block.Last;
         int lastIndex = range.End.Block.Last;
 
-        var paragraphs = ImmutableArray.CreateBuilder<Paragraph>();
+        var extracted = ImmutableArray.CreateBuilder<Block>();
         for (int i = firstIndex; i <= lastIndex; i++)
         {
+            if (blocks[i] is Table table)
+            {
+                extracted.Add(table); // a table between the selected paragraphs travels whole
+                continue;
+            }
+
             if (blocks[i] is not Paragraph paragraph)
             {
                 continue;
@@ -383,14 +389,15 @@ public static class DocumentEditor
 
             int start = i == firstIndex ? range.Start.Offset : 0;
             int end = i == lastIndex ? range.End.Offset : paragraph.Length;
-            paragraphs.Add(paragraph.WithInlines(InlineOps.Slice(paragraph, start, end)));
+            extracted.Add(paragraph.WithInlines(InlineOps.Slice(paragraph, start, end)));
         }
 
-        ImmutableArray<Paragraph> extracted = paragraphs.ToImmutable();
-        return new DocumentFragment(extracted, CollectImages(document, extracted));
+        var fragment = new DocumentFragment(extracted.ToImmutable());
+        return new DocumentFragment(fragment.Blocks, CollectImages(document, fragment.AllParagraphs()));
     }
 
-    private static ImmutableDictionary<string, ImageData>? CollectImages(Document document, ImmutableArray<Paragraph> paragraphs)
+    private static ImmutableDictionary<string, ImageData>? CollectImages(Document document, IEnumerable<Paragraph> paragraphs)
+
     {
         ImmutableDictionary<string, ImageData>.Builder? images = null;
         foreach (Paragraph paragraph in paragraphs)
@@ -432,7 +439,7 @@ public static class DocumentEditor
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(fragment);
-        if (fragment.Paragraphs.IsEmpty)
+        if (fragment.Blocks.IsEmpty)
         {
             return EditResult.NoOp(document, Selection.Caret(at));
         }
@@ -446,7 +453,7 @@ public static class DocumentEditor
 
         if (fragment.IsSingleParagraph)
         {
-            Paragraph only = fragment.Paragraphs[0];
+            var only = (Paragraph)fragment.Blocks[0];
             Paragraph updated = target.WithInlines(InlineOps.Concat(head, only.Inlines, tail));
             return new EditResult(
                 document.WithContainer(at.Story, at.Block, blocks.SetItem(index, updated)),
@@ -454,22 +461,51 @@ public static class DocumentEditor
                 ChangeSet.From(at.Story, at.Block.TopIndex));
         }
 
-        var inserted = new List<Block>(fragment.Paragraphs.Length);
-        Paragraph firstFragment = fragment.Paragraphs[0];
-        inserted.Add(target.WithInlines(InlineOps.Concat(head, firstFragment.Inlines)));
-        for (int i = 1; i < fragment.Paragraphs.Length - 1; i++)
+        // The first paragraph joins the head of the target, the last joins its tail; a table at either end sits
+        // between them instead (an empty head paragraph before a leading table is dropped).
+        var inserted = new List<Block>(fragment.Blocks.Length + 1);
+        Block first = fragment.Blocks[0];
+        if (first is Paragraph firstParagraph)
         {
-            inserted.Add(fragment.Paragraphs[i]);
+            inserted.Add(target.WithInlines(InlineOps.Concat(head, firstParagraph.Inlines)));
+        }
+        else
+        {
+            if (!head.IsEmpty)
+            {
+                inserted.Add(target.WithInlines(head));
+            }
+
+            inserted.Add(first);
         }
 
-        Paragraph lastFragment = fragment.Paragraphs[^1];
-        inserted.Add(target.WithInlines(InlineOps.Concat(lastFragment.Inlines, tail)));
+        for (int i = 1; i < fragment.Blocks.Length - 1; i++)
+        {
+            inserted.Add(fragment.Blocks[i]);
+        }
+
+        int caretOffset;
+        if (fragment.Blocks.Length > 1 && fragment.Blocks[^1] is Paragraph lastParagraph)
+        {
+            inserted.Add(target.WithInlines(InlineOps.Concat(lastParagraph.Inlines, tail)));
+            caretOffset = lastParagraph.Length;
+        }
+        else
+        {
+            if (fragment.Blocks.Length > 1)
+            {
+                inserted.Add(fragment.Blocks[^1]);
+            }
+
+            inserted.Add(target.WithInlines(tail));
+            caretOffset = 0;
+        }
 
         ImmutableList<Block> updatedBlocks = blocks.RemoveAt(index).InsertRange(index, inserted);
         BlockPath caretBlock = at.Block.WithLast(index + inserted.Count - 1);
         return new EditResult(
             document.WithContainer(at.Story, at.Block, updatedBlocks),
-            Selection.Caret(at.WithBlock(caretBlock, lastFragment.Length)),
+            Selection.Caret(at.WithBlock(caretBlock, caretOffset)),
             ChangeSet.From(at.Story, at.Block.TopIndex));
     }
 

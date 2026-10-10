@@ -199,4 +199,58 @@ public class TableCommandTests
         session.SetColumnWidths(Body, BlockPath.Of(1), [Twips.FromInches(3), Twips.FromInches(2), Twips.FromInches(1)]);
         Assert.Equal(Twips.FromInches(3), TableOf(session).ColumnWidths[0]);
     }
+
+    [Fact]
+    public void Copy_cut_and_paste_carry_tables_between_paragraphs()
+    {
+        EditingSession session = SessionWithGrid();
+        session.MoveCaret(Cell(1, 0, 0), extend: false);
+        session.InsertText("cell");
+        session.MoveCaret(Pos(0, 3), extend: false);
+        session.MoveCaret(Pos(2, 2), extend: true);
+        DocumentFragment fragment = session.Copy();
+        Assert.Equal(3, fragment.Blocks.Length);
+        Assert.True(fragment.HasTables);
+        Assert.Equal("ore\ncell\t\t\n\t\t\nAf", fragment.ToPlainText());
+        Assert.Contains(fragment.AllParagraphs(), p => p.FlatText == "cell");
+
+        session.Cut();
+        Assert.Equal(["Befter"], session.Document.BodyTexts());
+
+        session.MoveCaret(Pos(0, 3), extend: false);
+        session.Paste(fragment);
+        Assert.Equal(["Before", "<Table(2x3)>", "After"], session.Document.BodyTexts());
+        Assert.Equal("cell", CellText(TableOf(session), 0, 0));
+        Assert.Equal(Pos(2, 2), session.Selection.Active);
+    }
+
+    [Fact]
+    public void A_table_only_fragment_lands_between_the_split_halves_without_an_empty_lead_paragraph()
+    {
+        var grid = new Table([new TableRow([new TableCell(ImmutableList.Create<Block>(Paragraph.FromText("x")))])], [Twips.FromInches(2)], hasBorders: true, Twips.Zero);
+        var fragment = new DocumentFragment(ImmutableArray.Create<Block>(grid));
+
+        var atStart = new EditingSession(WithParagraphs("Hello"));
+        atStart.Paste(fragment);
+        Assert.Equal(["<Table(1x1)>", "Hello"], atStart.Document.BodyTexts());
+        Assert.Equal(Pos(1, 0), atStart.Selection.Active);
+
+        var inMiddle = new EditingSession(WithParagraphs("Hello"));
+        inMiddle.MoveCaret(Pos(0, 2), extend: false);
+        inMiddle.Paste(fragment);
+        Assert.Equal(["He", "<Table(1x1)>", "llo"], inMiddle.Document.BodyTexts());
+        Assert.Equal(Pos(2, 0), inMiddle.Selection.Active);
+    }
+
+    [Fact]
+    public void Dragging_a_selection_that_spans_a_table_moves_the_table()
+    {
+        var session = new EditingSession(WithParagraphs("Before", "After", "Tail"));
+        session.MoveCaret(Pos(1, 0), extend: false);
+        session.InsertTable(2, 3, ColumnWidth);
+        session.InsertText("top");
+        session.MoveText(new TextRange(Pos(0, 0), Pos(2, 5)), Pos(3, 4), copy: false);
+        Assert.Equal(["", "TailBefore", "<Table(2x3)>", "After"], session.Document.BodyTexts());
+        Assert.Equal("top", CellText(TableOf(session, 2), 0, 0));
+    }
 }
