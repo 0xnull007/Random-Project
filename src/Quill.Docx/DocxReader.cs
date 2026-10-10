@@ -140,9 +140,11 @@ public sealed class DocxReader
                 blocks.Add(ReadParagraph(paragraph));
                 break;
             case W.Table table:
-                blocks.Add(new OpaqueBlock("tbl", table.OuterXml));
-                Warn("Tables are shown as placeholders and cannot be edited in this version.");
+                blocks.Add(ReadTable(table));
                 break;
+            case W.TableProperties or W.TableGrid or W.TableRowProperties or W.TableCellProperties:
+                break;
+
             case W.SdtBlock sdt:
                 foreach (OpenXmlElement child in sdt.SdtContentBlock?.ChildElements ?? [])
                 {
@@ -469,7 +471,96 @@ public sealed class DocxReader
         builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId));
     }
 
+    // ------------------------------------------------------------------ tables
+
+    /// <summary>Reads a table for display; the original XML is kept so saving writes it back unchanged.</summary>
+    private Table ReadTable(W.Table table)
+    {
+        W.TableProperties? tblPr = table.GetFirstChild<W.TableProperties>();
+        ImmutableArray<Twips> columns = table.GetFirstChild<W.TableGrid>()?.Elements<W.GridColumn>()
+            .Select(c => new Twips(int.TryParse(c.Width?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int w) ? Math.Max(0, w) : 0))
+            .ToImmutableArray() ?? ImmutableArray<Twips>.Empty;
+        Twips indent = tblPr?.TableIndentation is { Width.Value: { } tw } ind && (ind.Type is null || ind.Type.Value == W.TableWidthUnitValues.Dxa) ? new Twips(tw) : Twips.Zero;
+        bool borders = HasTableBorders(tblPr);
+
+        var rows = ImmutableArray.CreateBuilder<TableRow>();
+        foreach (W.TableRow tr in table.Elements<W.TableRow>())
+        {
+            W.TableRowProperties? trPr = tr.TableRowProperties;
+            W.TableRowHeight? heightElement = trPr?.GetFirstChild<W.TableRowHeight>();
+            Twips? height = heightElement?.Val?.Value is { } h ? new Twips((int)Math.Min(h, int.MaxValue)) : null;
+            bool exact = heightElement?.HeightType?.Value == W.HeightRuleValues.Exact;
+            bool isHeader = trPr?.GetFirstChild<W.TableHeader>() is not null;
+            var cells = ImmutableArray.CreateBuilder<TableCell>();
+            foreach (W.TableCell tc in tr.Elements<W.TableCell>())
+            {
+                W.TableCellProperties? tcPr = tc.TableCellProperties;
+                int span = tcPr?.GridSpan?.Val?.Value ?? 1;
+                VerticalMerge merge = tcPr?.VerticalMerge is null ? VerticalMerge.None
+                    : tcPr.VerticalMerge.Val is null || tcPr.VerticalMerge.Val.Value == W.MergedCellValues.Continue ? VerticalMerge.Continue
+                    : VerticalMerge.Restart;
+                DocColor? shading = null;
+                if (tcPr?.Shading?.Fill?.Value is { Length: 6 } fill && !string.Equals(fill, "auto", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        shading = DocColor.Parse(fill);
+                    }
+                    catch (FormatException)
+                    {
+                        shading = null;
+                    }
+                }
+
+                var content = ImmutableList.CreateBuilder<Block>();
+                foreach (OpenXmlElement child in tc.ChildElements)
+                {
+                    ReadBlock(child, content);
+                }
+
+                cells.Add(new TableCell(EnsureParagraph(content.ToImmutable()), span, merge, shading));
+            }
+
+            rows.Add(new TableRow(cells.ToImmutable(), height, exact, isHeader));
+        }
+
+        return new Table(rows.ToImmutable(), columns, borders, indent, table.OuterXml);
+    }
+
+    /// <summary>Borders set on the table itself win; otherwise the table style (e.g. "Table Grid") decides.</summary>
+    private bool HasTableBorders(W.TableProperties? tblPr)
+    {
+        if (tblPr?.TableBorders is { } own)
+        {
+            return AnyVisibleBorder(own);
+        }
+
+        string? styleId = tblPr?.TableStyle?.Val?.Value;
+        W.Styles? styles = _main?.StyleDefinitionsPart?.Styles;
+        for (int depth = 0; styleId is not null && styles is not null && depth < 8; depth++)
+        {
+            W.Style? style = styles.Elements<W.Style>().FirstOrDefault(s => string.Equals(s.StyleId?.Value, styleId, StringComparison.Ordinal));
+            if (style is null)
+            {
+                break;
+            }
+
+            if (style.StyleTableProperties?.TableBorders is { } borders)
+            {
+                return AnyVisibleBorder(borders);
+            }
+
+            styleId = style.BasedOn?.Val?.Value;
+        }
+
+        return false;
+    }
+
+    private static bool AnyVisibleBorder(W.TableBorders borders) =>
+        borders.ChildElements.OfType<W.BorderType>().Any(b => b.Val is { } val && val.Value != W.BorderValues.Nil && val.Value != W.BorderValues.None);
+
     // ------------------------------------------------------------------ properties
+
 
     private RunProperties ReadRunProperties(OpenXmlElement? rPr)
     {

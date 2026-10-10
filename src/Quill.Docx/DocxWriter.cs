@@ -125,6 +125,7 @@ public static class DocxWriter
     {
         Paragraph paragraph => BuildParagraph(context, paragraph),
         OpaqueBlock opaque => BuildOpaque(context.Main, opaque),
+        Table table => BuildTable(context, table),
         _ => throw new NotSupportedException($"Unknown block type {block.GetType().Name}."),
     };
 
@@ -140,7 +141,93 @@ public static class DocxWriter
         }
     }
 
+    /// <summary>Tables are read-only, so a table read from a file is written back from its original XML; tables built in code get a plain grid.</summary>
+    private static OpenXmlElement BuildTable(PartContext context, Table table)
+    {
+        if (table.OuterXml is { } xml)
+        {
+            try
+            {
+                return new W.Table(xml);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.Xml.XmlException or ArgumentException)
+            {
+                // Fall through and rebuild from the model.
+            }
+        }
+
+        var element = new W.Table();
+        var tblPr = new W.TableProperties(new W.TableWidth { Width = "0", Type = W.TableWidthUnitValues.Auto });
+        if (table.Indent.Value != 0)
+        {
+            tblPr.Append(new W.TableIndentation { Width = table.Indent.Value, Type = W.TableWidthUnitValues.Dxa });
+        }
+
+        if (table.HasBorders)
+        {
+            tblPr.Append(new W.TableBorders(
+                new W.TopBorder { Val = W.BorderValues.Single, Size = 4U, Space = 0U, Color = "auto" },
+                new W.LeftBorder { Val = W.BorderValues.Single, Size = 4U, Space = 0U, Color = "auto" },
+                new W.BottomBorder { Val = W.BorderValues.Single, Size = 4U, Space = 0U, Color = "auto" },
+                new W.RightBorder { Val = W.BorderValues.Single, Size = 4U, Space = 0U, Color = "auto" },
+                new W.InsideHorizontalBorder { Val = W.BorderValues.Single, Size = 4U, Space = 0U, Color = "auto" },
+                new W.InsideVerticalBorder { Val = W.BorderValues.Single, Size = 4U, Space = 0U, Color = "auto" }));
+        }
+
+        element.Append(tblPr);
+        var grid = new W.TableGrid();
+        int columnCount = Math.Max(1, table.ColumnCount);
+        for (int c = 0; c < columnCount; c++)
+        {
+            int width = c < table.ColumnWidths.Length && table.ColumnWidths[c].Value > 0 ? table.ColumnWidths[c].Value : 9360 / columnCount;
+            grid.Append(new W.GridColumn { Width = width.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        }
+
+        element.Append(grid);
+        foreach (TableRow row in table.Rows)
+        {
+            var tr = new W.TableRow();
+            if (row.Height is { } height)
+            {
+                tr.Append(new W.TableRowProperties(new W.TableRowHeight { Val = (uint)Math.Max(0, height.Value), HeightType = row.ExactHeight ? W.HeightRuleValues.Exact : W.HeightRuleValues.AtLeast }));
+            }
+
+            foreach (TableCell cell in row.Cells)
+            {
+                var tcPr = new W.TableCellProperties();
+                if (cell.GridSpan > 1)
+                {
+                    tcPr.Append(new W.GridSpan { Val = cell.GridSpan });
+                }
+
+                if (cell.VerticalMerge != VerticalMerge.None)
+                {
+                    tcPr.Append(cell.VerticalMerge == VerticalMerge.Restart ? new W.VerticalMerge { Val = W.MergedCellValues.Restart } : new W.VerticalMerge());
+                }
+
+                if (cell.Shading is { IsAuto: false } shading)
+                {
+                    tcPr.Append(new W.Shading { Val = W.ShadingPatternValues.Clear, Color = "auto", Fill = shading.ToHex() });
+                }
+
+                var tc = new W.TableCell(tcPr);
+                tc.Append(cell.Blocks.Select(b => BuildBlock(context, b)));
+                if (tc.Elements<W.Paragraph>().LastOrDefault() is null || tc.LastChild is not W.Paragraph)
+                {
+                    tc.Append(new W.Paragraph());
+                }
+
+                tr.Append(tc);
+            }
+
+            element.Append(tr);
+        }
+
+        return element;
+    }
+
     private static W.Paragraph BuildParagraph(PartContext context, Paragraph paragraph)
+
     {
         var result = new W.Paragraph();
         W.ParagraphProperties? pPr = BuildParagraphProperties(paragraph);

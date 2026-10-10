@@ -135,7 +135,55 @@ public sealed class Paginator
             while (i < body.Count)
             {
                 Placement placement = body[i];
+                if (placement.Block is Table table)
+                {
+                    TableLayout tableLayout = GetTableLayout(table, page.BodyArea.Width, FieldValues.Placeholder);
+                    if (tableLayout.Rows.IsEmpty)
+                    {
+                        i++;
+                        continue;
+                    }
+
+                    int firstRow = placement.NextLine;
+                    double availableHeight = page.BodyArea.Bottom - page.Y;
+                    int rows = 0;
+                    while (firstRow + rows < tableLayout.Rows.Length && tableLayout.HeightOfRows(firstRow, firstRow + rows) <= availableHeight + 0.001)
+                    {
+                        rows++;
+                    }
+
+                    if (rows == 0)
+                    {
+                        if (!page.IsEmpty)
+                        {
+                            page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                            continue;
+                        }
+
+                        rows = 1; // a row taller than the page is placed anyway
+                    }
+
+                    int lastRow = firstRow + rows - 1;
+                    var tableFragment = new TableFragment(StoryId.Body(sectionIndex), placement.Path, tableLayout, firstRow, lastRow, page.Y, page.BodyArea.Left);
+                    page.Fragments.Add(tableFragment);
+                    page.Y = tableFragment.Bounds.Bottom;
+                    page.IsEmpty = false;
+                    if (lastRow >= tableLayout.Rows.Length - 1)
+                    {
+                        placement.NextLine = 0;
+                        i++;
+                    }
+                    else
+                    {
+                        placement.NextLine = lastRow + 1;
+                        page = Flush(page, pageNumber++, sectionIndex, ref afterHardBreak);
+                    }
+
+                    continue;
+                }
+
                 if (placement.Block is OpaqueBlock opaque)
+
                 {
                     double height = OpaqueFragment.PlaceholderHeight;
                     if (!page.IsEmpty && page.Y + height > page.BodyArea.Bottom)
@@ -555,7 +603,96 @@ public sealed class Paginator
             return new StoryLayout(story, new RectD(area.Left, area.Top, area.Width, height), fragments.ToImmutable());
         }
 
+        /// <summary>Lays out a table at the column width: grid columns scaled to fit, each cell's paragraphs formatted at the cell width.</summary>
+        private TableLayout GetTableLayout(Table table, double columnWidth, FieldValues fields)
+        {
+            double indent = Math.Max(0, table.Indent.ToDips());
+            double available = Math.Max(10, columnWidth - indent);
+            int columnCount = Math.Max(1, table.ColumnCount);
+            var widths = new double[columnCount];
+            for (int c = 0; c < columnCount; c++)
+            {
+                widths[c] = c < table.ColumnWidths.Length ? Math.Max(0, table.ColumnWidths[c].ToDips()) : 0;
+            }
+
+            double total = widths.Sum();
+            if (total <= 0.5)
+            {
+                Array.Fill(widths, available / columnCount);
+            }
+            else if (total > available)
+            {
+                double scale = available / total;
+                for (int c = 0; c < columnCount; c++)
+                {
+                    widths[c] *= scale;
+                }
+            }
+
+            var rows = ImmutableArray.CreateBuilder<TableRowLayout>(table.Rows.Length);
+            foreach (TableRow row in table.Rows)
+            {
+                var cells = ImmutableArray.CreateBuilder<TableCellLayout>(row.Cells.Length);
+                int column = 0;
+                double rowHeight = 0;
+                foreach (TableCell cell in row.Cells)
+                {
+                    if (column >= columnCount)
+                    {
+                        break;
+                    }
+
+                    int span = Math.Clamp(cell.GridSpan, 1, columnCount - column);
+                    double left = widths.Take(column).Sum();
+                    double width = widths.Skip(column).Take(span).Sum();
+                    double contentWidth = Math.Max(1, width - 2 * TableLayout.CellPadding);
+                    var blocks = ImmutableArray.CreateBuilder<CellBlockLayout>(cell.Blocks.Count);
+                    double y = 0;
+                    if (cell.VerticalMerge != VerticalMerge.Continue)
+                    {
+                        IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(cell.Blocks, _document.Lists, _resolver);
+                        for (int b = 0; b < cell.Blocks.Count; b++)
+                        {
+                            switch (cell.Blocks[b])
+                            {
+                                case Paragraph paragraph:
+                                {
+                                    ParagraphLayout layout = GetLayout(paragraph, contentWidth, fields, markers.TryGetValue(b, out ListMarker marker) ? marker : null);
+                                    double height = layout.SpaceBefore + layout.ContentHeight + layout.SpaceAfter;
+                                    blocks.Add(new CellBlockLayout(layout, null, y, height));
+                                    y += height;
+                                    break;
+                                }
+
+                                case Table nested:
+                                {
+                                    TableLayout layout = GetTableLayout(nested, contentWidth, fields);
+                                    blocks.Add(new CellBlockLayout(null, layout, y, layout.Height));
+                                    y += layout.Height;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    cells.Add(new TableCellLayout(cell, left, width, blocks.ToImmutable(), y));
+                    rowHeight = Math.Max(rowHeight, y);
+                    column += span;
+                }
+
+                if (row.Height is { } minimum)
+                {
+                    rowHeight = row.ExactHeight ? minimum.ToDips() : Math.Max(rowHeight, minimum.ToDips());
+                }
+
+                rows.Add(new TableRowLayout(row, Math.Max(4, rowHeight), cells.ToImmutable()));
+            }
+
+            return new TableLayout(table, indent, ImmutableArray.Create(widths), rows.ToImmutable());
+        }
+
         private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields, ListMarker? marker)
+
         {
             string signature = (paragraph.Inlines.Any(i => i is Field) ? fields.Signature : string.Empty)
                 + (marker is { } m ? "|" + m.Text : string.Empty);

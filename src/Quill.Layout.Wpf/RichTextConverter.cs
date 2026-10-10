@@ -11,6 +11,9 @@ using Quill.Core.Units;
 using Block = System.Windows.Documents.Block;
 using Inline = Quill.Core.Model.Inline;
 using Section = System.Windows.Documents.Section;
+using Table = System.Windows.Documents.Table;
+using TableCell = System.Windows.Documents.TableCell;
+using TableRow = System.Windows.Documents.TableRow;
 
 namespace Quill.Layout.Wpf;
 

@@ -209,7 +209,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 ## 17. .docx fidelity
 
 - [ ] Open a real Word document (styles, theme fonts like Aptos, colored headings, fields, a table, headers and
-      footers, lists, pictures). Text and formatting look like Word; tables show as grey placeholder boxes.
+      footers, lists, pictures). Text, formatting and tables look like Word.
+- [ ] Open a Word document with tables: they are drawn with their columns, row heights, merged cells, cell shading
+      and borders (Table Grid style); text in cells wraps; long tables continue on the next page between rows.
+      The caret skips over tables (they cannot be edited yet); saving keeps them exactly as they were **(new)**.
 - [ ] Save it under a new name and open that in Word: content, styles, lists, pictures, headers/footers are intact;
       the table is still there (preserved opaquely); no repair prompt.
 
@@ -221,7 +224,7 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## Known limitations (expected, not bugs)
 
-- Tables are shown as placeholders and preserved on save, not editable.
+- Tables are displayed (not editable) and preserved on save exactly as read.
 - No footnotes, comments, track changes
   or equations (dropped with a warning), single column only.
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app

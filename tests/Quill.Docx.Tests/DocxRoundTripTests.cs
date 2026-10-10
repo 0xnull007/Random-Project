@@ -101,7 +101,7 @@ public class DocxRoundTripTests
         LoadResult loaded = DocxReader.Read(new MemoryStream(DocxWriter.ToBytes(original)));
         Document doc = loaded.Document;
 
-        Assert.Contains(loaded.Warnings, w => w.Message.Contains("Tables", StringComparison.Ordinal));
+        Assert.DoesNotContain(loaded.Warnings, w => w.Message.Contains("Tables", StringComparison.Ordinal));
         Assert.Equal(2, doc.Sections.Count);
 
         // Section 1 body
@@ -121,9 +121,10 @@ public class DocxRoundTripTests
         Assert.True(p2.Inlines[2].Properties.Hidden);
         Assert.Equal(VerticalTextAlignment.Superscript, p2.Inlines[2].Properties.VerticalAlignment);
 
-        var opaque = Assert.IsType<OpaqueBlock>(body[2]);
-        Assert.Equal("tbl", opaque.LocalName);
-        Assert.Contains("cell", opaque.OuterXml, StringComparison.Ordinal);
+        var table = Assert.IsType<Table>(body[2]);
+        Assert.Single(table.Rows);
+        Assert.Equal("cell", ((Paragraph)table.Rows[0].Cells[0].Blocks[0]).FlatText);
+        Assert.Contains("cell", table.OuterXml, StringComparison.Ordinal);
 
         // Section 1 setup, headers and footers
         SectionProperties s1 = doc.Sections[0].Properties;
@@ -273,10 +274,10 @@ public class DocxRoundTripTests
         Assert.Equal(new Twips(708), doc.Sections[0].Properties.HeaderDistance);
         Assert.Equal(SectionStart.Continuous, doc.Sections[1].Properties.Start);
         Assert.Equal(new Twips(11906), doc.Sections[1].Properties.PageWidth);
-        Assert.Equal(["inside content control", "<OpaqueBlock(tbl)>", "last"], doc.Sections[1].Body.Select(b => b is Paragraph p ? p.FlatText : $"<{b}>"));
+        Assert.Equal(["inside content control", "<Table(1x1)>", "last"], doc.Sections[1].Body.Select(b => b is Paragraph p ? p.FlatText : $"<{b}>"));
 
         Assert.Contains(result.Warnings, w => w.Message.Contains("pictures", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(result.Warnings, w => w.Message.Contains("Tables", StringComparison.Ordinal));
+
         Assert.True(result.HasLossyContent);
     }
 
