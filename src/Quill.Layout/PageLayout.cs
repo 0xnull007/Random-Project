@@ -211,6 +211,21 @@ public sealed class PageLayout
 
     public IEnumerable<BlockFragment> AllFragments()
     {
+        foreach (BlockFragment fragment in AllFragmentsCore())
+        {
+            yield return fragment;
+            if (fragment is TableFragment table)
+            {
+                foreach (ParagraphFragment cellParagraph in table.AllParagraphs())
+                {
+                    yield return cellParagraph;
+                }
+            }
+        }
+    }
+
+    private IEnumerable<BlockFragment> AllFragmentsCore()
+    {
         foreach (StoryLayout note in Footnotes)
         {
             foreach (BlockFragment fragment in note.Fragments)

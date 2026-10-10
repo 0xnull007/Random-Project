@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Quill.Core.Model;
 using Quill.Core.Styles;
+using Quill.Core.Text;
 using Quill.Core.Units;
 using Quill.Layout;
 using Xunit;
@@ -75,5 +76,49 @@ public class TableLayoutTests
         Assert.Equal(190, fragment.Layout.Width, 3);
         Assert.Equal(30, fragment.Bounds.Left, 3);
         Assert.Equal(70, fragment.Layout.Rows[0].Height, 3);
+    }
+}
+
+public class TableFragmentTests
+{
+    private static Table TwoColumnTable(params string[][] rows) => new(
+        rows.Select(cells => new TableRow(cells.Select(text => new TableCell(ImmutableList.Create<Block>(Paragraph.FromText(text)))).ToImmutableArray())).ToImmutableArray(),
+        [Twips.FromDips(60), Twips.FromDips(140)],
+        hasBorders: true,
+        Twips.Zero);
+
+    [Fact]
+    public void Cell_paragraphs_get_fragments_with_nested_paths_and_hit_testing_finds_cells()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(240),
+            PageHeight = Twips.FromDips(440),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(Paragraph.FromText("before"), TwoColumnTable(["abcdefgh", "x"], ["y", "z"])))), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        PageLayout first = layout.Pages[0];
+        var table = Assert.IsType<TableFragment>(first.Body[1]);
+
+        Assert.Equal(4, table.CellParagraphs.Length);
+        ParagraphFragment x = table.CellParagraphs[1];
+        Assert.Equal(new BlockPath([1, 0, 1, 0]), x.Path);
+        Assert.Equal(table.Bounds.Left + 60 + TableLayout.CellPadding, x.Bounds.Left, 3);
+        Assert.InRange(x.Bounds.Top, table.Bounds.Top, table.RowTop(1));
+        Assert.Equal(table.RowTop(1), table.CellParagraphs[2].Bounds.Top, 3);
+        Assert.Contains(x, first.AllFragments());
+        Assert.Equal(1 + 1 + 4, first.AllFragments().Count());
+
+        (TableFragment Table, int Row, int Cell)? hit = table.CellAt(new PointD(table.Bounds.Left + 100, table.Bounds.Top + 5));
+        Assert.NotNull(hit);
+        Assert.Same(table, hit.Value.Table);
+        Assert.Equal((0, 1), (hit.Value.Row, hit.Value.Cell));
+        hit = table.CellAt(new PointD(table.Bounds.Left + 10, table.RowTop(1) + 5));
+        Assert.Equal((1, 0), (hit!.Value.Row, hit.Value.Cell));
+        Assert.Null(table.CellAt(new PointD(table.Bounds.Left - 5, table.Bounds.Top)));
     }
 }

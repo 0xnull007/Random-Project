@@ -77,9 +77,14 @@ public static class DocumentEditor
         }
 
         StoryId story = range.Story;
-        ImmutableList<Block> blocks = document.GetStory(story);
-        int firstIndex = range.Start.Block.TopIndex;
-        int lastIndex = range.End.Block.TopIndex;
+        if (!range.Start.Block.SameContainer(range.End.Block))
+        {
+            return EditResult.NoOp(document, Selection.Caret(range.Start)); // a range cannot cross a table cell boundary
+        }
+
+        ImmutableList<Block> blocks = document.GetContainer(story, range.Start.Block);
+        int firstIndex = range.Start.Block.Last;
+        int lastIndex = range.End.Block.Last;
         Paragraph first = RequireParagraph(blocks, firstIndex);
         Paragraph last = RequireParagraph(blocks, lastIndex);
         ValidateOffset(first, range.Start.Offset);
@@ -92,9 +97,10 @@ public static class DocumentEditor
 
         ImmutableList<Block> updated = blocks.RemoveRange(firstIndex, lastIndex - firstIndex + 1).Insert(firstIndex, merged);
         return new EditResult(
-            document.WithStory(story, updated),
+            document.WithContainer(story, range.Start.Block, updated),
             Selection.Caret(range.Start),
-            ChangeSet.From(story, firstIndex));
+            ChangeSet.From(story, range.Start.Block.TopIndex));
+
     }
 
     /// <summary>
@@ -127,13 +133,14 @@ public static class DocumentEditor
             tail = paragraph.WithInlines(tailInlines);
         }
 
-        ImmutableList<Block> blocks = document.GetStory(at.Story);
-        int index = at.Block.TopIndex;
+        ImmutableList<Block> blocks = document.GetContainer(at.Story, at.Block);
+        int index = at.Block.Last;
         ImmutableList<Block> updated = blocks.SetItem(index, head).Insert(index + 1, tail);
         return new EditResult(
-            document.WithStory(at.Story, updated),
+            document.WithContainer(at.Story, at.Block, updated),
             Selection.Caret(at.WithBlock(at.Block.Next(), 0)),
-            ChangeSet.From(at.Story, index));
+            ChangeSet.From(at.Story, at.Block.TopIndex));
+
     }
 
     /// <summary>Merges direct character formatting into every inline in the range; paragraph marks inside the range are included.</summary>
@@ -357,9 +364,15 @@ public static class DocumentEditor
             return DocumentFragment.Empty;
         }
 
-        ImmutableList<Block> blocks = document.GetStory(range.Story);
-        int firstIndex = range.Start.Block.TopIndex;
-        int lastIndex = range.End.Block.TopIndex;
+        if (!range.Start.Block.SameContainer(range.End.Block))
+        {
+            return DocumentFragment.Empty;
+        }
+
+        ImmutableList<Block> blocks = document.GetContainer(range.Story, range.Start.Block);
+        int firstIndex = range.Start.Block.Last;
+        int lastIndex = range.End.Block.Last;
+
         var paragraphs = ImmutableArray.CreateBuilder<Paragraph>();
         for (int i = firstIndex; i <= lastIndex; i++)
         {
@@ -428,18 +441,17 @@ public static class DocumentEditor
         Paragraph target = RequireParagraph(document, at);
         ValidateOffset(target, at.Offset);
         (ImmutableArray<Inline> head, ImmutableArray<Inline> tail) = InlineOps.Split(target, at.Offset);
-        ImmutableList<Block> blocks = document.GetStory(at.Story);
-        int index = at.Block.TopIndex;
+        ImmutableList<Block> blocks = document.GetContainer(at.Story, at.Block);
+        int index = at.Block.Last;
 
         if (fragment.IsSingleParagraph)
-
         {
             Paragraph only = fragment.Paragraphs[0];
             Paragraph updated = target.WithInlines(InlineOps.Concat(head, only.Inlines, tail));
             return new EditResult(
-                document.WithStory(at.Story, blocks.SetItem(index, updated)),
+                document.WithContainer(at.Story, at.Block, blocks.SetItem(index, updated)),
                 Selection.Caret(at.WithOffset(at.Offset + only.Length)),
-                ChangeSet.From(at.Story, index));
+                ChangeSet.From(at.Story, at.Block.TopIndex));
         }
 
         var inserted = new List<Block>(fragment.Paragraphs.Length);
@@ -454,11 +466,11 @@ public static class DocumentEditor
         inserted.Add(target.WithInlines(InlineOps.Concat(lastFragment.Inlines, tail)));
 
         ImmutableList<Block> updatedBlocks = blocks.RemoveAt(index).InsertRange(index, inserted);
-        BlockPath caretBlock = BlockPath.Of(index + inserted.Count - 1);
+        BlockPath caretBlock = at.Block.WithLast(index + inserted.Count - 1);
         return new EditResult(
-            document.WithStory(at.Story, updatedBlocks),
+            document.WithContainer(at.Story, at.Block, updatedBlocks),
             Selection.Caret(at.WithBlock(caretBlock, lastFragment.Length)),
-            ChangeSet.From(at.Story, index));
+            ChangeSet.From(at.Story, at.Block.TopIndex));
     }
 
     /// <summary>Replaces the paragraph at <paramref name="path"/> (helper for callers that build paragraphs themselves).</summary>
@@ -466,8 +478,8 @@ public static class DocumentEditor
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(block);
-        ImmutableList<Block> blocks = document.GetStory(story);
-        return document.WithStory(story, blocks.SetItem(path.TopIndex, block));
+        ImmutableList<Block> blocks = document.GetContainer(story, path);
+        return document.WithContainer(story, path, blocks.SetItem(path.Last, block));
     }
 
     /// <summary>
@@ -483,6 +495,11 @@ public static class DocumentEditor
         }
 
         Document working = document;
+        if (!at.Block.IsTopLevel)
+        {
+            return EditResult.NoOp(document, Selection.Caret(at)); // no section breaks inside table cells
+        }
+
         Paragraph paragraph = RequireParagraph(working, at);
         int splitIndex = at.Block.TopIndex;
         if (at.Offset > 0 && at.Offset < paragraph.Length || (at.Offset == paragraph.Length && paragraph.Length > 0))
@@ -535,8 +552,14 @@ public static class DocumentEditor
     private static EditResult TransformParagraphs(Document document, TextRange range, ParagraphTransform transform, bool touchWholeParagraphs = false)
     {
         StoryId story = range.Story;
-        ImmutableList<Block> blocks = document.GetStory(story);
+        if (!range.Start.Block.SameContainer(range.End.Block))
+        {
+            return EditResult.NoOp(document, new Selection(range.Start, range.End));
+        }
+
+        ImmutableList<Block> blocks = document.GetContainer(story, range.Start.Block);
         int firstIndex = range.Start.Block.TopIndex;
+
         ImmutableList<Block>.Builder builder = blocks.ToBuilder();
         bool changed = false;
         foreach (ParagraphSpan span in TextRanges.Paragraphs(blocks, range))
@@ -560,7 +583,7 @@ public static class DocumentEditor
             return EditResult.NoOp(document, selection);
         }
 
-        return new EditResult(document.WithStory(story, builder.ToImmutable()), selection, ChangeSet.From(story, firstIndex));
+        return new EditResult(document.WithContainer(story, range.Start.Block, builder.ToImmutable()), selection, ChangeSet.From(story, firstIndex));
     }
 
     private static Paragraph RequireParagraph(Document document, TextPosition at)

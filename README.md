@@ -51,9 +51,10 @@ Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). 
 character and paragraph formatting (toolbar, Font and Paragraph dialogs, Format Painter, Modify Style), styles,
 bulleted and numbered lists with numbering styles, change case, AutoCorrect, page and section breaks, multi-column
 sections, headers and footers with page-number fields, Page Setup, a ruler with draggable indents and tab stops,
-inline pictures, hyperlinks, tables (displayed and preserved), a table of contents, symbols and date/time, .docx
+inline pictures, hyperlinks, tables (text in cells is editable), a table of contents, footnotes and endnotes,
+comments, heading numbering, symbols and date/time, .docx
 open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop, find and replace, spell
 checking (Windows Spell Checking API), IME input, print, print preview, PDF export, recent files, autosave
 recovery, formatting marks, navigation pane, word count, light/dark theme, document properties, and a UI
-Automation text pattern. Next: editable tables, footnotes and comments, and packaging as MSIX. The full manual
+Automation text pattern. Next: table rows and columns (Insert Table), track changes, and packaging as MSIX. The full manual
 checklist is in [docs/TESTING.md](docs/TESTING.md).

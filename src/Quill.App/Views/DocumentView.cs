@@ -245,7 +245,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 continue;
             }
 
-            bool caretHere = caret.Story == paragraph.Story && caret.Block.TopIndex == paragraph.Path.TopIndex;
+            bool caretHere = caret.Story == paragraph.Story && caret.Block == paragraph.Path;
             foreach (Misspelling error in spelling.Errors)
             {
                 if (caretHere && caret.Offset >= error.Start && caret.Offset <= error.End)
@@ -651,14 +651,14 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                     continue;
                 }
 
-                int block = paragraph.Path.TopIndex;
-                if (block < start.Block.TopIndex || block > end.Block.TopIndex)
+                if (paragraph.Path < start.Block || paragraph.Path > end.Block)
                 {
                     continue;
                 }
 
-                int from = block == start.Block.TopIndex ? start.Offset : 0;
-                int to = block == end.Block.TopIndex ? end.Offset : paragraph.Paragraph.Length;
+                int from = paragraph.Path == start.Block ? start.Offset : 0;
+                int to = paragraph.Path == end.Block ? end.Offset : paragraph.Paragraph.Length;
+
                 for (int i = paragraph.FirstLine; i <= paragraph.LastLine; i++)
                 {
                     IFormattedLine line = paragraph.Layout.Lines[i];
@@ -875,12 +875,29 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
     /// <summary>Moves the caret, ignoring an extension that would cross into another story (which a selection cannot span).</summary>
 
-    private static void SafeMove(EditingSession session, TextPosition position, bool extend, CaretAffinity affinity = CaretAffinity.Downstream)
+    /// <summary>Tab / Shift+Tab inside a table: select the contents of the next or previous cell, like Word.</summary>
+    private static void MoveToCell(EditingSession session, int direction)
     {
-        if (extend && position.Story != session.Selection.Story)
+        TextPosition? start = direction > 0
+            ? TextNavigation.NextCell(session.Document, session.Selection.Active)
+            : TextNavigation.PreviousCell(session.Document, session.Selection.Active);
+        if (start is not { } cellStart)
         {
             return;
         }
+
+        session.MoveCaret(cellStart, extend: false);
+        session.MoveCaret(TextNavigation.ContainerEnd(session.Document, cellStart), extend: true);
+    }
+
+    private static void SafeMove(EditingSession session, TextPosition position, bool extend, CaretAffinity affinity = CaretAffinity.Downstream)
+
+    {
+        if (extend && (position.Story != session.Selection.Story || !position.Block.SameContainer(session.Selection.Anchor.Block)))
+        {
+            return; // a selection stays within one story and one table cell
+        }
+
 
         session.MoveCaret(position, extend, affinity);
     }
@@ -1576,12 +1593,45 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return null;
         }
 
+        // Inside a table only the cell under the point counts; elsewhere cell paragraphs never win over the page flow.
+        if (CellAt(_layout.Pages[pageIndex], pagePoint, editingBody) is { } hitCell)
+        {
+            List<ParagraphFragment> inCell = candidates
+                .Where(f => f.Path.TablePath is { } table && table == hitCell.Table.Path && f.Path.CellIndices == (hitCell.Row, hitCell.Cell))
+                .ToList();
+            if (inCell.Count > 0)
+            {
+                candidates = inCell;
+            }
+        }
+        else if (candidates.Any(f => f.Path.IsTopLevel))
+        {
+            candidates = candidates.Where(f => f.Path.IsTopLevel).ToList();
+        }
+
+
+
         ParagraphFragment fragment = candidates.FirstOrDefault(f => pagePoint.Y >= f.Bounds.Top && pagePoint.Y < f.Bounds.Bottom)
             ?? candidates.MinBy(f => Math.Min(Math.Abs(pagePoint.Y - f.Bounds.Top), Math.Abs(pagePoint.Y - f.Bounds.Bottom)))!;
         return HitTestFragment(fragment, pagePoint);
     }
 
+    private static (TableFragment Table, int Row, int Cell)? CellAt(PageLayout page, Point pagePoint, bool body)
+    {
+        var point = new PointD(pagePoint.X, pagePoint.Y);
+        foreach (BlockFragment fragment in page.AllFragments())
+        {
+            if (fragment is TableFragment table && table.Story.IsBody == body && table.CellAt(point) is { } hit)
+            {
+                return hit;
+            }
+        }
+
+        return null;
+    }
+
     private static (TextPosition Position, CaretAffinity Affinity) HitTestFragment(ParagraphFragment fragment, Point pagePoint)
+
     {
         int lineIndex = fragment.LastLine;
         for (int i = fragment.FirstLine; i <= fragment.LastLine; i++)
@@ -1647,13 +1697,66 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         double caretX = _desiredCaretX ?? (CaretRect(session.Selection.Active, session.Selection.Affinity)?.Rect.X ?? 0);
         _desiredCaretX = caretX;
         LineRef targetLine = lines[target];
+        if (!current.Fragment.Path.IsTopLevel || !targetLine.Fragment.Path.IsTopLevel)
+        {
+            targetLine = NearestLineVertically(lines, current, delta, caretX) ?? targetLine;
+        }
+
         double pageX = caretX - PageRect(targetLine.Page).X;
+
         (TextPosition position, CaretAffinity affinity) = HitTestLine(targetLine.Fragment, targetLine.Line, pageX);
         SafeMove(session, position, extend, affinity);
         _desiredCaretX = caretX;
     }
 
+    /// <summary>
+    /// Moving into, out of or inside a table: the nearest line above/below the current one, preferring lines that
+    /// span the caret x, so Down from a cell lands in the cell beneath instead of the next cell to the right.
+    /// </summary>
+    private LineRef? NearestLineVertically(List<LineRef> lines, LineRef current, int delta, double caretX)
+    {
+        double currentTop = current.Fragment.LineTop(current.Line);
+        LineRef? best = null;
+        double bestScore = double.MaxValue;
+        foreach (LineRef line in lines)
+        {
+            if (line.Page != current.Page)
+            {
+                continue;
+            }
+
+            double distance = delta > 0 ? line.Fragment.LineTop(line.Line) - currentTop : currentTop - line.Fragment.LineTop(line.Line);
+            if (distance <= 0.5)
+            {
+                continue;
+            }
+
+            double pageX = caretX - PageRect(line.Page).X;
+            bool spansCaret = pageX >= line.Fragment.Bounds.Left - 1 && pageX <= line.Fragment.Bounds.Right + 1;
+            double score = distance + (spansCaret ? 0 : 1e6);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = line;
+            }
+        }
+
+        if (best is not null)
+        {
+            return best;
+        }
+
+        List<LineRef> nextPage = lines.Where(l => l.Page == current.Page + delta).ToList();
+        if (nextPage.Count == 0)
+        {
+            return null;
+        }
+
+        return delta > 0 ? nextPage.MinBy(l => l.Fragment.LineTop(l.Line)) : nextPage.MaxBy(l => l.Fragment.LineBottom(l.Line));
+    }
+
     private void MoveToLineEdge(bool start, bool extend)
+
     {
         EditingSession? session = Session;
         if (session is null || CurrentLine(session.Selection.Active, session.Selection.Affinity) is not { } current)
@@ -2203,7 +2306,12 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
                 break;
             case Key.Tab:
-                if (session.Selection.IsCollapsed && session.Selection.Active.Offset == 0 && CaretListKind(session) is not null)
+                if (session.Selection.Active.Block.TablePath is not null)
+                {
+                    MoveToCell(session, shift ? -1 : 1);
+                }
+                else if (session.Selection.IsCollapsed && session.Selection.Active.Offset == 0 && CaretListKind(session) is not null)
+
                 {
                     session.ChangeIndent(shift ? -1 : 1);
                 }

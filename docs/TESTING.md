@@ -251,9 +251,17 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       footers, lists, pictures). Text, formatting and tables look like Word.
 - [ ] Open a Word document with tables: they are drawn with their columns, row heights, merged cells, cell shading
       and borders (Table Grid style); text in cells wraps; long tables continue on the next page between rows.
-      The caret skips over tables (they cannot be edited yet); saving keeps them exactly as they were **(new)**.
+- [ ] Click inside a cell: the caret lands in that cell (not the first cell of the row); type, press Enter for a
+      second paragraph in the cell, Backspace joins it again; Backspace at the start of a cell and Delete at its end
+      do nothing (cells never merge); the row grows with its content and the table below moves down **(new)**.
+- [ ] Tab selects the contents of the next cell (row by row), Shift+Tab the previous one; Left/Right arrows cross
+      from one cell into the next and out of the table; Up/Down move into the cell beneath/above (same column) and
+      out of the table at its last/first row; dragging a selection stays inside one cell **(new)**.
+- [ ] Find (Ctrl+F) also finds text inside table cells **(new)**.
+- [ ] Save: an untouched table is written exactly as it was read; an edited table is rewritten with its widths,
+      merged cells, shading and borders intact and opens in Word without a repair prompt **(new)**.
 - [ ] Save it under a new name and open that in Word: content, styles, lists, pictures, headers/footers are intact;
-      the table is still there (preserved opaquely); no repair prompt.
+      the table is still there; no repair prompt.
 
 ## 18. Display
 
@@ -271,7 +279,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## Known limitations (expected, not bugs)
 
-- Tables are displayed (not editable) and preserved on save exactly as read.
+- Tables: text in cells can be edited, but rows and columns cannot be added or removed yet and there is no Insert
+  Table; unedited tables are saved exactly as read.
 - No track changes
   or equations (dropped with a warning), single column only.
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app

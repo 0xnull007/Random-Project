@@ -26,7 +26,11 @@ public static class PageRenderer
             switch (fragment)
             {
                 case ParagraphFragment paragraph:
-                    DrawParagraph(paragraph, target);
+                    if (paragraph.Path.IsTopLevel)
+                    {
+                        DrawParagraph(paragraph, target); // cell paragraphs are drawn by their table
+                    }
+
                     break;
                 case TableFragment table:
                     DrawTable(table, target);
@@ -105,7 +109,6 @@ public static class PageRenderer
     }
 
     public static void DrawParagraph(ParagraphFragment fragment, IRenderTarget target)
-
     {
         ArgumentNullException.ThrowIfNull(fragment);
         ArgumentNullException.ThrowIfNull(target);

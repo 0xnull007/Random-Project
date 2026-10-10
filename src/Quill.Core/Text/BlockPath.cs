@@ -40,6 +40,22 @@ public readonly struct BlockPath : IEquatable<BlockPath>, IComparable<BlockPath>
 
     public BlockPath Previous() => WithLast(Last - 1);
 
+    /// <summary>The indices of the container (empty for a top-level block).</summary>
+    public ImmutableArray<int> ContainerIndices => Indices[..^1];
+
+    /// <summary>True when both blocks sit in the same list: the same story level, or the same table cell.</summary>
+    public bool SameContainer(BlockPath other) => ContainerIndices.AsSpan().SequenceEqual(other.ContainerIndices.AsSpan());
+
+    /// <summary>Path of block <paramref name="block"/> inside cell <paramref name="cell"/> of row <paramref name="row"/> of the table at this path.</summary>
+    public BlockPath Child(int row, int cell, int block) => new(Indices.Add(row).Add(cell).Add(block));
+
+    /// <summary>For a block inside a table cell: the path of that table (null at the top level).</summary>
+    public BlockPath? TablePath => Depth >= 4 ? new BlockPath(Indices[..^3]) : null;
+
+    /// <summary>For a block inside a table cell: the row and cell indices.</summary>
+    public (int Row, int Cell)? CellIndices => Depth >= 4 ? (Indices[^3], Indices[^2]) : null;
+
+
     public bool Equals(BlockPath other) => Indices.AsSpan().SequenceEqual(other.Indices.AsSpan());
 
     public override bool Equals(object? obj) => obj is BlockPath other && Equals(other);

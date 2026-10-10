@@ -21,9 +21,9 @@ public static class TextRanges
     public static IEnumerable<ParagraphSpan> Paragraphs(ImmutableList<Block> blocks, TextRange range)
     {
         ArgumentNullException.ThrowIfNull(blocks);
-        int first = range.Start.Block.TopIndex;
+        int first = range.Start.Block.Last;
         int last = LastBlockIndex(range);
-        bool crossesEnd = last < range.End.Block.TopIndex;
+        bool crossesEnd = last < range.End.Block.Last;
         for (int i = first; i <= last && i < blocks.Count; i++)
         {
             if (blocks[i] is not Paragraph paragraph)
@@ -42,14 +42,14 @@ public static class TextRanges
     public static IEnumerable<ParagraphSpan> Paragraphs(Document document, TextRange range)
     {
         ArgumentNullException.ThrowIfNull(document);
-        return Paragraphs(document.GetStory(range.Story), range);
+        return Paragraphs(document.GetContainer(range.Story, range.Start.Block), range);
     }
 
     /// <summary>Index of the last block the range touches (see <see cref="Paragraphs(ImmutableList{Block}, TextRange)"/>).</summary>
     public static int LastBlockIndex(TextRange range)
     {
-        int first = range.Start.Block.TopIndex;
-        int last = range.End.Block.TopIndex;
+        int first = range.Start.Block.Last;
+        int last = range.End.Block.Last;
         return last > first && range.End.Offset == 0 ? last - 1 : last;
     }
 }

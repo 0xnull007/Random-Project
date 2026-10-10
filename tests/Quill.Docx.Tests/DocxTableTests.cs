@@ -2,8 +2,10 @@ using System.Collections.Immutable;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
+using Quill.Core.Editing;
 using Quill.Core.Model;
 using Quill.Core.Styles;
+using Quill.Core.Text;
 using Quill.Core.Units;
 using Xunit;
 using W = DocumentFormat.OpenXml.Wordprocessing;
@@ -108,5 +110,30 @@ public class DocxTableTests
         Assert.Equal(2, read.ColumnCount);
         Assert.True(read.HasBorders);
         Assert.Equal(DocColor.Parse("FFFF00"), read.Rows[0].Cells[0].Shading);
+    }
+
+    [Fact]
+    public void Edited_tables_are_regenerated_from_the_model()
+    {
+        LoadResult loaded = DocxReader.Read(new MemoryStream(PackageWithTable(gridStyleHasBorders: true)));
+        Assert.NotNull(((Table)loaded.Document.Sections[0].Body[1]).OuterXml);
+
+        var at = new TextPosition(StoryId.Body(0), BlockPath.Of(1).Child(0, 0, 0), 4);
+        Document edited = DocumentEditor.InsertText(loaded.Document, at, " edited").Document;
+        Assert.Null(((Table)edited.Sections[0].Body[1]).OuterXml);
+
+        byte[] bytes = DocxWriter.ToBytes(edited);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+        }
+
+        LoadResult reread = DocxReader.Read(new MemoryStream(bytes));
+        var read = Assert.IsType<Table>(reread.Document.Sections[0].Body[1]);
+        Assert.Equal("Head edited", ((Paragraph)read.Rows[0].Cells[0].Blocks[0]).FlatText);
+        Assert.Equal(2, read.Rows[0].Cells[0].GridSpan);
+        Assert.Equal(3, read.ColumnCount);
     }
 }

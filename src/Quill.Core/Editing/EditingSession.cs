@@ -229,7 +229,6 @@ public sealed partial class EditingSession
 
     public void Backspace()
     {
-
         if (!Selection.IsCollapsed)
         {
             DeleteSelection(EditKind.Backspace);
@@ -333,8 +332,8 @@ public sealed partial class EditingSession
     public void ToggleList(bool bulleted)
     {
         TextRange range = Selection.Range;
-        ImmutableList<Block> blocks = Document.GetStory(range.Story);
-        int first = range.Start.Block.TopIndex;
+        ImmutableList<Block> blocks = Document.GetContainer(range.Story, range.Start.Block);
+        int first = range.Start.Block.Last;
         int last = TextRanges.LastBlockIndex(range);
         bool allAlready = true;
         foreach (ParagraphSpan span in TextRanges.Paragraphs(blocks, range))
@@ -369,7 +368,7 @@ public sealed partial class EditingSession
     public void ChangeIndent(int delta)
     {
         TextRange range = Selection.Range;
-        ImmutableList<Block> blocks = Document.GetStory(range.Story);
+        ImmutableList<Block> blocks = Document.GetContainer(range.Story, range.Start.Block);
         Document document = Document;
         ImmutableList<Block>.Builder builder = blocks.ToBuilder();
         bool changed = false;
@@ -407,7 +406,7 @@ public sealed partial class EditingSession
 
         if (changed)
         {
-            Commit(new EditResult(document.WithStory(range.Story, builder.ToImmutable()), Selection, ChangeSet.From(range.Story, range.Start.Block.TopIndex)), EditKind.Formatting, startsNewGroup: true);
+            Commit(new EditResult(document.WithContainer(range.Story, range.Start.Block, builder.ToImmutable()), Selection, ChangeSet.From(range.Story, range.Start.Block.TopIndex)), EditKind.Formatting, startsNewGroup: true);
         }
     }
 
@@ -459,7 +458,7 @@ public sealed partial class EditingSession
         }
 
         TextRange range = Selection.Range;
-        ImmutableList<Block> blocks = Document.GetStory(range.Story);
+        ImmutableList<Block> blocks = Document.GetContainer(range.Story, range.Start.Block);
         foreach (ParagraphSpan span in TextRanges.Paragraphs(blocks, range))
         {
             bool any = false;
@@ -707,23 +706,39 @@ public sealed partial class EditingSession
     /// <summary>Where a position lands after the text before it was removed.</summary>
     private static TextPosition AdjustAfterDelete(TextPosition target, TextRange removed)
     {
-        if (target.Story != removed.Story || target <= removed.Start)
+        if (target.Story != removed.Story)
         {
             return target;
         }
 
-        if (target < removed.End)
+        // Compare at the depth of the removed blocks: the target may sit inside a table that follows them.
+        int depth = removed.Start.Block.Depth;
+        ImmutableArray<int> container = removed.Start.Block.ContainerIndices;
+        if (target.Block.Depth < depth || !target.Block.Indices.AsSpan()[..container.Length].SequenceEqual(container.AsSpan()))
+        {
+            return target;
+        }
+
+        int index = target.Block.Indices[depth - 1];
+        int first = removed.Start.Block.Last;
+        int last = removed.End.Block.Last;
+        if (index < first || (index == first && target.Block.Depth == depth && target.Offset <= removed.Start.Offset))
+        {
+            return target;
+        }
+
+        if (index < last || (index == last && target.Block.Depth == depth && target.Offset < removed.End.Offset))
         {
             return removed.Start;
         }
 
-        int removedBlocks = removed.End.Block.TopIndex - removed.Start.Block.TopIndex;
-        if (target.Block.TopIndex == removed.End.Block.TopIndex)
+        if (index == last)
         {
             return new TextPosition(target.Story, removed.Start.Block, removed.Start.Offset + (target.Offset - removed.End.Offset));
         }
 
-        return new TextPosition(target.Story, BlockPath.Of(target.Block.TopIndex - removedBlocks), target.Offset);
+        ImmutableArray<int> indices = target.Block.Indices.SetItem(depth - 1, index - (last - first));
+        return new TextPosition(target.Story, new BlockPath(indices), target.Offset);
     }
 
     // ----- Table of contents -----
@@ -832,7 +847,7 @@ public sealed partial class EditingSession
             return;
         }
 
-        ImmutableList<Block> blocks = Document.GetStory(Selection.Story);
+        ImmutableList<Block> blocks = Document.GetContainer(Selection.Story, Selection.Active.Block);
         bool bulleted = Document.Lists.GetLevel(format.NumberingId, 0)?.IsBullet ?? false;
         for (int i = index - 1; i >= 0; i--)
         {
@@ -877,13 +892,13 @@ public sealed partial class EditingSession
     private (int Index, ListFormat Format)? CurrentList()
     {
         Paragraph paragraph = Document.GetParagraph(Selection.Active);
-        return _resolver.ResolveParagraph(paragraph).List is { IsNone: false } format ? (Selection.Active.Block.TopIndex, format) : null;
+        return _resolver.ResolveParagraph(paragraph).List is { IsNone: false } format ? (Selection.Active.Block.Last, format) : null;
     }
 
     /// <summary>Moves this paragraph and every later paragraph of list <paramref name="oldId"/> in the story to list <paramref name="newId"/>.</summary>
     private void RepointList(Document document, int fromIndex, int oldId, int newId)
     {
-        ImmutableList<Block> blocks = document.GetStory(Selection.Story);
+        ImmutableList<Block> blocks = document.GetContainer(Selection.Story, Selection.Active.Block);
         ImmutableList<Block>.Builder builder = blocks.ToBuilder();
         for (int i = fromIndex; i < blocks.Count; i++)
         {
@@ -893,7 +908,7 @@ public sealed partial class EditingSession
             }
         }
 
-        Commit(new EditResult(document.WithStory(Selection.Story, builder.ToImmutable()), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+        Commit(new EditResult(document.WithContainer(Selection.Story, Selection.Active.Block, builder.ToImmutable()), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
     }
 
     // ----- Hyperlinks -----
@@ -1269,7 +1284,7 @@ public sealed partial class EditingSession
     }
 
     private bool AreAdjacentParagraphs(TextPosition earlier, TextPosition later) =>
-        later.Block.TopIndex - earlier.Block.TopIndex <= 1;
+        earlier.Block.SameContainer(later.Block) && later.Block.Last - earlier.Block.Last <= 1;
 
     private void DeleteTo(TextPosition? target)
     {

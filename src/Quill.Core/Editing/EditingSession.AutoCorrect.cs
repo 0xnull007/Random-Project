@@ -77,11 +77,11 @@ public sealed partial class EditingSession
     /// <summary>"* " or "1. " at the start of a paragraph turns it into a list item; the marker text goes away.</summary>
     private void StartAutomaticList(TextPosition at, bool bulleted)
     {
-        ImmutableList<Block> blocks = Document.GetStory(at.Story);
+        ImmutableList<Block> blocks = Document.GetContainer(at.Story, at.Block);
         TextPosition start = at.WithOffset(0);
         EditResult deleted = DocumentEditor.DeleteRange(Document, new TextRange(start, at));
         Document document = deleted.Document;
-        int? numberingId = NeighbourList(blocks, at.Block.TopIndex - 1, bulleted);
+        int? numberingId = NeighbourList(blocks, at.Block.Last - 1, bulleted);
         if (numberingId is null)
         {
             (ListStore store, int id) = document.Lists.AddList(bulleted ? DefaultLists.BulletLevels() : DefaultLists.NumberedLevels());

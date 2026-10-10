@@ -107,7 +107,7 @@ public sealed class CellBlockLayout
     public double Height { get; }
 }
 
-/// <summary>Rows [FirstRow, LastRow] of a table placed on a page.</summary>
+/// <summary>Rows [FirstRow, LastRow] of a table placed on a page, with a fragment for every paragraph inside its cells.</summary>
 public sealed class TableFragment : BlockFragment
 {
     public TableFragment(StoryId story, BlockPath path, TableLayout layout, int firstRow, int lastRow, double top, double columnLeft)
@@ -116,6 +116,39 @@ public sealed class TableFragment : BlockFragment
         Layout = layout;
         FirstRow = firstRow;
         LastRow = lastRow;
+        var paragraphs = ImmutableArray.CreateBuilder<ParagraphFragment>();
+        var tables = ImmutableArray.CreateBuilder<TableFragment>();
+        for (int r = firstRow; r <= lastRow; r++)
+        {
+            TableRowLayout row = layout.Rows[r];
+            double rowTop = RowTop(r);
+            for (int c = 0; c < row.Cells.Length; c++)
+            {
+                TableCellLayout cell = row.Cells[c];
+                if (cell.Cell.VerticalMerge == VerticalMerge.Continue)
+                {
+                    continue;
+                }
+
+                double contentLeft = Bounds.Left + cell.Left + TableLayout.CellPadding;
+                for (int b = 0; b < cell.Blocks.Length; b++)
+                {
+                    CellBlockLayout block = cell.Blocks[b];
+                    BlockPath childPath = path.Child(r, c, b);
+                    if (block.Paragraph is { } paragraph)
+                    {
+                        paragraphs.Add(new ParagraphFragment(story, childPath, paragraph, 0, paragraph.LineCount - 1, rowTop + block.Top, contentLeft, paragraph.SpaceBefore, paragraph.SpaceAfter));
+                    }
+                    else if (block.Table is { } nested && nested.Rows.Length > 0)
+                    {
+                        tables.Add(new TableFragment(story, childPath, nested, 0, nested.Rows.Length - 1, rowTop + block.Top, contentLeft));
+                    }
+                }
+            }
+        }
+
+        CellParagraphs = paragraphs.ToImmutable();
+        NestedTables = tables.ToImmutable();
     }
 
     public TableLayout Layout { get; }
@@ -124,6 +157,77 @@ public sealed class TableFragment : BlockFragment
 
     public int LastRow { get; }
 
+    /// <summary>Fragments of the paragraphs directly inside this fragment's cells (nested paths), for hit testing, caret and selection.</summary>
+    public ImmutableArray<ParagraphFragment> CellParagraphs { get; }
+
+    public ImmutableArray<TableFragment> NestedTables { get; }
+
+    /// <summary>Every paragraph fragment inside the table, nested tables included.</summary>
+    public IEnumerable<ParagraphFragment> AllParagraphs()
+    {
+        foreach (ParagraphFragment paragraph in CellParagraphs)
+        {
+            yield return paragraph;
+        }
+
+        foreach (TableFragment nested in NestedTables)
+        {
+            foreach (ParagraphFragment paragraph in nested.AllParagraphs())
+            {
+                yield return paragraph;
+            }
+        }
+    }
+
     /// <summary>Page y of the top of a row on this fragment.</summary>
     public double RowTop(int row) => Bounds.Top + Layout.RowTops[row] - Layout.RowTops[FirstRow];
+
+    /// <summary>
+    /// The innermost cell under a page point: the fragment holding it plus row and cell indices (merged cells
+    /// resolve to the cell that starts the merge); null when the point is outside this fragment.
+    /// </summary>
+    public (TableFragment Table, int Row, int Cell)? CellAt(PointD point)
+    {
+        if (point.X < Bounds.Left || point.X > Bounds.Right || point.Y < Bounds.Top || point.Y > Bounds.Bottom)
+        {
+            return null;
+        }
+
+        int row = FirstRow;
+        while (row < LastRow && point.Y >= RowTop(row + 1))
+        {
+            row++;
+        }
+
+        TableRowLayout rowLayout = Layout.Rows[row];
+        int cell = CellIndexAt(rowLayout, point.X - Bounds.Left);
+        while (row > FirstRow && rowLayout.Cells[cell].Cell.VerticalMerge == VerticalMerge.Continue)
+        {
+            row--;
+            rowLayout = Layout.Rows[row];
+            cell = CellIndexAt(rowLayout, point.X - Bounds.Left);
+        }
+
+        foreach (TableFragment nested in NestedTables)
+        {
+            if (nested.Path.CellIndices == (row, cell) && nested.CellAt(point) is { } inner)
+            {
+                return inner;
+            }
+        }
+
+        return (this, row, cell);
+    }
+
+    private static int CellIndexAt(TableRowLayout row, double x)
+    {
+        int cell = 0;
+        while (cell < row.Cells.Length - 1 && x >= row.Cells[cell + 1].Left)
+        {
+            cell++;
+        }
+
+        return cell;
+    }
+
 }

@@ -29,17 +29,36 @@ public static class TextSearch
 
         foreach ((StoryId story, ImmutableList<Block> blocks) in OrderedStories(document))
         {
-            for (int i = 0; i < blocks.Count; i++)
-            {
-                if (blocks[i] is Paragraph paragraph)
-                {
-                    results.AddRange(FindInParagraph(story, BlockPath.Of(i), paragraph, query, options));
-                }
-            }
+            FindInBlocks(story, blocks, null, query, options, results);
         }
 
         return results;
     }
+
+    private static void FindInBlocks(StoryId story, ImmutableList<Block> blocks, BlockPath? parent, string query, SearchOptions options, List<TextRange> results)
+    {
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            BlockPath path = parent?.WithLast(i) ?? BlockPath.Of(i);
+            switch (blocks[i])
+            {
+                case Paragraph paragraph:
+                    results.AddRange(FindInParagraph(story, path, paragraph, query, options));
+                    break;
+                case Table table:
+                    for (int r = 0; r < table.Rows.Length; r++)
+                    {
+                        for (int c = 0; c < table.Rows[r].Cells.Length; c++)
+                        {
+                            FindInBlocks(story, table.Rows[r].Cells[c].Blocks, path.Child(r, c, 0), query, options, results);
+                        }
+                    }
+
+                    break;
+            }
+        }
+    }
+
 
     public static IEnumerable<TextRange> FindInParagraph(StoryId story, BlockPath path, Paragraph paragraph, string query, SearchOptions options)
     {

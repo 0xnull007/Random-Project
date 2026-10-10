@@ -20,10 +20,10 @@ public static class TextNavigation
             return position.WithOffset(Graphemes.Next(paragraph.FlatText, position.Offset));
         }
 
-        return StartOfNextParagraph(document, position);
+        return NextAcrossTables(document, position);
     }
 
-    /// <summary>Position one grapheme cluster to the left, crossing into the previous paragraph; null at the start of the story.</summary>
+    /// <summary>Position one grapheme cluster to the left, crossing into the previous paragraph or table cell; null at the start of the story.</summary>
     public static TextPosition? PreviousCharacter(Document document, TextPosition position)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -33,7 +33,7 @@ public static class TextNavigation
             return position.WithOffset(Graphemes.Previous(paragraph.FlatText, position.Offset));
         }
 
-        return EndOfPreviousParagraph(document, position);
+        return PreviousAcrossTables(document, position);
     }
 
     /// <summary>Ctrl+Right: start of the next word, or the paragraph end, or the next paragraph start.</summary>
@@ -116,32 +116,236 @@ public static class TextNavigation
         return new TextRange(StoryStart(document, story), StoryEnd(document, story));
     }
 
-    /// <summary>Start of the next paragraph in the story, skipping non-paragraph blocks; null at the end.</summary>
+    /// <summary>Start of the next paragraph in the same block list (story or table cell), skipping non-paragraph blocks; null at the end.</summary>
     public static TextPosition? StartOfNextParagraph(Document document, TextPosition position)
     {
         ArgumentNullException.ThrowIfNull(document);
-        ImmutableList<Block> blocks = document.GetStory(position.Story);
-        for (int i = position.Block.TopIndex + 1; i < blocks.Count; i++)
+        ImmutableList<Block> blocks = document.GetContainer(position.Story, position.Block);
+        for (int i = position.Block.Last + 1; i < blocks.Count; i++)
         {
             if (blocks[i] is Paragraph)
             {
-                return new TextPosition(position.Story, BlockPath.Of(i), 0);
+                return new TextPosition(position.Story, position.Block.WithLast(i), 0);
             }
         }
 
         return null;
     }
 
-    /// <summary>End of the previous paragraph in the story, skipping non-paragraph blocks; null at the start.</summary>
+    /// <summary>End of the previous paragraph in the same block list, skipping non-paragraph blocks; null at the start.</summary>
     public static TextPosition? EndOfPreviousParagraph(Document document, TextPosition position)
     {
         ArgumentNullException.ThrowIfNull(document);
-        ImmutableList<Block> blocks = document.GetStory(position.Story);
-        for (int i = position.Block.TopIndex - 1; i >= 0; i--)
+        ImmutableList<Block> blocks = document.GetContainer(position.Story, position.Block);
+        for (int i = position.Block.Last - 1; i >= 0; i--)
         {
             if (blocks[i] is Paragraph previous)
             {
-                return new TextPosition(position.Story, BlockPath.Of(i), previous.Length);
+                return new TextPosition(position.Story, position.Block.WithLast(i), previous.Length);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>After the last paragraph of a block list: into the next table of the story, out of the current cell, or null.</summary>
+    public static TextPosition? NextAcrossTables(Document document, TextPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ImmutableList<Block> blocks = document.GetContainer(position.Story, position.Block);
+        for (int i = position.Block.Last + 1; i < blocks.Count; i++)
+        {
+            if (blocks[i] is Table && EnterTable(document, position.Story, position.Block.WithLast(i), fromEnd: false) is { } inside)
+            {
+                return inside;
+            }
+
+            if (blocks[i] is Paragraph)
+            {
+                return new TextPosition(position.Story, position.Block.WithLast(i), 0);
+            }
+        }
+
+        return LeaveContainerForward(document, position);
+    }
+
+    public static TextPosition? PreviousAcrossTables(Document document, TextPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ImmutableList<Block> blocks = document.GetContainer(position.Story, position.Block);
+        for (int i = position.Block.Last - 1; i >= 0; i--)
+        {
+            if (blocks[i] is Table && EnterTable(document, position.Story, position.Block.WithLast(i), fromEnd: true) is { } inside)
+            {
+                return inside;
+            }
+
+            if (blocks[i] is Paragraph previous)
+            {
+                return new TextPosition(position.Story, position.Block.WithLast(i), previous.Length);
+            }
+        }
+
+        return LeaveContainerBackward(document, position);
+    }
+
+    /// <summary>First paragraph position inside a table cell (or null when the cell has no paragraph).</summary>
+
+    public static TextPosition? CellStart(Document document, StoryId story, BlockPath tablePath, int row, int cell)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        BlockPath first = tablePath.Child(row, cell, 0);
+        ImmutableList<Block>? blocks = document.TryGetContainer(story, first);
+        if (blocks is null)
+        {
+            return null;
+        }
+
+        int index = blocks.FindIndex(b => b is Paragraph);
+        return index < 0 ? null : new TextPosition(story, first.WithLast(index), 0);
+    }
+
+    /// <summary>End of the last paragraph in the block list that holds <paramref name="position"/> (the cell, for a table position).</summary>
+    public static TextPosition ContainerEnd(Document document, TextPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ImmutableList<Block> blocks = document.GetContainer(position.Story, position.Block);
+        int last = blocks.FindLastIndex(b => b is Paragraph);
+        return last < 0 ? position : new TextPosition(position.Story, position.Block.WithLast(last), ((Paragraph)blocks[last]).Length);
+    }
+
+    /// <summary>Tab in a table: the start of the next cell (row by row), or null in the last cell.</summary>
+
+    public static TextPosition? NextCell(Document document, TextPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (position.Block.TablePath is not { } tablePath || position.Block.CellIndices is not { } at || document.TryGetBlock(position.Story, tablePath) is not Table table)
+        {
+            return null;
+        }
+
+        int row = at.Row;
+        int cell = at.Cell + 1;
+        while (row < table.Rows.Length)
+        {
+            if (cell < table.Rows[row].Cells.Length)
+            {
+                return CellStart(document, position.Story, tablePath, row, cell) ?? NextCellAfter(document, position.Story, tablePath, table, row, cell);
+            }
+
+            row++;
+            cell = 0;
+        }
+
+        return null;
+    }
+
+    private static TextPosition? NextCellAfter(Document document, StoryId story, BlockPath tablePath, Table table, int row, int cell)
+    {
+        for (int r = row; r < table.Rows.Length; r++)
+        {
+            for (int c = r == row ? cell + 1 : 0; c < table.Rows[r].Cells.Length; c++)
+            {
+                if (CellStart(document, story, tablePath, r, c) is { } start)
+                {
+                    return start;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Shift+Tab in a table: the start of the previous cell, or null in the first cell.</summary>
+    public static TextPosition? PreviousCell(Document document, TextPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (position.Block.TablePath is not { } tablePath || position.Block.CellIndices is not { } at || document.TryGetBlock(position.Story, tablePath) is not Table table)
+        {
+            return null;
+        }
+
+        int row = at.Row;
+        int cell = at.Cell - 1;
+        while (row >= 0)
+        {
+            if (cell >= 0 && cell < table.Rows[row].Cells.Length && CellStart(document, position.Story, tablePath, row, cell) is { } start)
+            {
+                return start;
+            }
+
+            if (cell > 0)
+            {
+                cell--;
+                continue;
+            }
+
+            row--;
+            cell = row >= 0 ? table.Rows[row].Cells.Length - 1 : -1;
+        }
+
+        return null;
+    }
+
+    /// <summary>Right arrow at the end of a cell: the next cell, or the paragraph after the table; Left arrow mirrors it.</summary>
+    public static TextPosition? LeaveContainerForward(Document document, TextPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (position.Block.TablePath is not { } tablePath)
+        {
+            return null;
+        }
+
+        if (NextCell(document, position) is { } next)
+        {
+            return next;
+        }
+
+        var afterTable = new TextPosition(position.Story, tablePath, 0);
+        return StartOfNextParagraph(document, afterTable) ?? LeaveContainerForward(document, afterTable);
+    }
+
+    public static TextPosition? LeaveContainerBackward(Document document, TextPosition position)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (position.Block.TablePath is not { } tablePath)
+        {
+            return null;
+        }
+
+        if (PreviousCell(document, position) is { } previous)
+        {
+            return ContainerEnd(document, previous);
+        }
+
+        var beforeTable = new TextPosition(position.Story, tablePath, 0);
+        return EndOfPreviousParagraph(document, beforeTable) ?? LeaveContainerBackward(document, beforeTable);
+    }
+
+    /// <summary>The first paragraph inside a table at <paramref name="tablePath"/> (entering from the paragraph before it).</summary>
+    public static TextPosition? EnterTable(Document document, StoryId story, BlockPath tablePath, bool fromEnd)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (document.TryGetBlock(story, tablePath) is not Table table || table.Rows.IsEmpty)
+        {
+            return null;
+        }
+
+        if (!fromEnd)
+        {
+            return NextCellAfter(document, story, tablePath, table, 0, -1);
+        }
+
+        for (int r = table.Rows.Length - 1; r >= 0; r--)
+        {
+            for (int c = table.Rows[r].Cells.Length - 1; c >= 0; c--)
+            {
+                if (CellStart(document, story, tablePath, r, c) is { } start)
+                {
+                    ImmutableList<Block> blocks = document.GetContainer(story, start.Block);
+                    int last = blocks.FindLastIndex(b => b is Paragraph);
+                    return new TextPosition(story, start.Block.WithLast(last), ((Paragraph)blocks[last]).Length);
+                }
             }
         }
 

@@ -179,14 +179,64 @@ public sealed class Document
 
     public Block? TryGetBlock(StoryId story, BlockPath path)
     {
-        if (!path.IsTopLevel)
+        ImmutableList<Block>? blocks = TryGetContainer(story, path);
+        return blocks is not null && path.Last >= 0 && path.Last < blocks.Count ? blocks[path.Last] : null;
+    }
+
+    /// <summary>The block list that directly holds the block at <paramref name="path"/>: the story for a top-level block, the table cell for a nested one.</summary>
+    public ImmutableList<Block>? TryGetContainer(StoryId story, BlockPath path)
+    {
+        ImmutableList<Block>? blocks = TryGetStory(story);
+        ImmutableArray<int> indices = path.Indices;
+        for (int i = 0; blocks is not null && i + 3 < indices.Length; i += 3)
         {
-            throw new NotSupportedException("Nested block paths are not supported yet.");
+            if (indices[i] < 0 || indices[i] >= blocks.Count || blocks[indices[i]] is not Table table)
+            {
+                return null;
+            }
+
+            int row = indices[i + 1];
+            int cell = indices[i + 2];
+            if (row < 0 || row >= table.Rows.Length || cell < 0 || cell >= table.Rows[row].Cells.Length)
+            {
+                return null;
+            }
+
+            blocks = table.Rows[row].Cells[cell].Blocks;
         }
 
-        ImmutableList<Block>? blocks = TryGetStory(story);
-        return blocks is not null && path.TopIndex >= 0 && path.TopIndex < blocks.Count ? blocks[path.TopIndex] : null;
+        return blocks;
     }
+
+    public ImmutableList<Block> GetContainer(StoryId story, BlockPath path) =>
+        TryGetContainer(story, path) ?? throw new ArgumentException($"No block list at {path} in {story}.", nameof(path));
+
+    /// <summary>Replaces the block list that holds the block at <paramref name="path"/>, rebuilding the enclosing tables.</summary>
+    public Document WithContainer(StoryId story, BlockPath path, ImmutableList<Block> blocks)
+    {
+        ArgumentNullException.ThrowIfNull(blocks);
+        return WithStory(story, ReplaceContainer(GetStory(story), path.Indices, 0, blocks));
+    }
+
+    private static ImmutableList<Block> ReplaceContainer(ImmutableList<Block> blocks, ImmutableArray<int> indices, int offset, ImmutableList<Block> replacement)
+    {
+        if (offset + 1 >= indices.Length)
+        {
+            return replacement;
+        }
+
+        int tableIndex = indices[offset];
+        int row = indices[offset + 1];
+        int cell = indices[offset + 2];
+        if (blocks[tableIndex] is not Table table)
+        {
+            throw new ArgumentException("The path does not point into a table.", nameof(indices));
+        }
+
+        ImmutableList<Block> inner = ReplaceContainer(table.Rows[row].Cells[cell].Blocks, indices, offset + 3, replacement);
+        return blocks.SetItem(tableIndex, table.WithCellBlocks(row, cell, inner));
+    }
+
 
     public Paragraph? TryGetParagraph(TextPosition position) => TryGetBlock(position.Story, position.Block) as Paragraph;
 

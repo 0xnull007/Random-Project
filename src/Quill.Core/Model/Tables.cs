@@ -111,5 +111,21 @@ public sealed class Table : Block
         }
     }
 
+    /// <summary>A copy with one cell's content replaced; the original XML is dropped because the table changed.</summary>
+    public Table WithCellBlocks(int row, int cell, ImmutableList<Block> blocks)
+    {
+        ArgumentNullException.ThrowIfNull(blocks);
+        TableRow target = Rows[row];
+        TableCell old = target.Cells[cell];
+        var updatedCell = new TableCell(blocks, old.GridSpan, old.VerticalMerge, old.Shading);
+        var updatedRow = new TableRow(target.Cells.SetItem(cell, updatedCell), target.Height, target.ExactHeight, target.IsHeader);
+        return new Table(Rows.SetItem(row, updatedRow), ColumnWidths, HasBorders, Indent, outerXml: null);
+    }
+
+    public Table WithRows(ImmutableArray<TableRow> rows) => new(rows, ColumnWidths, HasBorders, Indent, outerXml: null);
+
+    public Table WithColumnWidths(ImmutableArray<Twips> widths) => new(Rows, widths, HasBorders, Indent, outerXml: null);
+
     public override string ToString() => $"Table({Rows.Length}x{ColumnCount})";
+
 }
