@@ -24,7 +24,8 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private static readonly double[] StandardSizes = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
 
-    private const string FileFilter = "Word Documents (*.docx)|*.docx|All files (*.*)|*.*";
+    private const string FileFilter = "All supported (*.docx;*.rtf;*.txt)|*.docx;*.rtf;*.txt|Word Documents (*.docx)|*.docx|Rich Text Format (*.rtf)|*.rtf|Text files (*.txt)|*.txt|All files (*.*)|*.*";
+    private const string SaveFilter = "Word Document (*.docx)|*.docx|Rich Text Format (*.rtf)|*.rtf|Plain Text (*.txt)|*.txt";
 
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly DispatcherTimer _autosaveTimer;
@@ -232,7 +233,7 @@ public sealed partial class MainViewModel : ObservableObject
                     UpdateTitle();
                     return;
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FileFormatException or DocumentFormat.OpenXml.Packaging.OpenXmlPackageException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FileFormatException or ArgumentException or InvalidOperationException or DocumentFormat.OpenXml.Packaging.OpenXmlPackageException)
                 {
                     MessageBox.Show("Could not recover the document." + Environment.NewLine + Environment.NewLine + ex.Message, "Quill", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
@@ -782,7 +783,15 @@ public sealed partial class MainViewModel : ObservableObject
     {
         try
         {
+            string extension = Path.GetExtension(path);
+            if (extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase) || extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenConverted(path, extension);
+                return;
+            }
+
             LoadResult result = DocxReader.ReadFile(path);
+
             Session.LoadDocument(result.Document);
             _documentPath = path;
             _documentName = Path.GetFileNameWithoutExtension(path);
@@ -800,8 +809,55 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Imports RTF or plain text into a new document; Save As keeps it as .docx.</summary>
+    private void OpenConverted(string path, string extension)
+    {
+        string text = File.ReadAllText(path);
+        DocumentFragment fragment = extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase)
+            ? Quill.Layout.Wpf.RichTextConverter.FromRtf(text)
+            : DocumentFragment.FromPlainText(text);
+        Document document = Document.CreateNew(metricPaper: IsMetricRegion());
+        if (!fragment.IsEmpty)
+        {
+            document = DocumentEditor.InsertFragment(document, TextPosition.StartOf(StoryId.Body(0)), fragment).Document;
+        }
+
+        Session.LoadDocument(document, isDirty: true);
+        _documentPath = null;
+        _documentName = Path.GetFileNameWithoutExtension(path);
+        _loadWasLossy = false;
+        StartNewRecoverySession();
+        RememberFile(path);
+        StatusMessage = "Imported " + Path.GetFileName(path) + "; use Save As to keep it as a .docx";
+        UpdateTitle();
+    }
+
+    /// <summary>All body paragraphs (table cells flattened), for RTF and text export.</summary>
+    private DocumentFragment WholeDocumentFragment()
+    {
+        var paragraphs = System.Collections.Immutable.ImmutableArray.CreateBuilder<Paragraph>();
+        foreach (Section section in Session.Document.Sections)
+        {
+            foreach (Block block in section.Body)
+            {
+                switch (block)
+                {
+                    case Paragraph paragraph:
+                        paragraphs.Add(paragraph);
+                        break;
+                    case Table table:
+                        paragraphs.AddRange(table.AllParagraphs());
+                        break;
+                }
+            }
+        }
+
+        return new DocumentFragment(paragraphs.ToImmutable());
+    }
+
     [RelayCommand]
     private void Save()
+
     {
         if (_documentPath is null)
         {
@@ -837,7 +893,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var dialog = new SaveFileDialog
         {
-            Filter = FileFilter,
+            Filter = SaveFilter,
             DefaultExt = ".docx",
             FileName = _documentName + ".docx",
             AddExtension = true,
@@ -852,7 +908,23 @@ public sealed partial class MainViewModel : ObservableObject
     {
         try
         {
+            string extension = Path.GetExtension(path);
+            if (extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase))
+            {
+                File.WriteAllText(path, Quill.Layout.Wpf.RichTextConverter.ToRtf(WholeDocumentFragment(), Session.Resolver, Session.Document.Lists), System.Text.Encoding.ASCII);
+                StatusMessage = "Exported " + Path.GetFileName(path) + " (the open document is still the .docx)";
+                return;
+            }
+
+            if (extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
+            {
+                File.WriteAllText(path, WholeDocumentFragment().ToPlainText().Replace("\n", Environment.NewLine, StringComparison.Ordinal), System.Text.Encoding.UTF8);
+                StatusMessage = "Exported " + Path.GetFileName(path) + " (the open document is still the .docx)";
+                return;
+            }
+
             DocxWriter.WriteFile(Session.Document, path);
+
             Session.MarkSaved();
             _documentPath = path;
             _documentName = Path.GetFileNameWithoutExtension(path);
@@ -1022,7 +1094,21 @@ public sealed partial class MainViewModel : ObservableObject
     private static readonly double[] FontSizeSteps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
 
     [RelayCommand]
+    private void ToggleFormattingMarks() => ShowFormattingMarks = !ShowFormattingMarks;
+
+    [RelayCommand]
+    private void ToggleBullets() => IsBulleted = !IsBulleted;
+
+    [RelayCommand]
+    private void ResetParagraph()
+    {
+        Session.ResetParagraphFormatting();
+        RefreshFormatState();
+    }
+
+    [RelayCommand]
     private void ToggleStrikethrough() => IsStrikethrough = !IsStrikethrough;
+
 
     [RelayCommand]
     private void ToggleSuperscript() => IsSuperscript = !IsSuperscript;

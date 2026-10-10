@@ -93,6 +93,11 @@
     <KeyBinding Modifiers="Ctrl+Shift" Key="V" Command="{Binding PasteFormatCommand}" />
     <KeyBinding Modifiers="Ctrl+Alt" Key="V" Command="{x:Static views:MainWindow.PastePlainCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding ClearFormattingCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="D8" Command="{Binding ToggleFormattingMarksCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="L" Command="{Binding ToggleBulletsCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="M" Command="{Binding IncreaseIndentCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="M" Command="{Binding DecreaseIndentCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="Q" Command="{Binding ResetParagraphCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="K" Command="{x:Static views:MainWindow.InsertLinkCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="D" Command="{x:Static views:MainWindow.FontDialogCommand}" />
   </Window.InputBindings>

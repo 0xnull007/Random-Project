@@ -311,7 +311,15 @@ public sealed partial class EditingSession
         Commit(result with { Selection = Selection }, EditKind.Formatting, startsNewGroup: true);
     }
 
+    /// <summary>Ctrl+Q: back to the paragraph style's formatting.</summary>
+    public void ResetParagraphFormatting()
+    {
+        EditResult result = DocumentEditor.ClearParagraphFormat(Document, Selection.Range);
+        Commit(result with { Selection = Selection, Change = ChangeSet.Structural() }, EditKind.Formatting, startsNewGroup: true);
+    }
+
     public void ApplyParagraphFormat(ParagraphProperties delta)
+
     {
         ArgumentNullException.ThrowIfNull(delta);
         EditResult result = DocumentEditor.ApplyParagraphFormat(Document, Selection.Range, delta);

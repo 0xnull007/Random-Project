@@ -303,7 +303,15 @@ public static class DocumentEditor
         return TransformParagraphs(document, range, (paragraph, _, _, _) => paragraph.WithProperties(paragraph.Properties.Merge(delta)), touchWholeParagraphs: true);
     }
 
+    /// <summary>Ctrl+Q: removes direct paragraph formatting (list membership included) so the style's values apply again.</summary>
+    public static EditResult ClearParagraphFormat(Document document, TextRange range)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        return TransformParagraphs(document, range, (paragraph, _, _, _) => paragraph.Properties.IsEmpty ? paragraph : paragraph.WithProperties(ParagraphProperties.Empty), touchWholeParagraphs: true);
+    }
+
     /// <summary>Applies a paragraph style to every paragraph the range touches, clearing direct paragraph formatting like Word.</summary>
+
     public static EditResult SetParagraphStyle(Document document, TextRange range, string? paragraphStyleId)
     {
         ArgumentNullException.ThrowIfNull(document);

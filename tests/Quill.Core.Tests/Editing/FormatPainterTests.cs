@@ -92,3 +92,18 @@ public class FormatPainterTests
         Assert.Equal("target", ((Run)session.Document.Para(1).Inlines[0]).Text);
     }
 }
+
+public class ResetParagraphTests
+{
+    [Fact]
+    public void Reset_clears_direct_paragraph_formatting_but_keeps_the_style()
+    {
+        var paragraph = new Paragraph([new Run("x", new RunProperties { Bold = true })], DefaultStyleSheet.Heading1Id, new ParagraphProperties { Alignment = Alignment.Center, LeftIndent = Twips.FromInches(1) });
+        var session = new EditingSession(WithBlocks(paragraph), new UndoStack(time: new FakeTime()));
+        session.ResetParagraphFormatting();
+        Paragraph result = session.Document.Para(0);
+        Assert.True(result.Properties.IsEmpty);
+        Assert.Equal(DefaultStyleSheet.Heading1Id, result.StyleId);
+        Assert.True(result.Inlines[0].Properties.Bold);
+    }
+}
