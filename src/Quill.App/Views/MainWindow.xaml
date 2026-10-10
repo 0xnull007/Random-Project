@@ -345,6 +345,11 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Column" Command="{Binding DeleteColumnCommand}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Table" Command="{Binding DeleteTableCommand}" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Merge Right" Command="{Binding MergeCellRightCommand}" ToolTip="Join this cell with the one to its right" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Merge Down" Command="{Binding MergeCellDownCommand}" ToolTip="Join this cell with the one beneath it" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Split Cell" Command="{Binding SplitCellCommand}" ToolTip="Undo a merge: one cell per column, or one per row" />
+
+          <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Borders" Command="{Binding ToggleTableBordersCommand}" ToolTip="Show or hide the grid lines" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsHeaderRow}" Content="Header Row" ToolTip="Repeat this row at the top of every page the table continues on" />
           <views:ColorPickerButton x:Name="ShadingPicker" GlyphText="&#x25A4;" ToggleToolTip="Cell shading" CurrentColor="{Binding CellShadingSwatch}" ColorSelected="OnCellShadingSelected" />

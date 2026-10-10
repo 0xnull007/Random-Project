@@ -89,6 +89,9 @@ public sealed class TableCellLayout
     public ImmutableArray<CellBlockLayout> Blocks { get; }
 
     public double ContentHeight { get; }
+
+    /// <summary>Rows this cell spans when it starts a vertical merge (1 otherwise); set once the whole table is built.</summary>
+    public int MergedRows { get; internal set; } = 1;
 }
 
 /// <summary>One block inside a cell: a paragraph layout or a nested table, with its top relative to the cell's top.</summary>

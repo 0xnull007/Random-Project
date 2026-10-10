@@ -50,27 +50,37 @@ public static class PageRenderer
         ArgumentNullException.ThrowIfNull(target);
         for (int r = 0; r < fragment.RepeatedHeaderRows; r++)
         {
-            DrawRow(fragment.Layout, fragment.Layout.Rows[r], fragment.Bounds.Left, fragment.RowTop(r), target);
+            DrawRow(fragment.Layout, r, fragment.Bounds.Left, fragment.RowTop(r), target);
         }
 
         for (int r = fragment.FirstRow; r <= fragment.LastRow; r++)
         {
-            DrawRow(fragment.Layout, fragment.Layout.Rows[r], fragment.Bounds.Left, fragment.RowTop(r), target);
+            DrawRow(fragment.Layout, r, fragment.Bounds.Left, fragment.RowTop(r), target);
         }
     }
 
-    private static void DrawRow(TableLayout layout, TableRowLayout row, double left, double top, IRenderTarget target)
+    private static void DrawRow(TableLayout layout, int rowIndex, double left, double top, IRenderTarget target)
     {
+        TableRowLayout row = layout.Rows[rowIndex];
         foreach (TableCellLayout cell in row.Cells)
         {
-            var rect = new RectD(left + cell.Left, top, cell.Width, row.Height);
+            if (cell.Cell.VerticalMerge == VerticalMerge.Continue)
+            {
+                continue; // drawn by the cell that starts the merge
+            }
+
+            double height = cell.MergedRows > 1
+                ? layout.RowTops[Math.Min(rowIndex + cell.MergedRows, layout.RowTops.Length - 1)] - layout.RowTops[rowIndex]
+                : row.Height;
+            var rect = new RectD(left + cell.Left, top, cell.Width, height);
             if (cell.Cell.Shading is { IsAuto: false } shading)
             {
                 target.FillRectangle(rect, shading);
             }
 
-            if (cell.Cell.VerticalMerge != VerticalMerge.Continue && !cell.Blocks.IsEmpty)
+            if (!cell.Blocks.IsEmpty)
             {
+
                 target.PushClip(rect);
                 double contentLeft = rect.Left + TableLayout.CellPadding;
                 foreach (CellBlockLayout block in cell.Blocks)
@@ -83,7 +93,7 @@ public static class PageRenderer
                     {
                         for (int r = 0; r < nested.Rows.Length; r++)
                         {
-                            DrawRow(nested, nested.Rows[r], contentLeft + nested.Left, top + block.Top + nested.RowTops[r], target);
+                            DrawRow(nested, r, contentLeft + nested.Left, top + block.Top + nested.RowTops[r], target);
                         }
                     }
                 }

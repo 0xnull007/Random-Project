@@ -178,6 +178,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       is drawn again at the top of the continuation (not editable there); Header Row off stops that **(new)**.
 - [ ] Table tab > shading swatch: pick a colour and the caret's cell is filled (text stays readable); "Automatic"
       clears it; the swatch shows the current cell's colour; saved files keep the shading **(new)**.
+- [ ] Table tab > Merge Right joins the caret's cell with its right neighbour (contents one after the other), Merge
+      Down joins it with the cell beneath (one tall cell without the inner border), Split Cell undoes either; merged
+      cells survive save and reload and look the same in Word **(new)**.
 - [ ] Headings, comments and footnotes inside table cells behave like elsewhere: the heading appears in the
       navigation pane and the table of contents, the comment pane jumps to the commented cell text, Esc from a
       footnote returns to the cell, and word count includes cell text **(new)**.
@@ -329,8 +332,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## Known limitations (expected, not bugs)
 
-- Tables: no merging or splitting of cells and no table styles yet; unedited tables are saved exactly as read,
-  edited and inserted ones are written as plain grids with their widths, shading and header rows.
+- Tables: no table styles and no selection spanning several cells yet (merge works cell by cell); unedited tables
+  are saved exactly as read, edited and inserted ones are written as plain grids with their widths, shading, merges
+  and header rows.
 - Track changes records insertions and deletions of text only: formatting changes, paragraph marks, moved
   pictures and tables are not tracked, and deleted text is always shown (Word's "All Markup").
 - No equations (dropped with a warning).

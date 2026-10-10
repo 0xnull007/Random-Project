@@ -208,7 +208,147 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithContainer(story, path, updated), Selection.Caret(caret), ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
     }
 
+    /// <summary>Joins the caret's cell with the one to its right (contents one after the other); nothing at the row's end.</summary>
+    public void MergeCellRight()
+    {
+        if (TableAtCaret() is not { } at || at.Cell + 1 >= at.Table.Rows[at.Row].Cells.Length)
+        {
+            return;
+        }
+
+        TableRow row = at.Table.Rows[at.Row];
+        TableCell left = row.Cells[at.Cell];
+        TableCell right = row.Cells[at.Cell + 1];
+        if (left.VerticalMerge != right.VerticalMerge)
+        {
+            return; // one of them is part of a vertical merge the other is not
+        }
+
+        var merged = new TableCell(JoinBlocks(left.Blocks, right.Blocks), left.GridSpan + right.GridSpan, left.VerticalMerge, left.Shading);
+        TableRow updated = WithCells(row, row.Cells.RemoveAt(at.Cell + 1).SetItem(at.Cell, merged));
+        CommitTable(at.Path, at.Table.WithRows(at.Table.Rows.SetItem(at.Row, updated)), at.Path.Child(at.Row, at.Cell, 0));
+    }
+
+    /// <summary>Joins the caret's cell with the cell beneath it (a vertical merge); nothing in the last row or over unequal columns.</summary>
+    public void MergeCellDown()
+    {
+        if (TableAtCaret() is not { } at || at.Row + 1 >= at.Table.Rows.Length)
+        {
+            return;
+        }
+
+        TableRow row = at.Table.Rows[at.Row];
+        TableCell cell = row.Cells[at.Cell];
+        if (cell.VerticalMerge == VerticalMerge.Continue)
+        {
+            return;
+        }
+
+        int gridStart = GridStart(row, at.Cell);
+        TableRow next = at.Table.Rows[at.Row + 1];
+        int belowIndex = -1;
+        int position = 0;
+        for (int c = 0; c < next.Cells.Length; c++)
+        {
+            if (position == gridStart && next.Cells[c].GridSpan == cell.GridSpan)
+            {
+                belowIndex = c;
+                break;
+            }
+
+            position += next.Cells[c].GridSpan;
+        }
+
+        if (belowIndex < 0 || next.Cells[belowIndex].VerticalMerge == VerticalMerge.Continue)
+        {
+            return;
+        }
+
+        TableCell below = next.Cells[belowIndex];
+        var top = new TableCell(JoinBlocks(cell.Blocks, below.Blocks), cell.GridSpan, VerticalMerge.Restart, cell.Shading);
+        var continuation = new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(below)), below.GridSpan, VerticalMerge.Continue, below.Shading);
+        ImmutableArray<TableRow> rows = at.Table.Rows
+            .SetItem(at.Row, WithCells(row, row.Cells.SetItem(at.Cell, top)))
+            .SetItem(at.Row + 1, WithCells(next, next.Cells.SetItem(belowIndex, continuation)));
+        CommitTable(at.Path, at.Table.WithRows(rows), at.Path.Child(at.Row, at.Cell, 0));
+    }
+
+    /// <summary>Undoes a merge: a cell spanning columns becomes one cell per column, a vertically merged cell gets its rows back; contents stay in the first.</summary>
+    public void SplitCell()
+    {
+        if (TableAtCaret() is not { } at)
+        {
+            return;
+        }
+
+        TableRow row = at.Table.Rows[at.Row];
+        TableCell cell = row.Cells[at.Cell];
+        if (cell.GridSpan > 1)
+        {
+            var parts = new List<TableCell> { new(cell.Blocks, 1, cell.VerticalMerge, cell.Shading) };
+            for (int i = 1; i < cell.GridSpan; i++)
+            {
+                parts.Add(new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(cell)), 1, cell.VerticalMerge, cell.Shading));
+            }
+
+            TableRow updated = WithCells(row, row.Cells.RemoveAt(at.Cell).InsertRange(at.Cell, parts));
+            CommitTable(at.Path, at.Table.WithRows(at.Table.Rows.SetItem(at.Row, updated)), at.Path.Child(at.Row, at.Cell, 0));
+            return;
+        }
+
+        if (cell.VerticalMerge == VerticalMerge.Restart)
+        {
+            int gridStart = GridStart(row, at.Cell);
+            ImmutableArray<TableRow>.Builder rows = at.Table.Rows.ToBuilder();
+            rows[at.Row] = WithCells(row, row.Cells.SetItem(at.Cell, new TableCell(cell.Blocks, cell.GridSpan, VerticalMerge.None, cell.Shading)));
+            for (int r = at.Row + 1; r < rows.Count; r++)
+            {
+                TableRow lower = rows[r];
+                int index = IndexAtGrid(lower, gridStart);
+                if (index < 0 || lower.Cells[index].VerticalMerge != VerticalMerge.Continue)
+                {
+                    break;
+                }
+
+                TableCell part = lower.Cells[index];
+                rows[r] = WithCells(lower, lower.Cells.SetItem(index, new TableCell(part.Blocks, part.GridSpan, VerticalMerge.None, part.Shading)));
+            }
+
+            CommitTable(at.Path, at.Table.WithRows(rows.ToImmutable()), at.Path.Child(at.Row, at.Cell, 0));
+        }
+    }
+
+    /// <summary>Contents of two cells one after the other, dropping an empty paragraph that would only separate them.</summary>
+    private static ImmutableList<Block> JoinBlocks(ImmutableList<Block> first, ImmutableList<Block> second)
+    {
+        bool firstEmpty = first.Count == 1 && first[0] is Paragraph { IsEmpty: true };
+        bool secondEmpty = second.Count == 1 && second[0] is Paragraph { IsEmpty: true };
+        if (secondEmpty)
+        {
+            return first;
+        }
+
+        return firstEmpty ? second : first.AddRange(second);
+    }
+
+    private static int IndexAtGrid(TableRow row, int gridStart)
+    {
+        int position = 0;
+        for (int c = 0; c < row.Cells.Length; c++)
+        {
+            if (position == gridStart)
+            {
+                return c;
+            }
+
+            position += row.Cells[c].GridSpan;
+        }
+
+        return -1;
+    }
+
     /// <summary>Switches the single black grid borders on or off for the caret's table.</summary>
+
     public void ToggleTableBorders()
     {
         if (TableAtCaret() is not { } at)

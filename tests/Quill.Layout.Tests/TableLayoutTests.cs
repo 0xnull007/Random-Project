@@ -198,3 +198,37 @@ public class HeaderTableTests
         Assert.Equal((table, 0, 1), table.CellAt(new PointD(table.Bounds.Left + 150, table.Bounds.Top + 5)));
     }
 }
+
+public class MergedCellLayoutTests
+{
+    [Fact]
+    public void Vertically_merged_cells_know_how_many_rows_they_span()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(240),
+            PageHeight = Twips.FromDips(400),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        TableCell C(string text, VerticalMerge merge = VerticalMerge.None) => new(ImmutableList.Create<Block>(Paragraph.FromText(text)), 1, merge);
+        var table = new Table(
+            [new TableRow([C("tall", VerticalMerge.Restart), C("b")]), new TableRow([C("", VerticalMerge.Continue), C("d")]), new TableRow([C("e"), C("f")])],
+            [Twips.FromDips(100), Twips.FromDips(100)],
+            hasBorders: true,
+            Twips.Zero);
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(table))), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        var fragment = Assert.IsType<TableFragment>(layout.Pages[0].Body[0]);
+
+        Assert.Equal(2, fragment.Layout.Rows[0].Cells[0].MergedRows);
+        Assert.Equal(1, fragment.Layout.Rows[0].Cells[1].MergedRows);
+        Assert.Equal(1, fragment.Layout.Rows[1].Cells[0].MergedRows);
+        Assert.Equal(1, fragment.Layout.Rows[2].Cells[0].MergedRows);
+        Assert.Equal(5, fragment.CellParagraphs.Length); // the continuation cell has no paragraph fragment
+        var hit = fragment.CellAt(new PointD(fragment.Bounds.Left + 10, fragment.RowTop(1) + 5));
+        Assert.Equal((0, 0), (hit!.Value.Row, hit.Value.Cell));
+    }
+}

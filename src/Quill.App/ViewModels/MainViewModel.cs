@@ -614,6 +614,16 @@ public sealed partial class MainViewModel : ObservableObject
     private void ToggleTableBorders() => Session.ToggleTableBorders();
 
     [RelayCommand]
+    private void MergeCellRight() => Session.MergeCellRight();
+
+    [RelayCommand]
+    private void MergeCellDown() => Session.MergeCellDown();
+
+    [RelayCommand]
+    private void SplitCell() => Session.SplitCell();
+
+
+    [RelayCommand]
     private void ToggleTrackChanges() => TrackChanges = !TrackChanges;
 
     [RelayCommand]

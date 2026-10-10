@@ -871,7 +871,28 @@ public sealed class Paginator
                 rows.Add(new TableRowLayout(row, Math.Max(4, rowHeight), cells.ToImmutable()));
             }
 
-            return new TableLayout(table, indent, ImmutableArray.Create(widths), rows.ToImmutable(), scale);
+            ImmutableArray<TableRowLayout> built = rows.ToImmutable();
+            for (int r = 0; r < built.Length; r++)
+            {
+                foreach (TableCellLayout cell in built[r].Cells)
+                {
+                    if (cell.Cell.VerticalMerge != VerticalMerge.Restart)
+                    {
+                        continue;
+                    }
+
+                    int span = 1;
+                    while (r + span < built.Length && built[r + span].Cells.FirstOrDefault(c => Math.Abs(c.Left - cell.Left) < 0.5) is { Cell.VerticalMerge: VerticalMerge.Continue })
+                    {
+                        span++;
+                    }
+
+                    cell.MergedRows = span;
+                }
+            }
+
+            return new TableLayout(table, indent, ImmutableArray.Create(widths), built, scale);
+
         }
 
         private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields, ListMarker? marker)

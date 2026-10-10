@@ -253,4 +253,48 @@ public class TableCommandTests
         Assert.Equal(["", "TailBefore", "<Table(2x3)>", "After"], session.Document.BodyTexts());
         Assert.Equal("top", CellText(TableOf(session, 2), 0, 0));
     }
+
+    [Fact]
+    public void Cells_merge_right_and_down_and_split_again()
+    {
+        EditingSession session = SessionWithGrid();
+        session.InsertText("a");
+        session.MoveCaret(Cell(1, 0, 1), extend: false);
+        session.InsertText("b");
+        session.MoveCaret(Cell(1, 0, 0), extend: false);
+        session.MergeCellRight();
+        Table table = TableOf(session);
+        Assert.Equal(2, table.Rows[0].Cells.Length);
+        Assert.Equal(2, table.Rows[0].Cells[0].GridSpan);
+        Assert.Equal(["a", "b"], table.Rows[0].Cells[0].Blocks.Select(b => ((Paragraph)b).FlatText));
+        Assert.Equal(3, table.Rows[1].Cells.Length);
+        Assert.Equal(Cell(1, 0, 0), session.Selection.Active);
+
+        session.MoveCaret(Cell(1, 0, 1), extend: false); // the former third column
+        session.MergeCellDown();
+        table = TableOf(session);
+        Assert.Equal(VerticalMerge.Restart, table.Rows[0].Cells[1].VerticalMerge);
+        Assert.Equal(VerticalMerge.Continue, table.Rows[1].Cells[2].VerticalMerge);
+        Assert.Equal(Cell(1, 0, 1), session.Selection.Active);
+
+        session.SplitCell();
+        Assert.Equal(VerticalMerge.None, TableOf(session).Rows[0].Cells[1].VerticalMerge);
+        Assert.Equal(VerticalMerge.None, TableOf(session).Rows[1].Cells[2].VerticalMerge);
+
+        session.MoveCaret(Cell(1, 0, 0), extend: false);
+        session.SplitCell();
+        table = TableOf(session);
+        Assert.Equal(3, table.Rows[0].Cells.Length);
+        Assert.All(table.Rows[0].Cells, c => Assert.Equal(1, c.GridSpan));
+        Assert.Equal(["a", "b"], table.Rows[0].Cells[0].Blocks.Select(b => ((Paragraph)b).FlatText));
+        Assert.Equal("", CellText(table, 0, 1));
+
+        session.MoveCaret(Cell(1, 0, 2), extend: false);
+        Document before = session.Document;
+        session.MergeCellRight();
+        Assert.Same(before, session.Document);
+        session.MoveCaret(Cell(1, 1, 0), extend: false);
+        session.MergeCellDown();
+        Assert.Same(before, session.Document);
+    }
 }
