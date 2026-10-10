@@ -45,6 +45,7 @@ public partial class ShortcutsWindow : Window
         new("Ctrl+Alt+F", "Insert footnote (Esc returns to the text)"),
         new("Ctrl+Alt+D", "Insert endnote"),
         new("Ctrl+Alt+M", "New comment on the selection"),
+        new("Ctrl+Shift+E", "Track changes on / off"),
         new("Ctrl+Backspace / Ctrl+Delete", "Delete word left / right"),
         new("Ctrl+Left / Ctrl+Right", "Move by word"),
         new("Home / End", "Start / end of line"),

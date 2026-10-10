@@ -297,7 +297,7 @@ public static class DocumentEditor
 
         return TransformParagraphs(document, range, (paragraph, start, end, includesMark) =>
         {
-            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(new RunProperties { Link = inline.Properties.Link, CommentId = inline.Properties.CommentId }).WithStyle(null)));
+            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(new RunProperties { Link = inline.Properties.Link, CommentId = inline.Properties.CommentId, Revision = inline.Properties.Revision }).WithStyle(null)));
             return includesMark ? updated.WithMarkProperties(RunProperties.Empty) : updated;
         });
     }

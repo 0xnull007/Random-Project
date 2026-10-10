@@ -257,8 +257,10 @@ public class DocxRoundTripTests
         Document doc = result.Document;
 
         Assert.Equal(2, doc.Sections.Count);
-        Assert.Equal(["Heading link inserted￼ end", "theme colored"], doc.Sections[0].Body.Cast<Paragraph>().Select(p => p.FlatText));
+        Assert.Equal(["Heading link inserted deleted￼ end", "theme colored"], doc.Sections[0].Body.Cast<Paragraph>().Select(p => p.FlatText));
         var heading = (Paragraph)doc.Sections[0].Body[0];
+        Assert.Equal(RevisionKind.Deletion, heading.Inlines.Single(i => i is Run { Text: " deleted" }).Properties.Revision?.Kind);
+        Assert.Equal("a", heading.Inlines.Single(i => i is Run { Text: " deleted" }).Properties.Revision?.Author);
         var field = (Field)heading.Inlines.Single(i => i is Field);
         Assert.Equal(FieldKind.Page, field.Kind);
         Assert.Equal("PAGE \\* MERGEFORMAT", field.Instruction);

@@ -53,6 +53,7 @@ public sealed partial class MainViewModel : ObservableObject
         ShowFormattingMarks = _settings.ShowFormattingMarks;
         Theme = ThemeChoices.Contains(_settings.Theme) ? _settings.Theme : "System";
         Session.AutoCorrect = _settings.AutoCorrect.ToOptions();
+        Session.Author = AuthorName();
         _headingsTimer.Tick += (_, _) => RefreshHeadings();
         ShowNavigation = _settings.ShowNavigation;
         CheckSpelling = _settings.CheckSpelling;
@@ -127,6 +128,20 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>True while the caret is inside a table; shows the contextual Table tab.</summary>
     [ObservableProperty]
     public partial bool IsInTable { get; set; }
+
+    /// <summary>Mirrors the document's track-changes switch (Review tab toggle, Ctrl+Shift+E).</summary>
+    [ObservableProperty]
+    public partial bool TrackChanges { get; set; }
+
+    partial void OnTrackChangesChanged(bool value)
+    {
+        if (Session.TrackChanges != value)
+        {
+            Session.SetTrackChanges(value);
+            StatusMessage = value ? "Track Changes on: insertions are underlined, deletions struck through" : "Track Changes off";
+        }
+    }
+
 
 
     [ObservableProperty]
@@ -320,7 +335,10 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string WordCountText { get; set; } = "0 words";
 
+    private string AuthorName() => string.IsNullOrWhiteSpace(_settings.Author) ? Environment.UserName : _settings.Author;
+
     private void UpdateWordCountText()
+
     {
         string total = WordCount.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
         if (Session.Selection.IsCollapsed || !Session.Selection.Range.IsWithinOneParagraph && Session.Selection.Range.End.Block.TopIndex - Session.Selection.Range.Start.Block.TopIndex > 2000)
@@ -571,6 +589,48 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleTableBorders() => Session.ToggleTableBorders();
 
+    [RelayCommand]
+    private void ToggleTrackChanges() => TrackChanges = !TrackChanges;
+
+    [RelayCommand]
+    private void AcceptChange() => Session.AcceptChange();
+
+    [RelayCommand]
+    private void RejectChange() => Session.RejectChange();
+
+    [RelayCommand]
+    private void AcceptAllChanges()
+    {
+        Session.AcceptAllChanges();
+        StatusMessage = "All tracked changes accepted";
+    }
+
+    [RelayCommand]
+    private void RejectAllChanges()
+    {
+        Session.RejectAllChanges();
+        StatusMessage = "All tracked changes rejected";
+    }
+
+    [RelayCommand]
+    private void NextChange()
+    {
+        if (!Session.SelectNextChange())
+        {
+            StatusMessage = "No tracked changes";
+        }
+    }
+
+    [RelayCommand]
+    private void PreviousChange()
+    {
+        if (!Session.SelectPreviousChange())
+        {
+            StatusMessage = "No tracked changes";
+        }
+    }
+
+
 
     [RelayCommand]
     private void InsertColumnBreak() => Session.InsertBreak(BreakKind.Column);
@@ -737,7 +797,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Attaches a comment to the selection and shows the pane with it selected.</summary>
     public int AddComment()
     {
-        int id = Session.AddComment(string.IsNullOrWhiteSpace(_settings.Author) ? Environment.UserName : _settings.Author);
+        int id = Session.AddComment(AuthorName());
         ShowComments = true;
         RefreshComments();
         SelectedComment = Comments.FirstOrDefault(c => c.Id == id);
@@ -883,6 +943,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(author))
         {
             _settings.Author = author;
+            Session.Author = AuthorName();
         }
 
         _settings.Save();
@@ -1425,6 +1486,7 @@ public sealed partial class MainViewModel : ObservableObject
             bool? listKind = Session.ListKind(current);
             IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
             IsInTable = Session.IsInTable;
+            TrackChanges = Session.TrackChanges;
             UpdateCurrentHeading();
             UpdateWordCountText();
             IsBulleted = listKind == true;

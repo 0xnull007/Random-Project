@@ -14,7 +14,7 @@ public readonly record struct DocumentStatistics(int Words, int Characters, int 
         int count = 0;
         foreach (Paragraph paragraph in paragraphs)
         {
-            string text = paragraph.FlatText;
+            string text = VisibleText(paragraph);
             bool hasContent = false;
             bool inWord = false;
             foreach (char c in text)
@@ -49,6 +49,28 @@ public readonly record struct DocumentStatistics(int Words, int Characters, int 
 
         return new DocumentStatistics(words, characters, withSpaces, count);
     }
+
+    /// <summary>The paragraph text without runs marked as tracked deletions (Word does not count deleted text).</summary>
+    private static string VisibleText(Paragraph paragraph)
+    {
+        string flat = paragraph.FlatText;
+        if (!paragraph.Inlines.Any(i => i.Properties.Revision is { IsDeletion: true }))
+        {
+            return flat;
+        }
+
+        var builder = new System.Text.StringBuilder(flat.Length);
+        foreach (InlineSpan span in paragraph.Spans())
+        {
+            if (span.Inline.Properties.Revision is not { IsDeletion: true })
+            {
+                builder.Append(flat, span.Start, span.Length);
+            }
+        }
+
+        return builder.ToString();
+    }
+
 
     /// <summary>Statistics for every body paragraph of the document.</summary>
     public static DocumentStatistics Compute(Document document)

@@ -52,9 +52,9 @@ character and paragraph formatting (toolbar, Font and Paragraph dialogs, Format 
 bulleted and numbered lists with numbering styles, change case, AutoCorrect, page and section breaks, multi-column
 sections, headers and footers with page-number fields, Page Setup, a ruler with draggable indents and tab stops,
 inline pictures, hyperlinks, tables (text in cells is editable), a table of contents, footnotes and endnotes,
-comments, heading numbering, symbols and date/time, .docx
+comments, track changes (Review tab), heading numbering, symbols and date/time, .docx
 open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop, find and replace, spell
 checking (Windows Spell Checking API), IME input, print, print preview, PDF export, recent files, autosave
 recovery, formatting marks, navigation pane, word count, light/dark theme, document properties, and a UI
-Automation text pattern. Next: table rows and columns (Insert Table), track changes, and packaging as MSIX. The full manual
+Automation text pattern. Next: packaging as MSIX, cell merging and shading, and table styles. The full manual
 checklist is in [docs/TESTING.md](docs/TESTING.md).

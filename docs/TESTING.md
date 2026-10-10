@@ -197,6 +197,23 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       last paragraph of the document under a separator line; Esc returns; round-trips through .docx **(new)**.
 - [ ] Insert > Date & Time...: pick a format (double-click or Insert); the text is inserted at the caret.
 
+## 11b. Track changes (new)
+
+- [ ] Review > Track Changes (or Ctrl+Shift+E): the toggle lights up and "Track Changes" appears in the status bar.
+      Type: new text is underlined in a colour; select text and press Delete: it stays, struck through in the same
+      colour; type over a selection: the old text is struck and the new text follows underlined; Backspace over
+      text you just typed removes it outright; Backspace over struck text only steps over it.
+- [ ] Options > Author sets the name recorded; a document edited under two names shows two colours.
+- [ ] Word count in the status bar and Word Count dialog ignore struck (deleted) text.
+- [ ] Review > Next / Previous select each change in turn and wrap around; Accept keeps the insertion or removes the
+      deleted text under the caret and jumps to the next change; Reject does the opposite; Accept All / Reject All
+      clear every mark (undo brings the marks back).
+- [ ] Turn tracking off: typing is normal again, even right next to tracked text; existing marks stay.
+- [ ] Save as .docx with tracking on and open in Word: Word shows the same insertions and deletions with the author
+      and date, Track Changes is on, and no repair prompt appears. Open a Word document with tracked changes: its
+      changes appear as markup and can be accepted or rejected here.
+- [ ] Cut (Ctrl+X) while tracking strikes the text instead of removing it; Paste marks the pasted text inserted.
+
 ## 12. Find and replace
 
 - [ ] Ctrl+F opens Find pre-filled with the selected word; Enter / Find Next / F3 moves forward, Shift+F4 back,
@@ -296,8 +313,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 - Tables: no merging or splitting of cells, cell shading or dragging of column widths yet; unedited tables are saved
   exactly as read, edited and inserted ones are written as plain grids.
-- No track changes
-  or equations (dropped with a warning), single column only.
+- Track changes records insertions and deletions of text only: formatting changes, paragraph marks, moved
+  pictures and tables are not tracked, and deleted text is always shown (Word's "All Markup").
+- No equations (dropped with a warning).
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app
   gives its text only.
 - Pasting RTF from other apps brings text formatting but not pictures.

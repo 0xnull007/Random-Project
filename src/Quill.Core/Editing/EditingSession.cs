@@ -113,6 +113,8 @@ public sealed partial class EditingSession
             properties = properties.Merge(PendingFormat);
         }
 
+        properties = WithTypingMarks(properties);
+
         (Document working, TextPosition at, ChangeSet? deletion) = DeleteSelectionIfAny();
         bool startsNewGroup = deletion is not null;
         if (!startsNewGroup && at.Offset > 0 && !char.IsWhiteSpace(text[0]))
@@ -142,6 +144,8 @@ public sealed partial class EditingSession
         {
             properties = properties.Merge(PendingFormat);
         }
+
+        properties = WithTypingMarks(properties);
 
         DocumentFragment fragment = DocumentFragment.FromPlainText(text, properties);
         if (styleId is not null)
@@ -243,7 +247,7 @@ public sealed partial class EditingSession
         }
 
         bool joinsParagraphs = previous.Value.Block != position.Block;
-        Commit(DocumentEditor.DeleteRange(Document, new TextRange(previous.Value, position)), EditKind.Backspace, joinsParagraphs);
+        Commit(DeleteOrMark(Document, new TextRange(previous.Value, position), caretAfter: false), EditKind.Backspace, joinsParagraphs);
     }
 
     public void Delete()
@@ -262,7 +266,7 @@ public sealed partial class EditingSession
         }
 
         bool joinsParagraphs = next.Value.Block != position.Block;
-        Commit(DocumentEditor.DeleteRange(Document, new TextRange(position, next.Value)), EditKind.ForwardDelete, joinsParagraphs);
+        Commit(DeleteOrMark(Document, new TextRange(position, next.Value), caretAfter: true), EditKind.ForwardDelete, joinsParagraphs);
     }
 
     public void DeleteWordBackward() => DeleteTo(TextNavigation.PreviousWord(Document, Selection.Active));
@@ -276,7 +280,7 @@ public sealed partial class EditingSession
             return;
         }
 
-        Commit(DocumentEditor.DeleteRange(Document, Selection.Range), kind, startsNewGroup: true);
+        Commit(DeleteOrMark(Document, Selection.Range, caretAfter: false), kind, startsNewGroup: true);
         PendingFormat = null;
     }
 
@@ -487,6 +491,8 @@ public sealed partial class EditingSession
             properties = properties.Merge(PendingFormat);
         }
 
+        properties = WithTypingMarks(properties);
+
         Paragraph paragraph = Document.GetParagraph(Selection.Active);
         return _resolver.ResolveRun(paragraph.StyleId, styleId, properties);
     }
@@ -513,6 +519,7 @@ public sealed partial class EditingSession
         }
 
         (Document working, TextPosition at, ChangeSet? deletion) = DeleteSelectionIfAny();
+        fragment = WithInsertionMarks(fragment);
         EditResult result = DocumentEditor.InsertFragment(working, at, fragment);
         Commit(WithDeletion(result, deletion), EditKind.Paste, startsNewGroup: true);
         PendingFormat = null;
@@ -685,17 +692,31 @@ public sealed partial class EditingSession
             return; // dropped onto itself
         }
 
-        DocumentFragment fragment = DocumentEditor.ExtractFragment(Document, source);
+        DocumentFragment fragment = WithInsertionMarks(DocumentEditor.ExtractFragment(Document, source));
         Document document = Document;
         TextPosition at = target;
         ChangeSet? change = null;
         if (!copy)
         {
-            EditResult deleted = DocumentEditor.DeleteRange(document, source);
-            document = deleted.Document;
-            change = deleted.Change;
-            at = AdjustAfterDelete(target, source);
+            if (TrackChanges)
+            {
+                EditResult marked = MarkDeleted(document, source, caretAfter: false, out int dropped);
+                document = marked.Document;
+                change = marked.Change;
+                if (target.Story == source.Story && target.Block == source.End.Block && target.Offset >= source.End.Offset)
+                {
+                    at = target.WithOffset(target.Offset - dropped);
+                }
+            }
+            else
+            {
+                EditResult deleted = DocumentEditor.DeleteRange(document, source);
+                document = deleted.Document;
+                change = deleted.Change;
+                at = AdjustAfterDelete(target, source);
+            }
         }
+
 
         EditResult inserted = DocumentEditor.InsertFragment(document, at, fragment);
         ChangeSet total = change is { } first ? first.Union(inserted.Change) : inserted.Change;
@@ -1301,7 +1322,7 @@ public sealed partial class EditingSession
             return;
         }
 
-        Commit(DocumentEditor.DeleteRange(Document, new TextRange(Selection.Active, target.Value)), EditKind.Other, startsNewGroup: true);
+        Commit(DeleteOrMark(Document, new TextRange(Selection.Active, target.Value), caretAfter: target.Value > Selection.Active), EditKind.Other, startsNewGroup: true);
     }
 
     private (Document Document, TextPosition At, ChangeSet? Deletion) DeleteSelectionIfAny()
@@ -1311,7 +1332,7 @@ public sealed partial class EditingSession
             return (Document, Selection.Active, null);
         }
 
-        EditResult deleted = DocumentEditor.DeleteRange(Document, Selection.Range);
+        EditResult deleted = DeleteOrMark(Document, Selection.Range, caretAfter: true);
         return (deleted.Document, deleted.Selection.Active, deleted.Change);
     }
 

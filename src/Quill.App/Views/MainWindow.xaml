@@ -64,6 +64,7 @@
     <KeyBinding Modifiers="Ctrl" Key="U" Command="{Binding ToggleUnderlineCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="L" Command="{Binding AlignCommand}" CommandParameter="Left" />
     <KeyBinding Modifiers="Ctrl" Key="E" Command="{Binding AlignCommand}" CommandParameter="Center" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="E" Command="{Binding ToggleTrackChangesCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="R" Command="{Binding AlignCommand}" CommandParameter="Right" />
     <KeyBinding Modifiers="Ctrl" Key="J" Command="{Binding AlignCommand}" CommandParameter="Justify" />
     <KeyBinding Modifiers="Ctrl" Key="N" Command="{Binding NewDocumentCommand}" />
@@ -297,6 +298,24 @@
         </WrapPanel>
       </TabItem>
 
+      <TabItem Header="Review">
+        <WrapPanel Orientation="Horizontal">
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding TrackChanges}" Content="Track Changes" ToolTip="Record insertions and deletions as tracked changes (Ctrl+Shift+E); insertions are underlined and deletions struck through in the author's colour" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Previous" Command="{Binding PreviousChangeCommand}" ToolTip="Select the previous tracked change" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Next" Command="{Binding NextChangeCommand}" ToolTip="Select the next tracked change" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Accept" Command="{Binding AcceptChangeCommand}" ToolTip="Accept the selected change (or the one at the caret) and move to the next" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Reject" Command="{Binding RejectChangeCommand}" ToolTip="Reject the selected change (or the one at the caret) and move to the next" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Accept All" Command="{Binding AcceptAllChangesCommand}" ToolTip="Keep every insertion and remove every deletion" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Reject All" Command="{Binding RejectAllChangesCommand}" ToolTip="Remove every insertion and restore every deletion" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowComments}" Content="Comments Pane" ToolTip="Show the comments pane" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding CheckSpelling}" Content="Spelling" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Word Count" Command="{x:Static views:MainWindow.WordCountCommand}" ToolTip="Pages, words, characters, paragraphs (Ctrl+Shift+G)" />
+        </WrapPanel>
+      </TabItem>
+
       <!-- Contextual tab: appears while a picture is selected, like Word's Picture Format. -->
       <TabItem x:Name="PictureTab" Header="Picture" Visibility="{Binding IsPictureSelected, Converter={StaticResource BoolToVis}}">
         <WrapPanel Orientation="Horizontal">
@@ -346,6 +365,11 @@
           <Run Text="{Binding WordCountText, Mode=OneWay}" />
         </TextBlock>
       </StatusBarItem>
+      <Separator Visibility="{Binding TrackChanges, Converter={StaticResource BoolToVis}}" />
+      <StatusBarItem Padding="4,0" Visibility="{Binding TrackChanges, Converter={StaticResource BoolToVis}}">
+        <TextBlock Text="Track Changes" ToolTip="Edits are being recorded as tracked changes (Review tab, Ctrl+Shift+E)" />
+      </StatusBarItem>
+
       <Separator />
       <StatusBarItem Padding="4,0">
         <TextBlock Text="{Binding StatusMessage}" TextTrimming="CharacterEllipsis" MaxWidth="600" ToolTip="{Binding StatusMessage}" />

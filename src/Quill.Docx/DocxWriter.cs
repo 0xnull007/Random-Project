@@ -42,6 +42,11 @@ public static class DocxWriter
 
         DocumentSettingsPart settingsPart = main.AddNewPart<DocumentSettingsPart>();
         var settings = new W.Settings(new W.DefaultTabStop { Val = (short)Math.Clamp(document.Settings.DefaultTabStop.Value, 1, short.MaxValue) });
+        if (document.Settings.TrackChanges)
+        {
+            settings.PrependChild(new W.TrackRevisions());
+        }
+
         if (document.Settings.EvenAndOddHeaders)
         {
             settings.Append(new W.EvenAndOddHeaders());
@@ -256,7 +261,9 @@ public static class DocxWriter
         }
 
         OpenXmlElement container = result;
+        OpenXmlElement runContainer = result;
         string? openLink = null;
+        Revision? openRevision = null;
         for (int inlineIndex = 0; inlineIndex < paragraph.Inlines.Length; inlineIndex++)
         {
             Inline inline = paragraph.Inlines[inlineIndex];
@@ -265,21 +272,39 @@ public static class DocxWriter
             {
                 container = result;
                 openLink = null;
+                openRevision = null;
                 if (link is not null && BuildHyperlink(context, link) is { } hyperlink)
                 {
                     result.Append(hyperlink);
                     container = hyperlink;
                     openLink = link;
                 }
+
+                runContainer = container;
+            }
+
+            // Tracked runs sit inside w:ins / w:del; consecutive runs of one change share a wrapper.
+            Revision? revision = inline is Run ? inline.Properties.Revision : null;
+            if (!Equals(revision, openRevision) || revision is null)
+            {
+                openRevision = revision;
+                runContainer = container;
+                if (revision is not null)
+                {
+                    OpenXmlElement wrapper = BuildRevisionWrapper(context, revision);
+                    container.Append(wrapper);
+                    runContainer = wrapper;
+                }
             }
 
             switch (inline)
             {
                 case Run run:
-                    AppendCommentStart(container, context, run);
-                    container.Append(BuildRun(run));
-                    AppendCommentEnd(container, context, run, inlineIndex);
+                    AppendCommentStart(runContainer, context, run);
+                    runContainer.Append(BuildRun(run, deleted: revision is { IsDeletion: true }));
+                    AppendCommentEnd(runContainer, context, run, inlineIndex);
                     break;
+
 
 
                 case Break br:
@@ -343,7 +368,20 @@ public static class DocxWriter
         return result;
     }
 
-    private static W.Run BuildRun(Run run)
+    private static OpenXmlElement BuildRevisionWrapper(PartContext context, Revision revision)
+    {
+        W.RunTrackChangeType wrapper = revision.IsInsertion ? new W.InsertedRun() : new W.DeletedRun();
+        wrapper.Id = context.State.NextRevisionId().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        wrapper.Author = revision.Author;
+        if (revision.Date > DateTime.MinValue)
+        {
+            wrapper.Date = new DateTimeValue(DateTime.SpecifyKind(revision.Date, DateTimeKind.Utc));
+        }
+
+        return wrapper;
+    }
+
+    private static W.Run BuildRun(Run run, bool deleted = false)
     {
         var element = new W.Run();
         AppendRunProperties(element, run.Properties, run.StyleId);
@@ -357,12 +395,15 @@ public static class DocxWriter
 
             if (parts[i].Length > 0)
             {
-                element.Append(new W.Text(parts[i]) { Space = SpaceProcessingModeValues.Preserve });
+                element.Append(deleted
+                    ? new W.DeletedText(parts[i]) { Space = SpaceProcessingModeValues.Preserve }
+                    : new W.Text(parts[i]) { Space = SpaceProcessingModeValues.Preserve });
             }
         }
 
         return element;
     }
+
 
     private static void AppendRunProperties(W.Run element, RunProperties properties, string? styleId)
     {
@@ -878,6 +919,9 @@ public static class DocxWriter
     private sealed class WriterState
     {
         private uint _nextPictureId;
+        private int _nextRevisionId;
+
+        public int NextRevisionId() => ++_nextRevisionId;
 
         public WriterState(ImageStore images, IReadOnlyList<int> noteIds, Document document)
         {

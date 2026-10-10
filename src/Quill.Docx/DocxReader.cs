@@ -286,7 +286,13 @@ public sealed class DocxReader
                 case W.Hyperlink hyperlink:
                     ReadHyperlink(hyperlink, builder);
                     break;
-                case W.SdtContentRun or W.InsertedRun or W.CustomXmlRun or W.SimpleFieldRuby:
+                case W.InsertedRun inserted:
+                    ReadRevision(inserted, RevisionKind.Insertion, builder);
+                    break;
+                case W.DeletedRun deleted:
+                    ReadRevision(deleted, RevisionKind.Deletion, builder);
+                    break;
+                case W.SdtContentRun or W.CustomXmlRun or W.SimpleFieldRuby:
                 case OpenXmlElement when element.LocalName == "smartTag":
                     ReadInlines(element, builder);
                     break;
@@ -302,7 +308,7 @@ public sealed class DocxReader
                 case W.CommentRangeEnd commentEnd:
                     CloseComment(commentEnd.Id?.Value);
                     break;
-                case W.DeletedRun or W.ParagraphProperties or W.BookmarkStart or W.BookmarkEnd or W.ProofError
+                case W.ParagraphProperties or W.BookmarkStart or W.BookmarkEnd or W.ProofError
                     or W.PermStart or W.PermEnd or W.MoveFromRangeStart
 
                     or W.MoveFromRangeEnd or W.MoveToRangeStart or W.MoveToRangeEnd or W.SdtProperties or W.SdtEndCharProperties
@@ -378,7 +384,19 @@ public sealed class DocxReader
         builder.AddField(new Field(FieldKindFrom(instruction), instruction.Trim(), result.ToString(), ReadRunProperties(firstRun?.RunProperties), firstRun?.RunProperties?.RunStyle?.Val?.Value));
     }
 
+    /// <summary>w:ins / w:del: everything inside carries the change's author and date.</summary>
+    private void ReadRevision(W.RunTrackChangeType change, RevisionKind kind, InlineBuilder builder)
+    {
+        Revision? outer = builder.CurrentRevision;
+        string author = string.IsNullOrWhiteSpace(change.Author?.Value) ? "Unknown" : change.Author!.Value!;
+        DateTime date = change.Date?.Value ?? DateTime.MinValue;
+        builder.CurrentRevision = new Revision(kind, author, date);
+        ReadInlines(change, builder);
+        builder.CurrentRevision = outer;
+    }
+
     private void ReadRun(W.Run run, InlineBuilder builder)
+
     {
         RunProperties properties = ReadRunProperties(run.RunProperties);
         string? styleId = run.RunProperties?.RunStyle?.Val?.Value;
@@ -399,6 +417,9 @@ public sealed class DocxReader
             {
                 case W.Text t:
                     text.Append(t.Text);
+                    break;
+                case W.DeletedText deletedText:
+                    text.Append(deletedText.Text);
                     break;
                 case W.TabChar or W.PositionalTab:
                     text.Append('\t');
@@ -1096,6 +1117,11 @@ public sealed class DocxReader
             result = result with { EvenAndOddHeaders = true };
         }
 
+        if (OnOff(settings.GetFirstChild<W.TrackRevisions>()) == true)
+        {
+            result = result with { TrackChanges = true };
+        }
+
         return result;
     }
 
@@ -1121,6 +1147,9 @@ public sealed class DocxReader
         /// <summary>Target of the w:hyperlink being read, applied to every run inside it.</summary>
         public string? CurrentLink { get; set; }
 
+        /// <summary>The w:ins or w:del being read, applied to every run inside it.</summary>
+        public Revision? CurrentRevision { get; set; }
+
         public void AddText(string text, RunProperties properties, string? styleId)
         {
             if (_depth > 1)
@@ -1139,6 +1168,11 @@ public sealed class DocxReader
             }
 
             RunProperties withMarks = CurrentLink is null ? properties : properties with { Link = CurrentLink };
+            if (CurrentRevision is not null)
+            {
+                withMarks = withMarks with { Revision = CurrentRevision };
+            }
+
             if (reader._openComments.Count > 0)
             {
                 withMarks = withMarks with { CommentId = reader._openComments[^1] };

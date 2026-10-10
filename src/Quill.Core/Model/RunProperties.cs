@@ -45,6 +45,9 @@ public sealed record RunProperties
     /// <summary>Id of the comment this run is part of; set directly on runs, never by styles.</summary>
     public int? CommentId { get; init; }
 
+    /// <summary>Tracked insertion or deletion this run belongs to; set directly on runs, never by styles.</summary>
+    public Revision? Revision { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -78,6 +81,7 @@ public sealed record RunProperties
             Language = overrides.Language ?? Language,
             Link = overrides.Link ?? Link,
             CommentId = overrides.CommentId ?? CommentId,
+            Revision = overrides.Revision ?? Revision,
         };
     }
 }

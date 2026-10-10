@@ -156,15 +156,33 @@ public sealed class StyleResolver
         }
 
         merged = merged.Merge(key.Direct);
+
+        // Tracked changes show as markup: insertions underlined and deletions struck through, in the author's colour.
+        UnderlineStyle underline = merged.Underline!.Value;
+        bool strikethrough = merged.Strikethrough!.Value;
+        DocColor color = merged.Color!.Value;
+        if (merged.Revision is { } revision)
+        {
+            color = Revision.ColorFor(revision.Author);
+            if (revision.IsInsertion)
+            {
+                underline = underline == UnderlineStyle.None ? UnderlineStyle.Single : underline;
+            }
+            else
+            {
+                strikethrough = true;
+            }
+        }
+
         return new ResolvedRunProperties(
             merged.FontFamily!,
             merged.FontSize!.Value,
             merged.Bold!.Value,
             merged.Italic!.Value,
-            merged.Underline!.Value,
-            merged.Strikethrough!.Value,
+            underline,
+            strikethrough,
             merged.DoubleStrikethrough!.Value,
-            merged.Color!.Value,
+            color,
             merged.Highlight!.Value,
             merged.VerticalAlignment!.Value,
             merged.SmallCaps!.Value,
@@ -172,7 +190,9 @@ public sealed class StyleResolver
             merged.Hidden!.Value,
             merged.Language!,
             merged.Link,
-            merged.CommentId);
+            merged.CommentId,
+            merged.Revision);
+
     }
 
     /// <summary>Run properties accumulated from the root of the BasedOn chain down to <paramref name="styleId"/>.</summary>

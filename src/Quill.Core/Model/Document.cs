@@ -15,6 +15,9 @@ public sealed record DocumentSettings
 
     /// <summary>Use the Even header/footer variants on even pages.</summary>
     public bool EvenAndOddHeaders { get; init; }
+
+    /// <summary>Record insertions and deletions as tracked changes (<c>w:trackRevisions</c>).</summary>
+    public bool TrackChanges { get; init; }
 }
 
 public sealed record DocumentMetadata
