@@ -57,6 +57,7 @@ public sealed partial class MainViewModel : ObservableObject
         ShowNavigation = _settings.ShowNavigation;
         CheckSpelling = _settings.CheckSpelling;
         ShowRuler = _settings.ShowRuler;
+        ShowComments = _settings.ShowComments;
         UnitPreference.Apply(_settings.Units);
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
         _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
@@ -68,6 +69,11 @@ public sealed partial class MainViewModel : ObservableObject
         FontSizes = new ObservableCollection<double>(StandardSizes);
         ParagraphStyles = new ObservableCollection<Style>(Session.Document.Styles.ParagraphStyles.Where(s => s.QuickFormat).OrderBy(s => s.Priority));
         _knownStyles = Session.Document.Styles;
+        if (ShowComments)
+        {
+            RefreshComments();
+        }
+
         RefreshFormatState();
         UpdateTitle();
     }
@@ -647,7 +653,79 @@ public sealed partial class MainViewModel : ObservableObject
         PainterChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    // ----- Comments pane -----
+
+    public ObservableCollection<CommentEntry> Comments { get; } = [];
+
+    [ObservableProperty]
+    public partial bool ShowComments { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasNoComments { get; set; } = true;
+
+    [ObservableProperty]
+    public partial CommentEntry? SelectedComment { get; set; }
+
+    private bool _syncingComments;
+
+    public bool IsSyncingComments => _syncingComments;
+
+    partial void OnShowCommentsChanged(bool value)
+    {
+        _settings.ShowComments = value;
+        _settings.Save();
+        if (value)
+        {
+            RefreshComments();
+        }
+    }
+
+    /// <summary>Rebuilds the comment list from the document (cheap: comments are few).</summary>
+    public void RefreshComments()
+    {
+        _syncingComments = true;
+        try
+        {
+            int? selectedId = SelectedComment?.Id;
+            Comments.Clear();
+            foreach (Comment comment in Session.Document.Comments.Values.OrderBy(c => c.Id))
+            {
+                Comments.Add(new CommentEntry(comment.Id, comment.Author, comment.Date, comment.Text));
+            }
+
+            HasNoComments = Comments.Count == 0;
+            SelectedComment = Comments.FirstOrDefault(c => c.Id == selectedId);
+        }
+        finally
+        {
+            _syncingComments = false;
+        }
+    }
+
+    /// <summary>Attaches a comment to the selection and shows the pane with it selected.</summary>
+    public int AddComment()
+    {
+        int id = Session.AddComment(string.IsNullOrWhiteSpace(_settings.Author) ? Environment.UserName : _settings.Author);
+        ShowComments = true;
+        RefreshComments();
+        SelectedComment = Comments.FirstOrDefault(c => c.Id == id);
+        return id;
+    }
+
+    public void DeleteComment(int id)
+    {
+        Session.DeleteComment(id);
+        RefreshComments();
+    }
+
+    public void SaveCommentText(CommentEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        Session.SetCommentText(entry.Id, entry.Text);
+    }
+
     // ----- Navigation pane -----
+
 
     public ObservableCollection<HeadingEntry> Headings { get; } = [];
 
@@ -764,12 +842,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Saves and applies what the Options dialog returned.</summary>
 
-    public void ApplyOptions(int autosaveMinutes, AutoCorrectSettings autoCorrect, string units)
+    public void ApplyOptions(int autosaveMinutes, AutoCorrectSettings autoCorrect, string units, string? author = null)
     {
         ArgumentNullException.ThrowIfNull(autoCorrect);
         _settings.AutosaveMinutes = Math.Clamp(autosaveMinutes, 0, 120);
         _settings.AutoCorrect = autoCorrect;
         _settings.Units = units;
+        if (!string.IsNullOrWhiteSpace(author))
+        {
+            _settings.Author = author;
+        }
+
         _settings.Save();
         Session.AutoCorrect = autoCorrect.ToOptions();
         UnitPreference.Apply(units);
@@ -1358,4 +1441,17 @@ public sealed record HeadingEntry(string Text, int Level, TextPosition Position)
     public string Display => Text.Length == 0 ? "(empty heading)" : Text;
 
     public Thickness Margin => new(8 + Level * 14, 2, 4, 2);
+}
+
+/// <summary>A comment shown in the comments pane; <see cref="Text"/> is edited in place.</summary>
+public sealed partial class CommentEntry(int id, string author, DateTimeOffset? date, string text) : ObservableObject
+{
+    public int Id { get; } = id;
+
+    public string Author { get; } = author;
+
+    public string DateText { get; } = date is { } when ? when.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture) : string.Empty;
+
+    [ObservableProperty]
+    public partial string Text { get; set; } = text;
 }

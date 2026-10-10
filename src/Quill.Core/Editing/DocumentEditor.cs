@@ -207,7 +207,32 @@ public static class DocumentEditor
         });
     }
 
+    /// <summary>Every story of the document with its blocks: section bodies, header/footer variants and footnotes.</summary>
+    public static IEnumerable<(StoryId Story, ImmutableList<Block> Blocks)> AllStories(Document document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        for (int s = 0; s < document.Sections.Count; s++)
+        {
+            Section section = document.Sections[s];
+            yield return (StoryId.Body(s), section.Body);
+            foreach (StoryKind kind in new[] { StoryKind.HeaderDefault, StoryKind.HeaderFirst, StoryKind.HeaderEven, StoryKind.FooterDefault, StoryKind.FooterFirst, StoryKind.FooterEven })
+            {
+                var story = new StoryId(s, kind);
+                if (document.TryGetStory(story) is { } blocks)
+                {
+                    yield return (story, blocks);
+                }
+            }
+        }
+
+        foreach ((int id, ImmutableList<Block> blocks) in document.Footnotes)
+        {
+            yield return (StoryId.Footnote(id), blocks);
+        }
+    }
+
     /// <summary>Makes the range a hyperlink to <paramref name="url"/>, giving the runs the hyperlink character style (or direct formatting when the sheet has none).</summary>
+
     public static EditResult ApplyLink(Document document, TextRange range, string url, string? hyperlinkStyleId, RunProperties? fallbackFormat = null)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -260,7 +285,7 @@ public static class DocumentEditor
 
         return TransformParagraphs(document, range, (paragraph, start, end, includesMark) =>
         {
-            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(new RunProperties { Link = inline.Properties.Link }).WithStyle(null)));
+            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(new RunProperties { Link = inline.Properties.Link, CommentId = inline.Properties.CommentId }).WithStyle(null)));
             return includesMark ? updated.WithMarkProperties(RunProperties.Empty) : updated;
         });
     }

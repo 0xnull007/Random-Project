@@ -42,6 +42,9 @@ public sealed record RunProperties
     /// <summary>Hyperlink target (a URL, or "#bookmark" for a place in the document); set directly on runs, never by styles.</summary>
     public string? Link { get; init; }
 
+    /// <summary>Id of the comment this run is part of; set directly on runs, never by styles.</summary>
+    public int? CommentId { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -74,6 +77,7 @@ public sealed record RunProperties
             Hidden = overrides.Hidden ?? Hidden,
             Language = overrides.Language ?? Language,
             Link = overrides.Link ?? Link,
+            CommentId = overrides.CommentId ?? CommentId,
         };
     }
 }

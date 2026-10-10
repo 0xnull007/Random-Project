@@ -174,6 +174,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       the bottom of the page (separator line, small text); type the note, Esc returns to the text. Notes are
       numbered in order, move with their reference to the next page, round-trip through .docx and show in Word.
       Opening a Word file with footnotes shows them **(new)**.
+- [ ] Comments: select text, Insert > Comment (Ctrl+Alt+M): the text gets a light orange background, the Comments
+      pane opens on the right with a card (your name from Options, date) and the caret is in its text box; type the
+      comment (saved when you leave the box); clicking a card selects its text; ✕ deletes it. Word documents with
+      comments show them; saved comments open in Word's review pane **(new)**.
 - [ ] Insert > Date & Time...: pick a format (double-click or Insert); the text is inserted at the caret.
 
 ## 12. Find and replace
@@ -265,7 +269,7 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 ## Known limitations (expected, not bugs)
 
 - Tables are displayed (not editable) and preserved on save exactly as read.
-- No endnotes, comments, track changes
+- No endnotes, track changes
   or equations (dropped with a warning), single column only.
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app
   gives its text only.

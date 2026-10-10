@@ -19,7 +19,8 @@ public sealed record ResolvedRunProperties(
     bool AllCaps,
     bool Hidden,
     string Language,
-    string? Link = null);
+    string? Link = null,
+    int? CommentId = null);
 
 /// <summary>Fully resolved paragraph formatting: every value is known.</summary>
 public sealed record ResolvedParagraphProperties(

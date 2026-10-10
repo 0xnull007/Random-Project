@@ -28,6 +28,8 @@ public sealed class DocxReader
     private readonly Dictionary<string, string> _imageIdsByUri = new(StringComparer.Ordinal);
     private readonly ImmutableDictionary<int, ImmutableList<Block>>.Builder _footnotes = ImmutableDictionary.CreateBuilder<int, ImmutableList<Block>>();
     private int? _currentNoteId;
+    private readonly List<int> _openComments = [];
+    private readonly ImmutableDictionary<int, Comment>.Builder _comments = ImmutableDictionary.CreateBuilder<int, Comment>();
 
     private DocxReader()
     {
@@ -62,6 +64,7 @@ public sealed class DocxReader
         W.Body body = _main.Document?.Body ?? new W.Body();
         ImmutableList<Section> sections = ReadSections(body);
         ReadFootnotes(_main.FootnotesPart);
+        ReadComments(_main.WordprocessingCommentsPart);
         DocumentMetadata metadata = new()
         {
             Title = package.PackageProperties.Title,
@@ -71,7 +74,7 @@ public sealed class DocxReader
             Created = package.PackageProperties.Created,
             Modified = package.PackageProperties.Modified,
         };
-        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable()), _footnotes.ToImmutable()), _warnings);
+        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable()), _footnotes.ToImmutable(), _comments.ToImmutable()), _warnings);
     }
 
     // ------------------------------------------------------------------ sections and stories
@@ -162,8 +165,15 @@ public sealed class DocxReader
                 }
 
                 break;
-            case W.BookmarkStart or W.BookmarkEnd or W.ProofError or W.CommentRangeStart or W.CommentRangeEnd or W.SectionProperties:
+            case W.CommentRangeStart commentStart:
+                OpenComment(commentStart.Id?.Value);
                 break;
+            case W.CommentRangeEnd commentEnd:
+                CloseComment(commentEnd.Id?.Value);
+                break;
+            case W.BookmarkStart or W.BookmarkEnd or W.ProofError or W.SectionProperties:
+                break;
+
             default:
                 blocks.Add(new OpaqueBlock(element.LocalName, element.OuterXml));
                 Warn($"Unsupported content ({element.LocalName}) is preserved but not shown.");
@@ -283,8 +293,15 @@ public sealed class DocxReader
                 case W.SimpleField field:
                     ReadSimpleField(field, builder);
                     break;
+                case W.CommentRangeStart commentStart:
+                    OpenComment(commentStart.Id?.Value);
+                    break;
+                case W.CommentRangeEnd commentEnd:
+                    CloseComment(commentEnd.Id?.Value);
+                    break;
                 case W.DeletedRun or W.ParagraphProperties or W.BookmarkStart or W.BookmarkEnd or W.ProofError
-                    or W.CommentRangeStart or W.CommentRangeEnd or W.PermStart or W.PermEnd or W.MoveFromRangeStart
+                    or W.PermStart or W.PermEnd or W.MoveFromRangeStart
+
                     or W.MoveFromRangeEnd or W.MoveToRangeStart or W.MoveToRangeEnd or W.SdtProperties or W.SdtEndCharProperties
                     or W.RunProperties:
                     break;
@@ -495,7 +512,49 @@ public sealed class DocxReader
         builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId));
     }
 
+    // ------------------------------------------------------------------ comments
+
+    private void OpenComment(string? id)
+    {
+        if (int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) && !_openComments.Contains(value))
+        {
+            _openComments.Add(value);
+        }
+    }
+
+    private void CloseComment(string? id)
+    {
+        if (int.TryParse(id, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
+        {
+            _openComments.Remove(value);
+        }
+    }
+
+    private void ReadComments(WordprocessingCommentsPart? part)
+    {
+        if (part?.Comments is not { } comments)
+        {
+            return;
+        }
+
+        foreach (W.Comment comment in comments.Elements<W.Comment>())
+        {
+            if (!int.TryParse(comment.Id?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int id))
+            {
+                continue;
+            }
+
+            _openComments.Clear();
+            ImmutableList<Block> blocks = ReadStory(comment, part);
+            DateTimeOffset? date = comment.Date?.Value is { } when ? new DateTimeOffset(DateTime.SpecifyKind(when, DateTimeKind.Utc)) : null;
+            _comments[id] = new Comment(id, comment.Author?.Value ?? "Unknown", comment.Initials?.Value, date, blocks);
+        }
+
+        _openComments.Clear();
+    }
+
     // ------------------------------------------------------------------ footnotes
+
 
     private void ReadFootnotes(FootnotesPart? part)
     {
@@ -1030,7 +1089,13 @@ public sealed class DocxReader
                 return;
             }
 
-            _inlines.Add(new Run(text, CurrentLink is null ? properties : properties with { Link = CurrentLink }, styleId));
+            RunProperties withMarks = CurrentLink is null ? properties : properties with { Link = CurrentLink };
+            if (reader._openComments.Count > 0)
+            {
+                withMarks = withMarks with { CommentId = reader._openComments[^1] };
+            }
+
+            _inlines.Add(new Run(text, withMarks, styleId));
         }
 
         public void AddInline(Inline inline)

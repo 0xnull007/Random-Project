@@ -46,6 +46,7 @@
       <MenuItem Tag="link" Header="_Link..." Click="OnInsertLink" InputGestureText="Ctrl+K" />
       <MenuItem Tag="open" Header="_Open Link" Click="OnOpenLink" InputGestureText="Ctrl+Click" />
       <MenuItem Tag="unlink" Header="_Remove Link" Click="OnRemoveLink" />
+      <MenuItem Tag="comment" Header="New Co_mment" Click="OnInsertComment" InputGestureText="Ctrl+Alt+M" />
       <MenuItem Tag="picture" Header="Picture _Size..." Click="OnPictureSize" />
       <Separator />
       <MenuItem Header="Select _All" Click="OnSelectAll" InputGestureText="Ctrl+A" />
@@ -101,6 +102,7 @@
     <KeyBinding Modifiers="Ctrl" Key="K" Command="{x:Static views:MainWindow.InsertLinkCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="D" Command="{x:Static views:MainWindow.FontDialogCommand}" />
     <KeyBinding Modifiers="Ctrl+Alt" Key="F" Command="{Binding InsertFootnoteCommand}" />
+    <KeyBinding Modifiers="Ctrl+Alt" Key="M" Command="{x:Static views:MainWindow.InsertCommentCommand}" />
   </Window.InputBindings>
   <Window.CommandBindings>
     <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
@@ -113,6 +115,7 @@
     <CommandBinding Command="{x:Static views:MainWindow.PastePlainCommand}" Executed="OnPastePlain" />
     <CommandBinding Command="{x:Static views:MainWindow.InsertLinkCommand}" Executed="OnInsertLinkCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.FontDialogCommand}" Executed="OnFontDialogCommand" />
+    <CommandBinding Command="{x:Static views:MainWindow.InsertCommentCommand}" Executed="OnInsertCommentCommand" />
   </Window.CommandBindings>
 
   <DockPanel>
@@ -228,6 +231,7 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Footnote" Command="{Binding InsertFootnoteCommand}" ToolTip="Insert a footnote at the caret (Ctrl+Alt+F); Esc returns from the note to the text" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Table of Contents" Click="OnInsertToc" ToolTip="Insert (or refresh) a table of contents built from the Heading 1-3 paragraphs" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Link..." Click="OnInsertLink" ToolTip="Insert, edit or remove a hyperlink (Ctrl+K); Ctrl+Click a link to open it" />
@@ -272,6 +276,7 @@
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowRuler}" Content="Ruler" ToolTip="Show the ruler: drag the markers for indents, click to add a tab stop, drag a tab stop off to remove it" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowNavigation}" Content="Navigation" ToolTip="Show the headings of the document in a side pane; click one to jump there" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowComments}" Content="Comments" ToolTip="Show the comments pane" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding CheckSpelling}" Content="Spelling" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <TextBlock Text="Theme:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
@@ -335,6 +340,7 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <!-- Navigation pane: headings of the document; click one to jump there. -->
       <Border Grid.Column="0" Width="240" BorderThickness="0,0,1,0" BorderBrush="{StaticResource Quill.DividerBrush}"
@@ -365,6 +371,34 @@
       <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" CheckSpelling="{Binding CheckSpelling}" />
     </ScrollViewer>
       </DockPanel>
+      <!-- Comments pane: one card per comment; the text is edited in place. -->
+      <Border Grid.Column="2" Width="260" BorderThickness="1,0,0,0" BorderBrush="{StaticResource Quill.DividerBrush}"
+              Visibility="{Binding ShowComments, Converter={StaticResource BoolToVis}}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Comments" FontWeight="SemiBold" Margin="10,8,10,4" />
+          <TextBlock DockPanel.Dock="Top" Text="Select text and choose Insert > Comment (Ctrl+Alt+M)." Margin="10,0,10,8" Opacity="0.7" TextWrapping="Wrap"
+                     Visibility="{Binding HasNoComments, Converter={StaticResource BoolToVis}}" />
+          <ListBox x:Name="CommentList" ItemsSource="{Binding Comments}" SelectedItem="{Binding SelectedComment, Mode=TwoWay}"
+                   BorderThickness="0" Background="Transparent" SelectionChanged="OnCommentSelected" HorizontalContentAlignment="Stretch"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border BorderThickness="1" BorderBrush="{StaticResource Quill.DividerBrush}" CornerRadius="4" Padding="8" Margin="4,3">
+                  <StackPanel>
+                    <DockPanel>
+                      <Button DockPanel.Dock="Right" Content="&#x2715;" Width="22" Height="22" Padding="0" FontSize="11" Tag="{Binding Id}" Click="OnDeleteComment" ToolTip="Delete comment" />
+                      <TextBlock Text="{Binding Author}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding DateText}" FontSize="11" Opacity="0.7" />
+                    <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="40" Margin="0,4,0,0" BorderThickness="0" Background="Transparent" LostFocus="OnCommentTextLostFocus" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
     </Grid>
   </DockPanel>
+
 </Window>

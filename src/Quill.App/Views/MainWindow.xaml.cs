@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand PastePlainCommand = new("PastePlain", typeof(MainWindow));
     public static readonly RoutedCommand InsertLinkCommand = new("InsertLink", typeof(MainWindow));
     public static readonly RoutedCommand FontDialogCommand = new("FontDialog", typeof(MainWindow));
+    public static readonly RoutedCommand InsertCommentCommand = new("InsertComment", typeof(MainWindow));
 
     private FindReplaceWindow? _findWindow;
 
@@ -632,7 +633,83 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnInsertCommentCommand(object sender, ExecutedRoutedEventArgs e) => OnInsertComment(sender, e);
+
+    private void OnInsertComment(object sender, RoutedEventArgs e)
+    {
+        int id = ViewModel.AddComment();
+        Dispatcher.BeginInvoke(() => FocusCommentText(id), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void FocusCommentText(int id)
+    {
+        if (CommentList.ItemContainerGenerator.ContainerFromItem(ViewModel.Comments.FirstOrDefault(c => c.Id == id)) is ListBoxItem item)
+        {
+            item.BringIntoView();
+            if (FindDescendant<TextBox>(item) is { } box)
+            {
+                box.Focus();
+                box.CaretIndex = box.Text.Length;
+            }
+        }
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            DependencyObject child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            if (FindDescendant<T>(child) is { } nested)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
+    private void OnCommentSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (ViewModel.IsSyncingComments || CommentList.SelectedItem is not CommentEntry entry || ViewModel.Session.CommentRange(entry.Id) is not { } range)
+        {
+            return;
+        }
+
+        EditingSession session = ViewModel.Session;
+        if (session.Document.IsValid(range.Start) && session.Document.IsValid(range.End))
+        {
+            session.MoveCaret(range.Start, extend: false);
+            session.MoveCaret(range.End, extend: true);
+        }
+    }
+
+    private void OnCommentTextLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: CommentEntry entry })
+        {
+            ViewModel.SaveCommentText(entry);
+        }
+    }
+
+    private void OnDeleteComment(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: int id })
+        {
+            ViewModel.DeleteComment(id);
+        }
+
+        Editor.Focus();
+    }
+
     private void OnHeadingSelected(object sender, SelectionChangedEventArgs e)
+
     {
         if (ViewModel.IsSyncingHeading || NavList.SelectedItem is not HeadingEntry heading || !ViewModel.Session.Document.IsValid(heading.Position))
         {
@@ -649,7 +726,7 @@ public partial class MainWindow : Window
         var dialog = new OptionsWindow(ViewModel.Settings) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
-            ViewModel.ApplyOptions(dialog.AutosaveMinutes, dialog.AutoCorrect, dialog.Units);
+            ViewModel.ApplyOptions(dialog.AutosaveMinutes, dialog.AutoCorrect, dialog.Units, dialog.Author);
             ViewModel.CheckSpelling = dialog.CheckSpelling;
         }
 

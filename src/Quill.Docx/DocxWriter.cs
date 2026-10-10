@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
+using Quill.Core.Editing;
 using Quill.Core.Model;
 using Quill.Core.Text;
 using Quill.Core.Units;
@@ -27,7 +28,7 @@ public static class DocxWriter
         MainDocumentPart main = package.AddMainDocumentPart();
         var body = new W.Body();
         main.Document = new W.Document(body);
-        var writerState = new WriterState(document.Images, FootnoteSupport.ReferencedNoteIds(document));
+        var writerState = new WriterState(document.Images, FootnoteSupport.ReferencedNoteIds(document), document);
         var bodyContext = new PartContext(writerState, main, main);
 
         StyleDefinitionsPart stylesPart = main.AddNewPart<StyleDefinitionsPart>();
@@ -52,6 +53,8 @@ public static class DocxWriter
             WriteFootnotes(main, writerState, document);
         }
 
+        WriteComments(main, writerState);
+
         settingsPart.Settings = settings;
 
         for (int s = 0; s < document.Sections.Count; s++)
@@ -61,9 +64,11 @@ public static class DocxWriter
             bool last = s == document.Sections.Count - 1;
 
             var blocks = new List<OpenXmlElement>();
-            foreach (Block block in section.Body)
+            bodyContext.CurrentStory = StoryId.Body(s);
+            for (int b = 0; b < section.Body.Count; b++)
             {
-                blocks.Add(BuildBlock(bodyContext, block));
+                bodyContext.CurrentBlock = b;
+                blocks.Add(BuildBlock(bodyContext, section.Body[b]));
             }
 
             if (last)
@@ -245,8 +250,9 @@ public static class DocxWriter
 
         OpenXmlElement container = result;
         string? openLink = null;
-        foreach (Inline inline in paragraph.Inlines)
+        for (int inlineIndex = 0; inlineIndex < paragraph.Inlines.Length; inlineIndex++)
         {
+            Inline inline = paragraph.Inlines[inlineIndex];
             string? link = inline.Properties.Link;
             if (!string.Equals(link, openLink, StringComparison.Ordinal))
             {
@@ -263,8 +269,11 @@ public static class DocxWriter
             switch (inline)
             {
                 case Run run:
+                    AppendCommentStart(container, context, run);
                     container.Append(BuildRun(run));
+                    AppendCommentEnd(container, context, run, inlineIndex);
                     break;
+
 
                 case Break br:
                 {
@@ -653,7 +662,101 @@ public static class DocxWriter
         return sectPr;
     }
 
+    private static StoryKind PageLayoutHeaderKind(HeaderFooterVariant variant) => variant switch
+    {
+        HeaderFooterVariant.First => StoryKind.HeaderFirst,
+        HeaderFooterVariant.Even => StoryKind.HeaderEven,
+        _ => StoryKind.HeaderDefault,
+    };
+
+    private static StoryKind PageLayoutFooterKind(HeaderFooterVariant variant) => variant switch
+    {
+        HeaderFooterVariant.First => StoryKind.FooterFirst,
+        HeaderFooterVariant.Even => StoryKind.FooterEven,
+        _ => StoryKind.FooterDefault,
+    };
+
+    // ------------------------------------------------------------------ comments
+
+    /// <summary>Writes comments.xml with every comment that has runs (or none, when unreferenced ones exist only).</summary>
+    private static void WriteComments(MainDocumentPart main, WriterState state)
+    {
+        if (state.Comments.IsEmpty)
+        {
+            return;
+        }
+
+        WordprocessingCommentsPart part = main.AddNewPart<WordprocessingCommentsPart>();
+        var comments = new W.Comments();
+        var context = new PartContext(state, main, part);
+        foreach (Comment comment in state.Comments.Values.OrderBy(c => c.Id))
+        {
+            var element = new W.Comment
+            {
+                Id = comment.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Author = comment.Author,
+                Initials = comment.Initials,
+                Date = comment.Date?.UtcDateTime,
+            };
+            bool first = true;
+            foreach (Block block in comment.Blocks)
+            {
+                OpenXmlElement built = BuildBlock(context, block);
+                if (first && built is W.Paragraph paragraph)
+                {
+                    var reference = new W.Run(new W.RunProperties(new W.RunStyle { Val = CommentSupport.ReferenceStyleId }), new W.AnnotationReferenceMark());
+                    if (paragraph.ParagraphProperties is { } pPr)
+                    {
+                        pPr.InsertAfterSelf(reference);
+                    }
+                    else
+                    {
+                        paragraph.PrependChild(reference);
+                    }
+                }
+
+                first = false;
+                element.Append(built);
+            }
+
+            if (!element.HasChildren)
+            {
+                element.Append(new W.Paragraph());
+            }
+
+            comments.Append(element);
+        }
+
+        part.Comments = comments;
+    }
+
+    /// <summary>Range markers around the runs of a comment: start before its first run, end and reference after its last.</summary>
+    private static void AppendCommentStart(OpenXmlElement container, PartContext context, Inline inline)
+    {
+        if (inline.Properties.CommentId is { } id && context.State.Comments.ContainsKey(id) && context.State.OpenComments.Add(id))
+        {
+            container.Append(new W.CommentRangeStart { Id = id.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        }
+    }
+
+    private static void AppendCommentEnd(OpenXmlElement container, PartContext context, Inline inline, int inlineIndex)
+    {
+        if (inline.Properties.CommentId is not { } id || !context.State.OpenComments.Contains(id) || context.CurrentStory is not { } story)
+        {
+            return;
+        }
+
+        if (context.State.CommentLastRun.TryGetValue(id, out (StoryId Story, int Block, int Inline) last) && last.Story == story && last.Block == context.CurrentBlock && last.Inline == inlineIndex)
+        {
+            context.State.OpenComments.Remove(id);
+            string idText = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            container.Append(new W.CommentRangeEnd { Id = idText });
+            container.Append(new W.Run(new W.RunProperties(new W.RunStyle { Val = CommentSupport.ReferenceStyleId }), new W.CommentReference { Id = idText }));
+        }
+    }
+
     // ------------------------------------------------------------------ footnotes
+
 
     private static void WriteFootnotes(MainDocumentPart main, WriterState state, Document document)
     {
@@ -741,17 +844,52 @@ public static class DocxWriter
         return run;
     }
 
-    /// <summary>State shared by every part of one package: the picture bytes, the referenced footnotes and the running drawing id.</summary>
-    private sealed class WriterState(ImageStore images, IReadOnlyList<int> noteIds)
+    /// <summary>State shared by every part of one package: the picture bytes, the referenced footnotes, comment bookkeeping and the running drawing id.</summary>
+    private sealed class WriterState
     {
         private uint _nextPictureId;
 
-        public ImageStore Images { get; } = images;
+        public WriterState(ImageStore images, IReadOnlyList<int> noteIds, Document document)
+        {
+            Images = images;
+            NoteIds = noteIds;
+            Comments = document.Comments;
+            foreach ((StoryId story, ImmutableList<Block> blocks) in DocumentEditor.AllStories(document))
+            {
+                for (int b = 0; b < blocks.Count; b++)
+                {
+                    if (blocks[b] is not Paragraph paragraph)
+                    {
+                        continue;
+                    }
 
-        public IReadOnlyList<int> NoteIds { get; } = noteIds;
+                    for (int i = 0; i < paragraph.Inlines.Length; i++)
+                    {
+                        if (paragraph.Inlines[i].Properties.CommentId is { } id && Comments.ContainsKey(id))
+                        {
+                            CommentLastRun[id] = (story, b, i);
+                        }
+                    }
+                }
+            }
+        }
+
+        public ImageStore Images { get; }
+
+        public IReadOnlyList<int> NoteIds { get; }
+
+        public ImmutableDictionary<int, Comment> Comments { get; }
+
+        /// <summary>Where each comment's range ends (story, block, inline index), so the end marker goes after that run.</summary>
+        public Dictionary<int, (StoryId Story, int Block, int Inline)> CommentLastRun { get; } = [];
+
+        public HashSet<int> OpenComments { get; } = [];
+
+        public HashSet<int> WrittenComments { get; } = [];
 
         public uint NextPictureId() => ++_nextPictureId;
     }
+
 
 
     /// <summary>The part being written (body, a header or a footer); pictures become image parts related to it.</summary>
@@ -764,6 +902,11 @@ public static class DocxWriter
         public MainDocumentPart Main { get; } = main;
 
         public OpenXmlPart Part { get; } = part;
+
+        /// <summary>The story and block being written (set by the callers that walk stories), for comment range markers.</summary>
+        public StoryId? CurrentStory { get; set; }
+
+        public int CurrentBlock { get; set; }
 
         public uint NextPictureId() => State.NextPictureId();
 

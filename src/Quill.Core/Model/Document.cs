@@ -40,7 +40,7 @@ public sealed record DocumentMetadata
 /// </summary>
 public sealed class Document
 {
-    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null, ListStore? lists = null, ImageStore? images = null, ImmutableDictionary<int, ImmutableList<Block>>? footnotes = null)
+    public Document(ImmutableList<Section> sections, StyleSheet styles, DocumentSettings? settings = null, DocumentMetadata? metadata = null, ListStore? lists = null, ImageStore? images = null, ImmutableDictionary<int, ImmutableList<Block>>? footnotes = null, ImmutableDictionary<int, Comment>? comments = null)
     {
         ArgumentNullException.ThrowIfNull(sections);
         ArgumentNullException.ThrowIfNull(styles);
@@ -56,6 +56,7 @@ public sealed class Document
         Lists = lists ?? ListStore.Empty;
         Images = images ?? ImageStore.Empty;
         Footnotes = footnotes ?? ImmutableDictionary<int, ImmutableList<Block>>.Empty;
+        Comments = comments ?? ImmutableDictionary<int, Comment>.Empty;
     }
 
     /// <summary>A new blank document with one empty paragraph.</summary>
@@ -79,25 +80,31 @@ public sealed class Document
     /// <summary>Picture bytes referenced by <see cref="InlineImage"/> inlines.</summary>
     public ImageStore Images { get; }
 
-    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata, Lists, Images, Footnotes);
+    public Document WithSections(ImmutableList<Section> sections) => new(sections, Styles, Settings, Metadata, Lists, Images, Footnotes, Comments);
 
-    public Document WithLists(ListStore lists) => new(Sections, Styles, Settings, Metadata, lists, Images, Footnotes);
+    public Document WithLists(ListStore lists) => new(Sections, Styles, Settings, Metadata, lists, Images, Footnotes, Comments);
 
     /// <summary>Footnote text by note id; a body paragraph refers to a note through a <see cref="FootnoteReference"/>.</summary>
     public ImmutableDictionary<int, ImmutableList<Block>> Footnotes { get; }
 
-    public Document WithFootnotes(ImmutableDictionary<int, ImmutableList<Block>> footnotes) => new(Sections, Styles, Settings, Metadata, Lists, Images, footnotes);
+    /// <summary>Comments by id; runs carry the id of the comment they belong to.</summary>
+    public ImmutableDictionary<int, Comment> Comments { get; }
 
-    public Document WithImages(ImageStore images) => new(Sections, Styles, Settings, Metadata, Lists, images, Footnotes);
+    public Document WithComments(ImmutableDictionary<int, Comment> comments) => new(Sections, Styles, Settings, Metadata, Lists, Images, Footnotes, comments);
+
+    public Document WithFootnotes(ImmutableDictionary<int, ImmutableList<Block>> footnotes) => new(Sections, Styles, Settings, Metadata, Lists, Images, footnotes, Comments);
+
+
+    public Document WithImages(ImageStore images) => new(Sections, Styles, Settings, Metadata, Lists, images, Footnotes, Comments);
 
 
     public Document WithSection(int index, Section section) => WithSections(Sections.SetItem(index, section));
 
-    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata, Lists, Images, Footnotes);
+    public Document WithStyles(StyleSheet styles) => new(Sections, styles, Settings, Metadata, Lists, Images, Footnotes, Comments);
 
-    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata, Lists, Images, Footnotes);
+    public Document WithSettings(DocumentSettings settings) => new(Sections, Styles, settings, Metadata, Lists, Images, Footnotes, Comments);
 
-    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata, Lists, Images, Footnotes);
+    public Document WithMetadata(DocumentMetadata metadata) => new(Sections, Styles, Settings, metadata, Lists, Images, Footnotes, Comments);
 
     /// <summary>The blocks of a story, or null when the section or header/footer variant does not exist.</summary>
     public ImmutableList<Block>? TryGetStory(StoryId story)

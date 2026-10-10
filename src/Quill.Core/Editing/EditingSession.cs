@@ -998,7 +998,7 @@ public sealed partial class EditingSession
         int probe = Selection.IsCollapsed ? range.Start.Offset : Math.Min(paragraph.Length, range.Start.Offset + 1);
         (string? styleId, RunProperties run) = paragraph.GetTypingFormatAt(probe);
         bool withParagraph = Selection.IsCollapsed || TextRanges.Paragraphs(Document, range).Any(s => s.IncludesMark);
-        return new FormatSample(run with { Link = null }, styleId == DefaultStyleSheet.HyperlinkStyleId ? null : styleId, withParagraph ? paragraph.Properties : null, withParagraph ? paragraph.StyleId : null);
+        return new FormatSample(run with { Link = null, CommentId = null }, styleId == DefaultStyleSheet.HyperlinkStyleId ? null : styleId, withParagraph ? paragraph.Properties : null, withParagraph ? paragraph.StyleId : null);
     }
 
     /// <summary>Applies a Format Painter sample to the selection (or the word at the caret), replacing the character formatting there.</summary>

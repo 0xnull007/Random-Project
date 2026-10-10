@@ -171,7 +171,8 @@ public sealed class StyleResolver
             merged.AllCaps!.Value,
             merged.Hidden!.Value,
             merged.Language!,
-            merged.Link);
+            merged.Link,
+            merged.CommentId);
     }
 
     /// <summary>Run properties accumulated from the root of the BasedOn chain down to <paramref name="styleId"/>.</summary>

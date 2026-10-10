@@ -12,6 +12,15 @@ internal sealed class QuillTextRunProperties : TextRunProperties
 {
     private const double ScriptScale = 0.65;
 
+    private static readonly SolidColorBrush CommentBrush = FrozenBrush(Color.FromArgb(0xFF, 0xFF, 0xE2, 0xC8));
+
+    private static SolidColorBrush FrozenBrush(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
+
     private readonly Typeface _typeface;
     private readonly double _emSize;
     private readonly Brush _foreground;
@@ -29,7 +38,7 @@ internal sealed class QuillTextRunProperties : TextRunProperties
         double scale = properties.VerticalAlignment == VerticalTextAlignment.Baseline ? 1 : ScriptScale;
         _emSize = Math.Max(1, properties.FontSize.ToDips() * scale);
         _foreground = fonts.GetBrush(properties.Color);
-        _background = fonts.GetHighlightBrush(properties.Highlight);
+        _background = fonts.GetHighlightBrush(properties.Highlight) ?? (properties.CommentId is not null ? CommentBrush : null);
         _decorations = BuildDecorations(properties);
         _culture = SafeCulture(properties.Language);
         _baseline = properties.VerticalAlignment switch

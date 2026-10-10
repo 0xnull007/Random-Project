@@ -41,6 +41,11 @@ public sealed class AppSettings
 
     public bool ShowRuler { get; set; } = true;
 
+    public bool ShowComments { get; set; }
+
+    /// <summary>Name written on new comments.</summary>
+    public string Author { get; set; } = Environment.UserName;
+
     /// <summary>Underline words the Windows spell checker does not know.</summary>
     public bool CheckSpelling { get; set; } = true;
 
