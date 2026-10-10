@@ -12,7 +12,27 @@
   </Window.DataContext>
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    <!-- Right-click menu of the document; items with a Tag are shown or renamed in OnEditorMenuOpened. -->
+    <ContextMenu x:Key="EditorMenu" Opened="OnEditorMenuOpened">
+      <MenuItem Header="Cu_t" Click="OnCut" InputGestureText="Ctrl+X" />
+      <MenuItem Header="_Copy" Click="OnCopy" InputGestureText="Ctrl+C" />
+      <MenuItem Header="_Paste" Click="OnPaste" InputGestureText="Ctrl+V" />
+      <MenuItem Header="Paste as plain te_xt" Click="OnPastePlainClick" InputGestureText="Ctrl+Alt+V" />
+      <Separator />
+      <MenuItem Header="_Font..." Click="OnFontDialog" InputGestureText="Ctrl+D" />
+      <MenuItem Header="P_aragraph..." Click="OnParagraphDialog" />
+      <MenuItem Header="_Bullets" IsCheckable="True" IsChecked="{Binding IsBulleted, Mode=TwoWay}" />
+      <MenuItem Header="_Numbering" IsCheckable="True" IsChecked="{Binding IsNumbered, Mode=TwoWay}" />
+      <Separator />
+      <MenuItem Tag="link" Header="_Link..." Click="OnInsertLink" InputGestureText="Ctrl+K" />
+      <MenuItem Tag="open" Header="_Open Link" Click="OnOpenLink" InputGestureText="Ctrl+Click" />
+      <MenuItem Tag="unlink" Header="_Remove Link" Click="OnRemoveLink" />
+      <MenuItem Tag="picture" Header="Picture _Size..." Click="OnPictureSize" />
+      <Separator />
+      <MenuItem Header="Select _All" Click="OnSelectAll" InputGestureText="Ctrl+A" />
+    </ContextMenu>
   </Window.Resources>
+
   <Window.InputBindings>
     <KeyBinding Modifiers="Ctrl" Key="B" Command="{Binding ToggleBoldCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="I" Command="{Binding ToggleItalicCommand}" />
@@ -55,6 +75,7 @@
     <KeyBinding Modifiers="Ctrl+Alt" Key="V" Command="{x:Static views:MainWindow.PastePlainCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding ClearFormattingCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="K" Command="{x:Static views:MainWindow.InsertLinkCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="D" Command="{x:Static views:MainWindow.FontDialogCommand}" />
   </Window.InputBindings>
   <Window.CommandBindings>
     <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
@@ -66,6 +87,7 @@
     <CommandBinding Command="{x:Static views:MainWindow.ShortcutsCommand}" Executed="OnShortcutsCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.PastePlainCommand}" Executed="OnPastePlain" />
     <CommandBinding Command="{x:Static views:MainWindow.InsertLinkCommand}" Executed="OnInsertLinkCommand" />
+    <CommandBinding Command="{x:Static views:MainWindow.FontDialogCommand}" Executed="OnFontDialogCommand" />
   </Window.CommandBindings>
 
   <DockPanel>
@@ -154,6 +176,9 @@
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150"
                     ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
                     ToolTip="Paragraph style (Ctrl+Alt+1/2/3 headings, Ctrl+Shift+N normal)" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Font..." Click="OnFontDialog" ToolTip="All character formatting in one dialog (Ctrl+D)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Paragraph..." Click="OnParagraphDialog" ToolTip="Indents, spacing, line spacing and page-break options" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21B6;" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21B7;" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
@@ -272,7 +297,7 @@
                   VerticalScrollBarVisibility="Visible"
                   PanningMode="Both"
                   Focusable="False">
-      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" />
+      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" />
     </ScrollViewer>
   </DockPanel>
 </Window>

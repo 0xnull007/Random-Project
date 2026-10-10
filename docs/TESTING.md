@@ -51,6 +51,15 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       Triple-click a paragraph and press Ctrl+B: only that paragraph changes and the B button lights up.
 
 
+- [ ] Font... (Ctrl+D): family, style, size, underline style, color, effects (strike, double strike, super/sub,
+      small caps, all caps, hidden) with a live preview; OK applies only what you changed **(new)**.
+- [ ] Paragraph...: alignment, left/right indent, first-line or hanging indent, before/after, line spacing
+      (single, 1.5, double, at least, exactly, multiple), widow/orphan, keep with next, keep lines, page break
+      before **(new)**.
+- [ ] Right-click in the text: context menu with Cut/Copy/Paste, Font, Paragraph, Bullets/Numbering, Link entries
+      (Edit/Open/Remove when on a link), Picture Size when on a picture, Select All. Right-click outside the
+      selection moves the caret first **(new)**.
+
 ## 5. Paragraph formatting
 
 - [ ] Align left/center/right/justify (Ctrl+L/E/R/J). Justified lines stretch; the last line does not.

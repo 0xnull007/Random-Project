@@ -1350,7 +1350,33 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         : _hoverLink is not null && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? Cursors.Hand
         : Cursors.IBeam;
 
+    /// <summary>Right-click outside the selection moves the caret there first (and selects a clicked picture), like Word; the context menu then opens.</summary>
+    protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
+    {
+        base.OnMouseRightButtonDown(e);
+        Focus();
+        if (Session is not { } session || IsReadOnly)
+        {
+            return;
+        }
+
+        Point viewPoint = e.GetPosition(this);
+        if (HitTest(viewPoint) is not { } hit)
+        {
+            return;
+        }
+
+        TextRange range = session.Selection.Range;
+        bool inside = !range.IsEmpty && (range.Contains(hit.Position) || hit.Position == range.End);
+        if (!inside)
+        {
+            SafeMove(session, hit.Position, extend: false, hit.Affinity);
+            TrySelectPictureAt(session, viewPoint);
+        }
+    }
+
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+
     {
         base.OnMouseLeftButtonUp(e);
         if (_dragging)

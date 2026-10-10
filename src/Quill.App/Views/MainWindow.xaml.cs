@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand ShortcutsCommand = new("Shortcuts", typeof(MainWindow));
     public static readonly RoutedCommand PastePlainCommand = new("PastePlain", typeof(MainWindow));
     public static readonly RoutedCommand InsertLinkCommand = new("InsertLink", typeof(MainWindow));
+    public static readonly RoutedCommand FontDialogCommand = new("FontDialog", typeof(MainWindow));
 
     private FindReplaceWindow? _findWindow;
 
@@ -174,7 +175,88 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnFontDialogCommand(object sender, ExecutedRoutedEventArgs e) => OnFontDialog(sender, e);
+
+    private void OnFontDialog(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        Quill.Core.Styles.ResolvedRunProperties current = session.SelectionFormats().FirstOrDefault() ?? session.CaretFormat();
+        var dialog = new FontWindow(current, ViewModel.FontFamilies) { Owner = this };
+        if (dialog.ShowDialog() == true && !dialog.Delta.IsEmpty)
+        {
+            session.ApplyRunFormat(dialog.Delta);
+            ViewModel.RefreshFormatState();
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnParagraphDialog(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        var dialog = new ParagraphWindow(session.CaretParagraphFormat()) { Owner = this };
+        if (dialog.ShowDialog() == true && !dialog.Delta.IsEmpty)
+        {
+            session.ApplyParagraphFormat(dialog.Delta);
+            ViewModel.RefreshFormatState();
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnPastePlainClick(object sender, RoutedEventArgs e)
+    {
+        Editor.PasteFromClipboard(plainTextOnly: true);
+        Editor.Focus();
+    }
+
+    private void OnOpenLink(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Session.LinkAtCaret() is { } link)
+        {
+            DocumentView.OpenLink(link.Url);
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnRemoveLink(object sender, RoutedEventArgs e)
+    {
+        ViewModel.Session.RemoveLink();
+        Editor.Focus();
+    }
+
+    /// <summary>Shows the link and picture entries only when they apply.</summary>
+    private void OnEditorMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu menu)
+        {
+            return;
+        }
+
+        EditingSession session = ViewModel.Session;
+        bool onLink = session.LinkAtCaret() is not null;
+        bool onPicture = session.SelectedImage() is not null;
+        foreach (MenuItem item in menu.Items.OfType<MenuItem>())
+        {
+            switch (item.Tag as string)
+            {
+                case "link":
+                    item.Header = onLink ? "Edit _Link..." : "_Link...";
+                    break;
+                case "open":
+                case "unlink":
+                    item.Visibility = onLink ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+                case "picture":
+                    item.Visibility = onPicture ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+            }
+        }
+    }
+
     private void OnInsertPicture(object sender, RoutedEventArgs e)
+
 
 
     {
