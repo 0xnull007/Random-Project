@@ -16,6 +16,7 @@
   <SolidColorBrush x:Key="Quill.DividerBrush" Color="#40808080" />
 
   <Style x:Key="Quill.CommandToggle" TargetType="ToggleButton">
+    <Setter Property="AutomationProperties.Name" Value="{Binding RelativeSource={RelativeSource Self}, Path=ToolTip}" />
     <Setter Property="MinWidth" Value="28" />
     <Setter Property="Height" Value="28" />
     <Setter Property="Margin" Value="1,0" />
@@ -25,6 +26,7 @@
   </Style>
 
   <Style x:Key="Quill.CommandButton" TargetType="Button">
+    <Setter Property="AutomationProperties.Name" Value="{Binding RelativeSource={RelativeSource Self}, Path=ToolTip}" />
     <Setter Property="MinWidth" Value="28" />
     <Setter Property="Height" Value="28" />
     <Setter Property="Margin" Value="1,0" />
@@ -47,6 +49,7 @@
   </Style>
 
   <Style x:Key="Quill.StatusButton" TargetType="Button">
+    <Setter Property="AutomationProperties.Name" Value="{Binding RelativeSource={RelativeSource Self}, Path=ToolTip}" />
     <Setter Property="Width" Value="22" />
     <Setter Property="Height" Value="22" />
     <Setter Property="Padding" Value="0" />

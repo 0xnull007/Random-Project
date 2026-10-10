@@ -544,7 +544,138 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     /// <summary>The page number shown where a position is laid out (for a table of contents), or null when not laid out.</summary>
     public string? PageNumberTextOf(TextPosition position) => _layout.Find(position)?.Page.PageNumberText;
 
+    // ------------------------------------------------------------------ UI Automation support
+
+    protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DocumentViewAutomationPeer(this);
+
+    private void RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents automationEvent)
+    {
+        if (System.Windows.Automation.Peers.AutomationPeer.ListenerExists(automationEvent)
+            && System.Windows.Automation.Peers.UIElementAutomationPeer.FromElement(this) is { } peer)
+        {
+            peer.RaiseAutomationEvent(automationEvent);
+        }
+    }
+
+    /// <summary>The position under a point in this element's coordinates, for UI Automation.</summary>
+    public TextPosition? PositionAt(Point viewPoint) => HitTest(viewPoint)?.Position;
+
+    /// <summary>Rectangles (this element's coordinates) covering the text between two positions of one story.</summary>
+    public IReadOnlyList<Rect> ViewRectsFor(TextPosition start, TextPosition end)
+    {
+        var rects = new List<Rect>();
+        if (start.Story != end.Story || start > end)
+        {
+            return rects;
+        }
+
+        double zoom = Zoom;
+        for (int p = 0; p < _layout.PageCount; p++)
+        {
+            Rect pageRect = PageRect(p);
+            foreach (BlockFragment fragment in _layout.Pages[p].AllFragments())
+            {
+                if (fragment is not ParagraphFragment paragraph || paragraph.Story != start.Story)
+                {
+                    continue;
+                }
+
+                int block = paragraph.Path.TopIndex;
+                if (block < start.Block.TopIndex || block > end.Block.TopIndex)
+                {
+                    continue;
+                }
+
+                int from = block == start.Block.TopIndex ? start.Offset : 0;
+                int to = block == end.Block.TopIndex ? end.Offset : paragraph.Paragraph.Length;
+                for (int i = paragraph.FirstLine; i <= paragraph.LastLine; i++)
+                {
+                    IFormattedLine line = paragraph.Layout.Lines[i];
+                    int s = Math.Max(from, line.Start);
+                    int e = Math.Min(to, line.End);
+                    if (e <= s)
+                    {
+                        continue;
+                    }
+
+                    PointD origin = paragraph.LineOrigin(i);
+                    foreach (RectD box in line.GetTextBounds(s, e - s))
+                    {
+                        rects.Add(new Rect(
+                            (pageRect.X + origin.X + box.X) * zoom + _host.Offset.X,
+                            (pageRect.Y + origin.Y + box.Y) * zoom + _host.Offset.Y,
+                            Math.Max(1, box.Width * zoom),
+                            Math.Max(1, box.Height * zoom)));
+                    }
+                }
+            }
+        }
+
+        return rects;
+    }
+
+    /// <summary>Start and end offsets of the laid-out line containing a position.</summary>
+    public (TextPosition Start, TextPosition End)? LineBoundsOf(TextPosition position)
+    {
+        if (_layout.Find(position) is not { } found)
+        {
+            return null;
+        }
+
+        int index = Math.Clamp(found.Fragment.Layout.LineIndexOf(position.Offset), 0, found.Fragment.Layout.LineCount - 1);
+        IFormattedLine line = found.Fragment.Layout.Lines[index];
+        return (position.WithOffset(line.Start), position.WithOffset(line.End));
+    }
+
+    /// <summary>First and last body positions on the page containing a position.</summary>
+    public (TextPosition Start, TextPosition End)? PageBoundsOf(TextPosition position)
+    {
+        if (_layout.Find(position) is not { } found)
+        {
+            return null;
+        }
+
+        return BoundsOfFragments(found.Page.Body.OfType<ParagraphFragment>());
+    }
+
+    /// <summary>First and last body positions on the pages currently on screen.</summary>
+    public (TextPosition Start, TextPosition End)? VisibleBounds()
+    {
+        Rect visible = VisibleDocumentRect();
+        var fragments = new List<ParagraphFragment>();
+        for (int p = 0; p < _layout.PageCount; p++)
+        {
+            if (PageRect(p).IntersectsWith(visible))
+            {
+                fragments.AddRange(_layout.Pages[p].Body.OfType<ParagraphFragment>());
+            }
+        }
+
+        return BoundsOfFragments(fragments);
+    }
+
+    private static (TextPosition Start, TextPosition End)? BoundsOfFragments(IEnumerable<ParagraphFragment> fragments)
+    {
+        ParagraphFragment? first = null;
+        ParagraphFragment? last = null;
+        foreach (ParagraphFragment fragment in fragments)
+        {
+            first ??= fragment;
+            last = fragment;
+        }
+
+        if (first is null || last is null)
+        {
+            return null;
+        }
+
+        return (
+            new TextPosition(first.Story, first.Path, first.Layout.Lines[first.FirstLine].Start),
+            new TextPosition(last.Story, last.Path, last.Layout.Lines[last.LastLine].End));
+    }
+
     private int CurrentPageIndex()
+
 
 
     {
@@ -711,6 +842,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     {
         Relayout();
         ScheduleSpellCheck();
+        RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.TextPatternOnTextChanged);
+
 
         EnsureCaretVisible();
         _ime.UpdateCompositionWindow();
@@ -724,6 +857,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         EnsureCaretVisible();
         _ime.UpdateCompositionWindow();
         RedrawSquigglesAll();
+        RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.TextPatternOnTextSelectionChanged);
     }
 
 
@@ -1253,11 +1387,22 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
     private void EnsureCaretVisible()
     {
-        EditingSession? session = Session;
-        if (session is null || _viewport.Width <= 0 || CaretRect(session.Selection.Active, session.Selection.Affinity) is not { } caret)
+        if (Session is { } session)
+        {
+            EnsureVisible(session.Selection.Active, session.Selection.Affinity);
+        }
+    }
+
+    /// <summary>Scrolls so that a position is on screen (UI Automation ScrollIntoView).</summary>
+    public void BringIntoView(TextPosition position) => EnsureVisible(position, CaretAffinity.Downstream);
+
+    private void EnsureVisible(TextPosition position, CaretAffinity affinity)
+    {
+        if (_viewport.Width <= 0 || CaretRect(position, affinity) is not { } caret)
         {
             return;
         }
+
 
         double zoom = Zoom;
         Rect scaled = new(caret.Rect.X * zoom, caret.Rect.Y * zoom, Math.Max(2, caret.Rect.Width * zoom), caret.Rect.Height * zoom);

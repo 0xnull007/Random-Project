@@ -238,6 +238,14 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Moving the window to a monitor with a different DPI re-renders correctly.
 - [ ] Switching Windows between light and dark while the app runs updates the chrome; the page stays white.
 
+## 19. Accessibility (new)
+
+- [ ] Narrator (Win+Ctrl+Enter): the document is announced as a document; arrow keys read characters, words and
+      lines; the selection is reported when it changes.
+- [ ] Accessibility Insights for Windows (FastPass): the editor appears as a Document control with the Text
+      pattern (text, selection, visible ranges, bounding rectangles, font attributes); toolbar buttons have names
+      (taken from their tooltips).
+
 ## Known limitations (expected, not bugs)
 
 - Tables are displayed (not editable) and preserved on save exactly as read.
