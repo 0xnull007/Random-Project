@@ -91,6 +91,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Tab / Shift+Tab at the start of an item changes the level (bullets change shape, numbers become a./i.).
 - [ ] Backspace at the start of an item removes the bullet first, then merges.
 - [ ] Deleting an item in the middle renumbers the rest.
+- [ ] Right-click in a list > List: Restart Numbering at 1, Continue Previous List, and numbering (1. 1) a. a) A.
+      i. I.) or bullet (• ○ ▪ – ✓ ➢) styles; changes survive save/reopen and show the same in Word **(new)**.
 - [ ] Save and reopen: lists survive. Open in Word: they are real Word lists.
 
 ## 8. Pages, breaks, sections (Insert and Layout tabs)
@@ -162,6 +164,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       Fit Page and Fit Width.
 - [ ] ¶ toggle shows paragraph marks, tab arrows, space dots and break markers; the setting is remembered.
 - [ ] Theme: System / Light / Dark switches instantly and is remembered **(new)**.
+- [ ] View > Navigation opens a side pane listing the headings (indented by level); clicking one jumps there and the
+      current heading is highlighted as you move the caret; the pane state is remembered **(new)**.
 - [ ] Word Count (Ctrl+Shift+G) shows pages, words, characters with/without spaces, paragraphs, lines; with a
       selection it counts the selection only.
 - [ ] Go To Page (Ctrl+G) scrolls to the page and puts the caret there; out-of-range numbers are rejected.

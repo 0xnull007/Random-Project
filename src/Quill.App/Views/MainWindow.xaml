@@ -23,6 +23,25 @@
       <MenuItem Header="P_aragraph..." Click="OnParagraphDialog" />
       <MenuItem Header="_Bullets" IsCheckable="True" IsChecked="{Binding IsBulleted, Mode=TwoWay}" />
       <MenuItem Header="_Numbering" IsCheckable="True" IsChecked="{Binding IsNumbered, Mode=TwoWay}" />
+      <MenuItem Tag="list" Header="L_ist">
+        <MenuItem Header="_Restart Numbering at 1" Click="OnRestartNumbering" />
+        <MenuItem Header="_Continue Previous List" Click="OnContinueNumbering" />
+        <Separator />
+        <MenuItem Header="Numbering  1. 2. 3." Click="OnListStyle" Tag="Decimal|%1." />
+        <MenuItem Header="Numbering  1) 2) 3)" Click="OnListStyle" Tag="Decimal|%1)" />
+        <MenuItem Header="Numbering  a. b. c." Click="OnListStyle" Tag="LowerLetter|%1." />
+        <MenuItem Header="Numbering  a) b) c)" Click="OnListStyle" Tag="LowerLetter|%1)" />
+        <MenuItem Header="Numbering  A. B. C." Click="OnListStyle" Tag="UpperLetter|%1." />
+        <MenuItem Header="Numbering  i. ii. iii." Click="OnListStyle" Tag="LowerRoman|%1." />
+        <MenuItem Header="Numbering  I. II. III." Click="OnListStyle" Tag="UpperRoman|%1." />
+        <Separator />
+        <MenuItem Header="Bullet  &#x2022;" Click="OnListStyle" Tag="Bullet|&#x2022;" />
+        <MenuItem Header="Bullet  &#x25CB;" Click="OnListStyle" Tag="Bullet|&#x25CB;" />
+        <MenuItem Header="Bullet  &#x25AA;" Click="OnListStyle" Tag="Bullet|&#x25AA;" />
+        <MenuItem Header="Bullet  &#x2013;" Click="OnListStyle" Tag="Bullet|&#x2013;" />
+        <MenuItem Header="Bullet  &#x2713;" Click="OnListStyle" Tag="Bullet|&#x2713;" />
+        <MenuItem Header="Bullet  &#x27A2;" Click="OnListStyle" Tag="Bullet|&#x27A2;" />
+      </MenuItem>
       <Separator />
       <MenuItem Tag="link" Header="_Link..." Click="OnInsertLink" InputGestureText="Ctrl+K" />
       <MenuItem Tag="open" Header="_Open Link" Click="OnOpenLink" InputGestureText="Ctrl+Click" />
@@ -234,6 +253,7 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Width" Click="OnFitWidth" ToolTip="Zoom so the page fills the width" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowNavigation}" Content="Navigation" ToolTip="Show the headings of the document in a side pane; click one to jump there" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <TextBlock Text="Theme:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="90" ItemsSource="{Binding ThemeChoices}" SelectedItem="{Binding Theme}" ToolTip="Light, dark, or follow the Windows setting" />
@@ -292,7 +312,30 @@
       </StatusBarItem>
     </StatusBar>
 
-    <ScrollViewer x:Name="Scroller"
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <!-- Navigation pane: headings of the document; click one to jump there. -->
+      <Border Grid.Column="0" Width="240" BorderThickness="0,0,1,0" BorderBrush="{StaticResource Quill.DividerBrush}"
+              Visibility="{Binding ShowNavigation, Converter={StaticResource BoolToVis}}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Navigation" FontWeight="SemiBold" Margin="10,8,10,4" />
+          <TextBlock DockPanel.Dock="Top" Text="Headings appear here as you use the Heading 1-3 styles." Margin="10,0,10,8" Opacity="0.7" TextWrapping="Wrap"
+                     Visibility="{Binding HasNoHeadings, Converter={StaticResource BoolToVis}}" />
+          <ListBox x:Name="NavList" ItemsSource="{Binding Headings}" SelectedItem="{Binding CurrentHeading, Mode=TwoWay}"
+                   BorderThickness="0" Background="Transparent" SelectionChanged="OnHeadingSelected"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Display}" Margin="{Binding Margin}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+      <ScrollViewer x:Name="Scroller" Grid.Column="1"
                   CanContentScroll="True"
                   HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Visible"
@@ -300,5 +343,6 @@
                   Focusable="False">
       <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" />
     </ScrollViewer>
+    </Grid>
   </DockPanel>
 </Window>

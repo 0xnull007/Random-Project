@@ -251,11 +251,42 @@ public partial class MainWindow : Window
                 case "picture":
                     item.Visibility = onPicture ? Visibility.Visible : Visibility.Collapsed;
                     break;
+                case "list":
+                    item.Visibility = session.ListKind(session.Document.GetParagraph(session.Selection.Active)) is not null ? Visibility.Visible : Visibility.Collapsed;
+                    break;
+
             }
         }
     }
 
+    private void OnRestartNumbering(object sender, RoutedEventArgs e)
+    {
+        ViewModel.Session.RestartNumbering();
+        Editor.Focus();
+    }
+
+    private void OnContinueNumbering(object sender, RoutedEventArgs e)
+    {
+        ViewModel.Session.ContinueNumbering();
+        Editor.Focus();
+    }
+
+    /// <summary>Menu Tag is "Format|template", the template using %1 for the item's own counter.</summary>
+    private void OnListStyle(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: string tag } && tag.Split('|') is [string formatName, string template] && Enum.TryParse(formatName, out NumberFormat format))
+        {
+            EditingSession session = ViewModel.Session;
+            int level = session.CaretParagraphFormat().List?.Level ?? 0;
+            string text = format == NumberFormat.Bullet ? template : template.Replace("%1", "%" + (level + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            session.SetListStyle(format, text);
+        }
+
+        Editor.Focus();
+    }
+
     private void OnInsertPicture(object sender, RoutedEventArgs e)
+
 
 
 
@@ -462,7 +493,19 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnHeadingSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (ViewModel.IsSyncingHeading || NavList.SelectedItem is not HeadingEntry heading || !ViewModel.Session.Document.IsValid(heading.Position))
+        {
+            return;
+        }
+
+        ViewModel.Session.MoveCaret(heading.Position, extend: false);
+        Editor.Focus();
+    }
+
     private void OnOptions(object sender, RoutedEventArgs e)
+
     {
         var dialog = new OptionsWindow(ViewModel.Settings) { Owner = this };
         if (dialog.ShowDialog() == true)

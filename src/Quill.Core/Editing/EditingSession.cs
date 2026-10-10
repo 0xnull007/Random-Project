@@ -523,7 +523,95 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    // ----- List numbering -----
+
+    /// <summary>Restarts the list at the caret from 1 at this paragraph; later items of the same list follow on.</summary>
+    public void RestartNumbering()
+    {
+        if (CurrentList() is not ({ } index, { } format) || Document.Lists.GetInstance(format.NumberingId) is not { } instance)
+        {
+            return;
+        }
+
+        int newId = Document.Lists.NextInstanceId;
+        var restarted = new ListInstance(newId, instance.DefinitionId, ImmutableDictionary<int, int>.Empty.Add(format.Level, 1));
+        RepointList(Document.WithLists(Document.Lists.With(restarted)), index, format.NumberingId, newId);
+    }
+
+    /// <summary>Makes the list at the caret continue the previous list of the same kind instead of starting over.</summary>
+    public void ContinueNumbering()
+    {
+        if (CurrentList() is not ({ } index, { } format))
+        {
+            return;
+        }
+
+        ImmutableList<Block> blocks = Document.GetStory(Selection.Story);
+        bool bulleted = Document.Lists.GetLevel(format.NumberingId, 0)?.IsBullet ?? false;
+        for (int i = index - 1; i >= 0; i--)
+        {
+            if (blocks[i] is not Paragraph paragraph || _resolver.ResolveParagraph(paragraph).List is not { IsNone: false } other)
+            {
+                continue;
+            }
+
+            if (other.NumberingId == format.NumberingId)
+            {
+                return; // already one list
+            }
+
+            if ((Document.Lists.GetLevel(other.NumberingId, 0)?.IsBullet ?? false) == bulleted)
+            {
+                RepointList(Document, index, format.NumberingId, other.NumberingId);
+                return;
+            }
+        }
+    }
+
+    /// <summary>Changes how the current level of the list at the caret is numbered or bulleted (every item of that list follows).</summary>
+    public void SetListStyle(NumberFormat format, string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (CurrentList() is not (_, { } list) || Document.Lists.GetDefinition(list.NumberingId) is not { } definition || definition.GetLevel(list.Level) is not { } level)
+        {
+            return;
+        }
+
+        ListLevel updated = level with
+        {
+            Format = format,
+            Text = text,
+            MarkerFont = null,
+            Alignment = format is NumberFormat.LowerRoman or NumberFormat.UpperRoman ? Alignment.Right : Alignment.Left,
+        };
+        ListDefinition changed = definition with { Levels = definition.Levels.SetItem(list.Level, updated) };
+        Commit(new EditResult(Document.WithLists(Document.Lists.With(changed)), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    private (int Index, ListFormat Format)? CurrentList()
+    {
+        Paragraph paragraph = Document.GetParagraph(Selection.Active);
+        return _resolver.ResolveParagraph(paragraph).List is { IsNone: false } format ? (Selection.Active.Block.TopIndex, format) : null;
+    }
+
+    /// <summary>Moves this paragraph and every later paragraph of list <paramref name="oldId"/> in the story to list <paramref name="newId"/>.</summary>
+    private void RepointList(Document document, int fromIndex, int oldId, int newId)
+    {
+        ImmutableList<Block> blocks = document.GetStory(Selection.Story);
+        ImmutableList<Block>.Builder builder = blocks.ToBuilder();
+        for (int i = fromIndex; i < blocks.Count; i++)
+        {
+            if (blocks[i] is Paragraph paragraph && _resolver.ResolveParagraph(paragraph).List is { IsNone: false } format && format.NumberingId == oldId)
+            {
+                builder[i] = paragraph.WithProperties(paragraph.Properties.Merge(new ParagraphProperties { List = new ListFormat(newId, format.Level) }));
+            }
+        }
+
+        Commit(new EditResult(document.WithStory(Selection.Story, builder.ToImmutable()), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
     // ----- Hyperlinks -----
+
 
     /// <summary>The hyperlink at <paramref name="position"/> (or just before it): its full extent and target.</summary>
     public (TextRange Range, string Url)? LinkAt(TextPosition position)

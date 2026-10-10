@@ -37,6 +37,8 @@ public sealed class AppSettings
 
     public AutoCorrectSettings AutoCorrect { get; set; } = new();
 
+    public bool ShowNavigation { get; set; }
+
 
     public static string Directory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Quill");
 

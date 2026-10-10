@@ -52,6 +52,8 @@ public sealed partial class MainViewModel : ObservableObject
         ShowFormattingMarks = _settings.ShowFormattingMarks;
         Theme = ThemeChoices.Contains(_settings.Theme) ? _settings.Theme : "System";
         Session.AutoCorrect = _settings.AutoCorrect.ToOptions();
+        _headingsTimer.Tick += (_, _) => RefreshHeadings();
+        ShowNavigation = _settings.ShowNavigation;
         UnitPreference.Apply(_settings.Units);
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
         _autosaveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.AutosaveMinutes)) };
@@ -596,7 +598,102 @@ public sealed partial class MainViewModel : ObservableObject
         PainterChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    // ----- Navigation pane -----
+
+    public ObservableCollection<HeadingEntry> Headings { get; } = [];
+
+    private readonly DispatcherTimer _headingsTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(400) };
+    private bool _syncingHeading;
+
+    /// <summary>True while <see cref="CurrentHeading"/> is being set to follow the caret, so the list does not navigate back.</summary>
+    public bool IsSyncingHeading => _syncingHeading;
+
+    [ObservableProperty]
+    public partial bool ShowNavigation { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasNoHeadings { get; set; } = true;
+
+    [ObservableProperty]
+    public partial HeadingEntry? CurrentHeading { get; set; }
+
+    partial void OnShowNavigationChanged(bool value)
+    {
+        _settings.ShowNavigation = value;
+        _settings.Save();
+        if (value)
+        {
+            RefreshHeadings();
+        }
+    }
+
+    /// <summary>Rebuilds the heading list from paragraphs with an outline level (Heading 1-3 and styles based on them).</summary>
+    public void RefreshHeadings()
+    {
+        _headingsTimer.Stop();
+        Headings.Clear();
+        Document document = Session.Document;
+        for (int s = 0; s < document.Sections.Count; s++)
+        {
+            System.Collections.Immutable.ImmutableList<Block> body = document.Sections[s].Body;
+            for (int i = 0; i < body.Count; i++)
+            {
+                if (body[i] is Paragraph paragraph && Session.Resolver.ResolveParagraph(paragraph).OutlineLevel is { } level && level < 9)
+                {
+                    Headings.Add(new HeadingEntry(paragraph.FlatText.Trim(), level, new TextPosition(StoryId.Body(s), BlockPath.Of(i), 0)));
+                }
+            }
+        }
+
+        HasNoHeadings = Headings.Count == 0;
+        UpdateCurrentHeading();
+    }
+
+    /// <summary>Highlights the heading the caret is under.</summary>
+    public void UpdateCurrentHeading()
+    {
+        if (!ShowNavigation || Headings.Count == 0)
+        {
+            return;
+        }
+
+        TextPosition caret = Session.Selection.Active;
+        HeadingEntry? best = null;
+        foreach (HeadingEntry heading in Headings)
+        {
+            if (heading.Position.Story.SectionIndex < caret.Story.SectionIndex
+                || (heading.Position.Story.SectionIndex == caret.Story.SectionIndex && heading.Position.Block.TopIndex <= caret.Block.TopIndex))
+            {
+                best = heading;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        _syncingHeading = true;
+        try
+        {
+            CurrentHeading = best;
+        }
+        finally
+        {
+            _syncingHeading = false;
+        }
+    }
+
+    private void ScheduleHeadingsRefresh()
+    {
+        if (ShowNavigation)
+        {
+            _headingsTimer.Stop();
+            _headingsTimer.Start();
+        }
+    }
+
     /// <summary>Saves and applies what the Options dialog returned.</summary>
+
     public void ApplyOptions(int autosaveMinutes, AutoCorrectSettings autoCorrect, string units)
     {
         ArgumentNullException.ThrowIfNull(autoCorrect);
@@ -995,6 +1092,7 @@ public sealed partial class MainViewModel : ObservableObject
         CanUndo = Session.CanUndo;
         CanRedo = Session.CanRedo;
         WordCount = CountWords(Session.Document);
+        ScheduleHeadingsRefresh();
         RefreshFormatState();
         UpdateTitle();
     }
@@ -1027,6 +1125,7 @@ public sealed partial class MainViewModel : ObservableObject
             CurrentStyle = ParagraphStyles.FirstOrDefault(s => s.Id == (current.StyleId ?? Session.Document.Styles.DefaultParagraphStyleId));
             bool? listKind = Session.ListKind(current);
             IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
+            UpdateCurrentHeading();
             IsBulleted = listKind == true;
             IsNumbered = listKind == false;
             CanUndo = Session.CanUndo;
@@ -1066,4 +1165,12 @@ public sealed record RecentFile(string Path)
     public string Name => System.IO.Path.GetFileName(Path);
 
     public override string ToString() => Name;
+}
+
+/// <summary>A heading shown in the navigation pane.</summary>
+public sealed record HeadingEntry(string Text, int Level, TextPosition Position)
+{
+    public string Display => Text.Length == 0 ? "(empty heading)" : Text;
+
+    public Thickness Margin => new(8 + Level * 14, 2, 4, 2);
 }
