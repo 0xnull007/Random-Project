@@ -39,6 +39,9 @@ public sealed record RunProperties
     /// <summary>BCP-47 language tag used for line breaking and spell checking (e.g. "en-US").</summary>
     public string? Language { get; init; }
 
+    /// <summary>Hyperlink target (a URL, or "#bookmark" for a place in the document); set directly on runs, never by styles.</summary>
+    public string? Link { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -70,6 +73,7 @@ public sealed record RunProperties
             AllCaps = overrides.AllCaps ?? AllCaps,
             Hidden = overrides.Hidden ?? Hidden,
             Language = overrides.Language ?? Language,
+            Link = overrides.Link ?? Link,
         };
     }
 }

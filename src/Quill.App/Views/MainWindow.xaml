@@ -54,6 +54,7 @@
     <KeyBinding Modifiers="Ctrl+Shift" Key="V" Command="{Binding PasteFormatCommand}" />
     <KeyBinding Modifiers="Ctrl+Alt" Key="V" Command="{x:Static views:MainWindow.PastePlainCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding ClearFormattingCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="K" Command="{x:Static views:MainWindow.InsertLinkCommand}" />
   </Window.InputBindings>
   <Window.CommandBindings>
     <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
@@ -64,6 +65,7 @@
     <CommandBinding Command="{x:Static views:MainWindow.WordCountCommand}" Executed="OnWordCountCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.ShortcutsCommand}" Executed="OnShortcutsCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.PastePlainCommand}" Executed="OnPastePlain" />
+    <CommandBinding Command="{x:Static views:MainWindow.InsertLinkCommand}" Executed="OnInsertLinkCommand" />
   </Window.CommandBindings>
 
   <DockPanel>
@@ -171,6 +173,7 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Link..." Click="OnInsertLink" ToolTip="Insert, edit or remove a hyperlink (Ctrl+K); Ctrl+Click a link to open it" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Symbol..." Click="OnInsertSymbol" ToolTip="Insert a special character" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Date &amp; Time..." Click="OnInsertDateTime" ToolTip="Insert the current date or time" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Picture..." Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />

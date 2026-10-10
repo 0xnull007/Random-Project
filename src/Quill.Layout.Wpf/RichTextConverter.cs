@@ -86,9 +86,18 @@ public static class RichTextConverter
                     {
                         var target = new System.Windows.Documents.Run(run.Text);
                         Apply(target, resolver.ResolveRun(source, run));
-                        paragraph.Inlines.Add(target);
+                        if (run.Properties.Link is { } url && Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
+                        {
+                            paragraph.Inlines.Add(new Hyperlink(target) { NavigateUri = uri });
+                        }
+                        else
+                        {
+                            paragraph.Inlines.Add(target);
+                        }
+
                         break;
                     }
+
 
                     case Break:
                         paragraph.Inlines.Add(new LineBreak());
@@ -281,9 +290,23 @@ public static class RichTextConverter
                 case LineBreak:
                     inlines.Add(new Break(BreakKind.Line));
                     break;
+                case Hyperlink hyperlink:
+                {
+                    var inner = ImmutableArray.CreateBuilder<Inline>();
+                    CollectInlines(hyperlink.Inlines, inner);
+                    string? url = hyperlink.NavigateUri?.OriginalString;
+                    foreach (Inline child in inner)
+                    {
+                        inlines.Add(url is null ? child : child.WithProperties(child.Properties with { Link = url }));
+                    }
+
+                    break;
+                }
+
                 case Span span:
                     CollectInlines(span.Inlines, inlines);
                     break;
+
             }
         }
     }

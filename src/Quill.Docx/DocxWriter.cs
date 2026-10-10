@@ -149,13 +149,29 @@ public static class DocxWriter
             result.Append(pPr);
         }
 
+        OpenXmlElement container = result;
+        string? openLink = null;
         foreach (Inline inline in paragraph.Inlines)
         {
+            string? link = inline.Properties.Link;
+            if (!string.Equals(link, openLink, StringComparison.Ordinal))
+            {
+                container = result;
+                openLink = null;
+                if (link is not null && BuildHyperlink(context, link) is { } hyperlink)
+                {
+                    result.Append(hyperlink);
+                    container = hyperlink;
+                    openLink = link;
+                }
+            }
+
             switch (inline)
             {
                 case Run run:
-                    result.Append(BuildRun(run));
+                    container.Append(BuildRun(run));
                     break;
+
                 case Break br:
                 {
                     var element = new W.Run();
@@ -169,14 +185,14 @@ public static class DocxWriter
                             _ => W.BreakValues.TextWrapping,
                         },
                     });
-                    result.Append(element);
+                    container.Append(element);
                     break;
                 }
 
                 case InlineImage image:
                     if (context.AddImage(image.ImageId) is { } relationshipId)
                     {
-                        result.Append(BuildPictureRun(image, relationshipId, context.NextPictureId()));
+                        container.Append(BuildPictureRun(image, relationshipId, context.NextPictureId()));
                     }
 
                     break;
@@ -187,7 +203,7 @@ public static class DocxWriter
                     AppendRunProperties(element, field.Properties, field.StyleId);
                     element.Append(new W.Text(field.CachedResult) { Space = SpaceProcessingModeValues.Preserve });
                     simple.Append(element);
-                    result.Append(simple);
+                    container.Append(simple);
                     break;
                 }
             }
@@ -522,7 +538,34 @@ public static class DocxWriter
         return sectPr;
     }
 
+    // ------------------------------------------------------------------ hyperlinks
+
+    /// <summary>A w:hyperlink for an external URL (through a relationship on the part) or an internal "#bookmark" anchor.</summary>
+    private static W.Hyperlink? BuildHyperlink(PartContext context, string link)
+    {
+        if (link.StartsWith('#'))
+        {
+            return link.Length > 1 ? new W.Hyperlink { Anchor = link[1..] } : null;
+        }
+
+        if (!Uri.TryCreate(link, UriKind.Absolute, out Uri? uri) && !Uri.TryCreate("http://" + link, UriKind.Absolute, out uri))
+        {
+            return null;
+        }
+
+        try
+        {
+            HyperlinkRelationship relationship = context.Part.AddHyperlinkRelationship(uri, true);
+            return new W.Hyperlink { Id = relationship.Id, History = true };
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UriFormatException)
+        {
+            return null;
+        }
+    }
+
     // ------------------------------------------------------------------ pictures
+
 
     private static W.Run BuildPictureRun(InlineImage image, string relationshipId, uint pictureId)
     {
@@ -578,6 +621,8 @@ public static class DocxWriter
 
         public MainDocumentPart Main { get; } = main;
 
+        public OpenXmlPart Part { get; } = part;
+
         public uint NextPictureId() => State.NextPictureId();
 
         /// <summary>Adds the picture to this part once and returns its relationship id; null when the document has no such picture.</summary>
@@ -593,7 +638,7 @@ public static class DocxWriter
                 return null;
             }
 
-            ImagePart imagePart = part switch
+            ImagePart imagePart = Part switch
             {
                 MainDocumentPart m => m.AddImagePart(data.ContentType),
                 HeaderPart h => h.AddImagePart(data.ContentType),
@@ -605,7 +650,7 @@ public static class DocxWriter
                 imagePart.FeedData(stream);
             }
 
-            string id = part.GetIdOfPart(imagePart);
+            string id = Part.GetIdOfPart(imagePart);
             _relationshipIds[imageId] = id;
             return id;
         }

@@ -111,10 +111,14 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Pictures appear in Print Preview, on paper and in the exported PDF.
 - [ ] Pictures in a header or footer work too.
 
-## 11. Symbol and Date & Time (new)
+## 11. Link, Symbol and Date & Time (new)
 
 - [ ] Insert > Symbol...: clicking a symbol inserts it; the window stays open for more; typing a hex code
       (e.g. `2192` or `U+1F600`) previews it and Insert inserts it; Close closes.
+- [ ] Insert > Link... (Ctrl+K) with text selected makes it a blue underlined link; with nothing selected it inserts
+      the text. Hover shows the address; Ctrl+Click opens it in the browser. Ctrl+K on a link edits it; Remove Link
+      turns it back into plain text. Links survive save/reopen and open in Word. Word documents with links
+      (including HYPERLINK fields) show them as links.
 - [ ] Insert > Date & Time...: pick a format (double-click or Insert); the text is inserted at the caret.
 
 ## 12. Find and replace
@@ -183,7 +187,7 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 ## Known limitations (expected, not bugs)
 
 - Tables are shown as placeholders and preserved on save, not editable.
-- No spell check, no hyperlinks (link text is kept, the link is dropped), no footnotes, comments, track changes
+- No spell check, no footnotes, comments, track changes
   or equations (dropped with a warning), single column only.
 - Floating pictures become inline; EMF/WMF pictures show as grey boxes; pasting a picture *into* another app
   gives its text only.

@@ -207,7 +207,49 @@ public static class DocumentEditor
         });
     }
 
-    /// <summary>Removes direct character formatting and character styles (Ctrl+Space); the paragraph style stays.</summary>
+    /// <summary>Makes the range a hyperlink to <paramref name="url"/>, giving the runs the hyperlink character style (or direct formatting when the sheet has none).</summary>
+    public static EditResult ApplyLink(Document document, TextRange range, string url, string? hyperlinkStyleId, RunProperties? fallbackFormat = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(url);
+        if (range.IsEmpty)
+        {
+            return EditResult.NoOp(document, new Selection(range.Start, range.End));
+        }
+
+        RunProperties delta = (fallbackFormat ?? RunProperties.Empty) with { Link = url };
+        return TransformParagraphs(document, range, (paragraph, start, end, _) =>
+            paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline =>
+            {
+                Inline updated = inline.WithProperties(inline.Properties.Merge(delta));
+                return hyperlinkStyleId is null ? updated : updated.WithStyle(hyperlinkStyleId);
+            })));
+    }
+
+    /// <summary>Removes hyperlinks from the range; runs in the hyperlink style go back to plain text.</summary>
+    public static EditResult RemoveLinks(Document document, TextRange range, string? hyperlinkStyleId)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (range.IsEmpty)
+        {
+            return EditResult.NoOp(document, new Selection(range.Start, range.End));
+        }
+
+        return TransformParagraphs(document, range, (paragraph, start, end, _) =>
+            paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline =>
+            {
+                if (inline.Properties.Link is null)
+                {
+                    return inline;
+                }
+
+                Inline updated = inline.WithProperties(inline.Properties with { Link = null });
+                return hyperlinkStyleId is not null && inline.StyleId == hyperlinkStyleId ? updated.WithStyle(null) : updated;
+            })));
+    }
+
+    /// <summary>Removes direct character formatting and character styles (Ctrl+Space); the paragraph style and any hyperlinks stay.</summary>
+
     public static EditResult ClearRunFormat(Document document, TextRange range)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -218,7 +260,7 @@ public static class DocumentEditor
 
         return TransformParagraphs(document, range, (paragraph, start, end, includesMark) =>
         {
-            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(RunProperties.Empty).WithStyle(null)));
+            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(new RunProperties { Link = inline.Properties.Link }).WithStyle(null)));
             return includesMark ? updated.WithMarkProperties(RunProperties.Empty) : updated;
         });
     }

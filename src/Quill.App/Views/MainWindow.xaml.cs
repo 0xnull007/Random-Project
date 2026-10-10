@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand WordCountCommand = new("WordCount", typeof(MainWindow));
     public static readonly RoutedCommand ShortcutsCommand = new("Shortcuts", typeof(MainWindow));
     public static readonly RoutedCommand PastePlainCommand = new("PastePlain", typeof(MainWindow));
+    public static readonly RoutedCommand InsertLinkCommand = new("InsertLink", typeof(MainWindow));
 
     private FindReplaceWindow? _findWindow;
 
@@ -149,7 +150,32 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnInsertLinkCommand(object sender, ExecutedRoutedEventArgs e) => OnInsertLink(sender, e);
+
+    private void OnInsertLink(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        (TextRange Range, string Url)? existing = session.Selection.IsCollapsed ? session.LinkAtCaret() : null;
+        TextRange textRange = existing?.Range ?? session.Selection.Range;
+        string text = textRange.IsEmpty || !textRange.IsWithinOneParagraph ? string.Empty : DocumentEditor.ExtractFragment(session.Document, textRange).ToPlainText();
+        var dialog = new LinkWindow(text, existing?.Url) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            if (dialog.RemoveRequested)
+            {
+                session.RemoveLink();
+            }
+            else
+            {
+                session.InsertLink(dialog.Text, dialog.Url);
+            }
+        }
+
+        Editor.Focus();
+    }
+
     private void OnInsertPicture(object sender, RoutedEventArgs e)
+
 
     {
         var dialog = new OpenFileDialog { Filter = ImageFiles.Filter, Title = "Insert Picture" };

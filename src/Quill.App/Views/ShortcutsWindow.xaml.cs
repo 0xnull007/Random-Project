@@ -14,6 +14,8 @@ public partial class ShortcutsWindow : Window
         new("Ctrl+Alt+V", "Paste as plain text"),
         new("Ctrl+Shift+C / Ctrl+Shift+V", "Copy / paste formatting (Format Painter)"),
         new("Ctrl+Space", "Clear character formatting"),
+        new("Ctrl+K", "Insert or edit a hyperlink"),
+        new("Ctrl+Click", "Follow a hyperlink"),
         new("Ctrl+A", "Select all"),
         new("Ctrl+F / Ctrl+H", "Find / Find and replace"),
         new("F3 / Shift+F4", "Find next / Find previous"),

@@ -1215,6 +1215,13 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         Point viewPoint = e.GetPosition(this);
         _desiredCaretX = null;
+        if (e.ClickCount == 1 && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && LinkUnder(viewPoint) is { } link)
+        {
+            OpenLink(link.Url);
+            e.Handled = true;
+            return;
+        }
+
         if (e.ClickCount == 2 && TryToggleHeaderFooterAt(viewPoint))
         {
             e.Handled = true;
@@ -1250,9 +1257,63 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         e.Handled = true;
     }
 
+    private string? _hoverLink;
+
+    /// <summary>The hyperlink under a view point, when the point is inside the link's text.</summary>
+    private (TextRange Range, string Url)? LinkUnder(Point viewPoint)
+    {
+        if (Session is not { } session || HitTest(viewPoint) is not { } hit || session.LinkAt(hit.Position) is not { } link)
+        {
+            return null;
+        }
+
+        return link.Range.Contains(hit.Position) || hit.Position == link.Range.End && hit.Affinity == CaretAffinity.Upstream ? link : null;
+    }
+
+    /// <summary>Opens a web or mail link in the default handler; other schemes and internal anchors are ignored.</summary>
+    public static void OpenLink(string url)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        if (url.StartsWith('#'))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) && !Uri.TryCreate("http://" + url, UriKind.Absolute, out uri))
+        {
+            return;
+        }
+
+        if (uri.Scheme is not ("http" or "https" or "mailto"))
+        {
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            // No handler for the scheme; nothing to do.
+        }
+    }
+
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (!_dragging && !IsReadOnly)
+        {
+            string? url = LinkUnder(e.GetPosition(this))?.Url;
+            if (!string.Equals(url, _hoverLink, StringComparison.Ordinal))
+            {
+                _hoverLink = url;
+                ToolTip = url is null ? null : url + Environment.NewLine + "Ctrl+Click to follow the link";
+            }
+
+            UpdateCursor();
+        }
+
         if (!_dragging || e.LeftButton != MouseButtonState.Pressed || Session is not { } session)
         {
             return;
@@ -1263,6 +1324,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             SafeMove(session, hit.Position, extend: true, hit.Affinity);
         }
     }
+
 
     private FormatSample? _pendingFormatSample;
 
@@ -1283,7 +1345,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     /// <summary>Raised when Esc cancels the Format Painter.</summary>
     public event EventHandler? FormatPainterCancelled;
 
-    private void UpdateCursor() => Cursor = IsReadOnly ? Cursors.Arrow : _pendingFormatSample is not null ? Cursors.Pen : Cursors.IBeam;
+    private void UpdateCursor() => Cursor = IsReadOnly ? Cursors.Arrow
+        : _pendingFormatSample is not null ? Cursors.Pen
+        : _hoverLink is not null && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? Cursors.Hand
+        : Cursors.IBeam;
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {

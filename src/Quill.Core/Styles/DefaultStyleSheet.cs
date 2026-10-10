@@ -13,6 +13,7 @@ public static class DefaultStyleSheet
     public const string TitleId = "Title";
     public const string HeaderId = "Header";
     public const string FooterId = "Footer";
+    public const string HyperlinkStyleId = "Hyperlink";
 
     private const string BodyFont = "Calibri";
     private const string HeadingFont = "Calibri Light";
@@ -46,6 +47,15 @@ public static class DefaultStyleSheet
                 Type = StyleType.Character,
                 IsDefault = true,
                 Priority = 1,
+            },
+            new()
+            {
+                Id = HyperlinkStyleId,
+                Name = "Hyperlink",
+                Type = StyleType.Character,
+                BasedOn = StyleSheet.DefaultParagraphFontStyleId,
+                Priority = 99,
+                RunProperties = new RunProperties { Color = DocColor.Parse("0563C1"), Underline = UnderlineStyle.Single },
             },
             new()
             {

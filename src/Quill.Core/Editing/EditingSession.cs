@@ -523,7 +523,117 @@ public sealed class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    // ----- Hyperlinks -----
+
+    /// <summary>The hyperlink at <paramref name="position"/> (or just before it): its full extent and target.</summary>
+    public (TextRange Range, string Url)? LinkAt(TextPosition position)
+    {
+        if (Document.TryGetParagraph(position) is not { } paragraph)
+        {
+            return null;
+        }
+
+        List<InlineSpan> spans = paragraph.Spans().ToList();
+        int offset = position.Offset;
+        int index = spans.FindIndex(s => s.Start <= offset && offset < s.End && s.Inline.Properties.Link is not null);
+        if (index < 0 && offset > 0)
+        {
+            index = spans.FindIndex(s => s.Start <= offset - 1 && offset - 1 < s.End && s.Inline.Properties.Link is not null);
+        }
+
+        if (index < 0)
+        {
+            return null;
+        }
+
+        string url = spans[index].Inline.Properties.Link!;
+        int first = index;
+        while (first > 0 && string.Equals(spans[first - 1].Inline.Properties.Link, url, StringComparison.Ordinal))
+        {
+            first--;
+        }
+
+        int last = index;
+        while (last + 1 < spans.Count && string.Equals(spans[last + 1].Inline.Properties.Link, url, StringComparison.Ordinal))
+        {
+            last++;
+        }
+
+        return (new TextRange(position.WithOffset(spans[first].Start), position.WithOffset(spans[last].End)), url);
+    }
+
+    public (TextRange Range, string Url)? LinkAtCaret() => LinkAt(Selection.Active);
+
+    /// <summary>
+    /// Inserts or updates a hyperlink. A selection (or the link under the caret) becomes the link, its text replaced
+    /// by <paramref name="text"/> when that differs; with nothing selected the text is inserted at the caret.
+    /// </summary>
+    public void InsertLink(string text, string url)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(url);
+        if (url.Length == 0)
+        {
+            return;
+        }
+
+        if (text.Length == 0)
+        {
+            text = url;
+        }
+
+        TextRange range = Selection.IsCollapsed && LinkAtCaret() is { } existing ? existing.Range : Selection.Range;
+        Document document = Document;
+        ChangeSet? change = null;
+        void Apply(EditResult result)
+        {
+            if (result.IsNoOp)
+            {
+                return;
+            }
+
+            document = result.Document;
+            change = change is null ? result.Change : change.Value.Union(result.Change);
+        }
+
+        string current = range.IsEmpty ? string.Empty : DocumentEditor.ExtractFragment(document, range).ToPlainText();
+        TextPosition start = range.Start;
+        if (!range.IsWithinOneParagraph || !string.Equals(current, text, StringComparison.Ordinal))
+        {
+            (string? styleId, RunProperties properties) = TypingFormat(document, new Selection(range.Start, range.End));
+            if (!range.IsEmpty)
+            {
+                Apply(DocumentEditor.DeleteRange(document, range));
+            }
+
+            string? plainStyle = styleId == DefaultStyleSheet.HyperlinkStyleId ? null : styleId;
+            Apply(DocumentEditor.InsertText(document, start, text, properties with { Link = null }, plainStyle));
+            range = new TextRange(start, start.WithOffset(start.Offset + text.Length));
+        }
+
+        bool hasStyle = document.Styles.Contains(DefaultStyleSheet.HyperlinkStyleId);
+        RunProperties? fallback = hasStyle ? null : new RunProperties { Color = DocColor.Parse("0563C1"), Underline = UnderlineStyle.Single };
+        Apply(DocumentEditor.ApplyLink(document, range, url, hasStyle ? DefaultStyleSheet.HyperlinkStyleId : null, fallback));
+        if (change is { } total)
+        {
+            Commit(new EditResult(document, Selection.Caret(range.End), total), EditKind.Other, startsNewGroup: true);
+        }
+
+        PendingFormat = null;
+    }
+
+    /// <summary>Turns the selected links (or the link under the caret) back into plain text.</summary>
+    public void RemoveLink()
+    {
+        TextRange? range = Selection.IsCollapsed ? LinkAtCaret()?.Range : Selection.Range;
+        if (range is { } target)
+        {
+            Commit(DocumentEditor.RemoveLinks(Document, target, DefaultStyleSheet.HyperlinkStyleId) with { Selection = Selection }, EditKind.Formatting, startsNewGroup: true);
+        }
+    }
+
     // ----- Clear formatting and Format Painter -----
+
 
     /// <summary>Ctrl+Space: strips direct character formatting and character styles from the selection, or from the word the caret is in.</summary>
     public void ClearFormatting()
@@ -543,7 +653,7 @@ public sealed class EditingSession
         int probe = Selection.IsCollapsed ? range.Start.Offset : Math.Min(paragraph.Length, range.Start.Offset + 1);
         (string? styleId, RunProperties run) = paragraph.GetTypingFormatAt(probe);
         bool withParagraph = Selection.IsCollapsed || TextRanges.Paragraphs(Document, range).Any(s => s.IncludesMark);
-        return new FormatSample(run, styleId, withParagraph ? paragraph.Properties : null, withParagraph ? paragraph.StyleId : null);
+        return new FormatSample(run with { Link = null }, styleId == DefaultStyleSheet.HyperlinkStyleId ? null : styleId, withParagraph ? paragraph.Properties : null, withParagraph ? paragraph.StyleId : null);
     }
 
     /// <summary>Applies a Format Painter sample to the selection (or the word at the caret), replacing the character formatting there.</summary>

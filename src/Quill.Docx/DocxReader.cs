@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using Quill.Core.Model;
@@ -260,7 +261,10 @@ public sealed class DocxReader
                 case W.Run run:
                     ReadRun(run, builder);
                     break;
-                case W.Hyperlink or W.SdtContentRun or W.InsertedRun or W.CustomXmlRun or W.SimpleFieldRuby:
+                case W.Hyperlink hyperlink:
+                    ReadHyperlink(hyperlink, builder);
+                    break;
+                case W.SdtContentRun or W.InsertedRun or W.CustomXmlRun or W.SimpleFieldRuby:
                 case OpenXmlElement when element.LocalName == "smartTag":
                     ReadInlines(element, builder);
                     break;
@@ -285,6 +289,47 @@ public sealed class DocxReader
         }
     }
 
+    /// <summary>Runs inside w:hyperlink get the target as their Link; the relationship holds external URLs, the anchor attribute internal ones.</summary>
+    private void ReadHyperlink(W.Hyperlink hyperlink, InlineBuilder builder)
+    {
+        string? target = null;
+        if (hyperlink.Id?.Value is { } id && _part is not null)
+        {
+            target = _part.HyperlinkRelationships.FirstOrDefault(r => string.Equals(r.Id, id, StringComparison.Ordinal))?.Uri.OriginalString;
+        }
+
+        if (target is null && hyperlink.Anchor?.Value is { Length: > 0 } anchor)
+        {
+            target = "#" + anchor;
+        }
+
+        string? previous = builder.CurrentLink;
+        builder.CurrentLink = target ?? previous;
+        try
+        {
+            ReadInlines(hyperlink, builder);
+        }
+        finally
+        {
+            builder.CurrentLink = previous;
+        }
+    }
+
+    private static readonly Regex HyperlinkInstruction = new("^HYPERLINK\\s+(?<local>\\\\l\\s+)?\"(?<target>[^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>The target of a HYPERLINK field instruction, or null when the instruction is something else.</summary>
+    internal static string? HyperlinkTarget(string instruction)
+    {
+        Match match = HyperlinkInstruction.Match(instruction.Trim());
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        string target = match.Groups["target"].Value;
+        return match.Groups["local"].Success ? "#" + target : target;
+    }
+
     private void ReadSimpleField(W.SimpleField field, InlineBuilder builder)
     {
         string instruction = field.Instruction?.Value ?? string.Empty;
@@ -295,6 +340,12 @@ public sealed class DocxReader
         }
 
         W.Run? firstRun = field.Descendants<W.Run>().FirstOrDefault();
+        if (HyperlinkTarget(instruction) is { } link)
+        {
+            builder.AddText(result.ToString(), ReadRunProperties(firstRun?.RunProperties) with { Link = link }, firstRun?.RunProperties?.RunStyle?.Val?.Value);
+            return;
+        }
+
         builder.AddField(new Field(FieldKindFrom(instruction), instruction.Trim(), result.ToString(), ReadRunProperties(firstRun?.RunProperties), firstRun?.RunProperties?.RunStyle?.Val?.Value));
     }
 
@@ -810,6 +861,9 @@ public sealed class DocxReader
         private RunProperties _fieldProperties = RunProperties.Empty;
         private string? _fieldStyle;
 
+        /// <summary>Target of the w:hyperlink being read, applied to every run inside it.</summary>
+        public string? CurrentLink { get; set; }
+
         public void AddText(string text, RunProperties properties, string? styleId)
         {
             if (_depth > 1)
@@ -827,7 +881,7 @@ public sealed class DocxReader
                 return;
             }
 
-            _inlines.Add(new Run(text, properties, styleId));
+            _inlines.Add(new Run(text, CurrentLink is null ? properties : properties with { Link = CurrentLink }, styleId));
         }
 
         public void AddInline(Inline inline)
@@ -873,7 +927,15 @@ public sealed class DocxReader
                     if (_depth == 1)
                     {
                         string instruction = _instruction.ToString().Trim();
-                        _inlines.Add(new Field(FieldKindFrom(instruction), instruction, _result.ToString(), _fieldProperties, _fieldStyle));
+                        if (HyperlinkTarget(instruction) is { } link)
+                        {
+                            _inlines.Add(new Run(_result.ToString(), _fieldProperties with { Link = link }, _fieldStyle));
+                        }
+                        else
+                        {
+                            _inlines.Add(new Field(FieldKindFrom(instruction), instruction, _result.ToString(), _fieldProperties, _fieldStyle));
+                        }
+
                     }
 
                     _depth = Math.Max(0, _depth - 1);
