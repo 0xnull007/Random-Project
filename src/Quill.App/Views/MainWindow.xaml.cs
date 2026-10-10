@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand GoToPageCommand = new("GoToPage", typeof(MainWindow));
     public static readonly RoutedCommand WordCountCommand = new("WordCount", typeof(MainWindow));
     public static readonly RoutedCommand ShortcutsCommand = new("Shortcuts", typeof(MainWindow));
+    public static readonly RoutedCommand PastePlainCommand = new("PastePlain", typeof(MainWindow));
 
     private FindReplaceWindow? _findWindow;
 
@@ -37,6 +38,18 @@ public partial class MainWindow : Window
     {
         Editor.Session = ViewModel.Session;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        ViewModel.PainterChanged += (_, _) => Editor.PendingFormatSample = ViewModel.PainterSample;
+        Editor.FormatPainted += (_, _) =>
+        {
+            if (!ViewModel.FormatPainterSticky)
+            {
+                ViewModel.IsFormatPainterActive = false;
+            }
+
+            ViewModel.RefreshFormatState();
+        };
+        Editor.FormatPainterCancelled += (_, _) => ViewModel.IsFormatPainterActive = false;
+
         Editor.ViewStateChanged += (_, _) =>
         {
             ViewModel.PageCount = Editor.PageCount;
@@ -199,7 +212,22 @@ public partial class MainWindow : Window
 
     private void OnPaste(object sender, RoutedEventArgs e) => Editor.PasteFromClipboard();
 
+    private void OnPastePlain(object sender, ExecutedRoutedEventArgs e) => Editor.PasteFromClipboard(plainTextOnly: true);
+
+    private void OnPainterDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // The second click of a double-click toggles the button off again; re-arm it as sticky afterwards.
+        Dispatcher.BeginInvoke(() =>
+        {
+            ViewModel.FormatPainterSticky = true;
+            ViewModel.IsFormatPainterActive = false;
+            ViewModel.FormatPainterSticky = true;
+            ViewModel.IsFormatPainterActive = true;
+        });
+    }
+
     private void OnSelectAll(object sender, RoutedEventArgs e) => ViewModel.Session.SelectAll();
+
 
     private void OnFontColorSelected(object? sender, string value)
     {

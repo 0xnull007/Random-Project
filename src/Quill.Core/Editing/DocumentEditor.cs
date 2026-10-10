@@ -207,7 +207,24 @@ public static class DocumentEditor
         });
     }
 
+    /// <summary>Removes direct character formatting and character styles (Ctrl+Space); the paragraph style stays.</summary>
+    public static EditResult ClearRunFormat(Document document, TextRange range)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (range.IsEmpty)
+        {
+            return EditResult.NoOp(document, new Selection(range.Start, range.End));
+        }
+
+        return TransformParagraphs(document, range, (paragraph, start, end, includesMark) =>
+        {
+            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(RunProperties.Empty).WithStyle(null)));
+            return includesMark ? updated.WithMarkProperties(RunProperties.Empty) : updated;
+        });
+    }
+
     /// <summary>Sets the character style of every inline in the range (null clears it).</summary>
+
 
     public static EditResult ApplyCharacterStyle(Document document, TextRange range, string? characterStyleId)
     {

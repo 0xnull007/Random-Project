@@ -50,6 +50,10 @@
     <KeyBinding Modifiers="Ctrl" Key="G" Command="{x:Static views:MainWindow.GoToPageCommand}" />
     <KeyBinding Modifiers="Ctrl+Shift" Key="G" Command="{x:Static views:MainWindow.WordCountCommand}" />
     <KeyBinding Key="F1" Command="{x:Static views:MainWindow.ShortcutsCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="C" Command="{Binding CopyFormatCommand}" />
+    <KeyBinding Modifiers="Ctrl+Shift" Key="V" Command="{Binding PasteFormatCommand}" />
+    <KeyBinding Modifiers="Ctrl+Alt" Key="V" Command="{x:Static views:MainWindow.PastePlainCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="Space" Command="{Binding ClearFormattingCommand}" />
   </Window.InputBindings>
   <Window.CommandBindings>
     <CommandBinding Command="ApplicationCommands.Find" Executed="OnFind" />
@@ -59,6 +63,7 @@
     <CommandBinding Command="{x:Static views:MainWindow.GoToPageCommand}" Executed="OnGoToPageCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.WordCountCommand}" Executed="OnWordCountCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.ShortcutsCommand}" Executed="OnShortcutsCommand" />
+    <CommandBinding Command="{x:Static views:MainWindow.PastePlainCommand}" Executed="OnPastePlain" />
   </Window.CommandBindings>
 
   <DockPanel>
@@ -91,6 +96,8 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Cut" Click="OnCut" ToolTip="Cut (Ctrl+X)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Copy" Click="OnCopy" ToolTip="Copy (Ctrl+C)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Paste" Click="OnPaste" ToolTip="Paste (Ctrl+V)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Clear" Command="{Binding ClearFormattingCommand}" ToolTip="Clear character formatting (Ctrl+Space)" />
+          <ToggleButton Style="{StaticResource Quill.CommandToggle}" x:Name="PainterButton" Content="Format Painter" IsChecked="{Binding IsFormatPainterActive}" MouseDoubleClick="OnPainterDoubleClick" ToolTip="Copy the formatting here to the text you click or drag over next; double-click to keep it on (Ctrl+Shift+C / Ctrl+Shift+V)" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150" IsEditable="True"
                     ItemsSource="{Binding FontFamilies}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"

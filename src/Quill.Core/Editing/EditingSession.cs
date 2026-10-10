@@ -294,6 +294,11 @@ public sealed class EditingSession
             {
                 Commit(DocumentEditor.ApplyParagraphMarkFormat(Document, Selection.Active, delta), EditKind.Formatting, startsNewGroup: true);
             }
+            else if (WordAroundCaret() is { } word)
+            {
+                // Like Word: with the caret inside a word, the whole word takes the formatting.
+                Commit(DocumentEditor.ApplyRunFormat(Document, word, delta) with { Selection = Selection }, EditKind.Formatting, startsNewGroup: true);
+            }
             else
             {
                 PendingFormat = (PendingFormat ?? RunProperties.Empty).Merge(delta);
@@ -518,7 +523,94 @@ public sealed class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    // ----- Clear formatting and Format Painter -----
+
+    /// <summary>Ctrl+Space: strips direct character formatting and character styles from the selection, or from the word the caret is in.</summary>
+    public void ClearFormatting()
+    {
+        PendingFormat = null;
+        if (FormatTarget() is { } range)
+        {
+            Commit(DocumentEditor.ClearRunFormat(Document, range) with { Selection = Selection }, EditKind.Formatting, startsNewGroup: true);
+        }
+    }
+
+    /// <summary>Picks up the formatting at the caret (or at the start of the selection) for the Format Painter.</summary>
+    public FormatSample CopyFormat()
+    {
+        TextRange range = Selection.Range;
+        Paragraph paragraph = Document.GetParagraph(range.Start);
+        int probe = Selection.IsCollapsed ? range.Start.Offset : Math.Min(paragraph.Length, range.Start.Offset + 1);
+        (string? styleId, RunProperties run) = paragraph.GetTypingFormatAt(probe);
+        bool withParagraph = Selection.IsCollapsed || TextRanges.Paragraphs(Document, range).Any(s => s.IncludesMark);
+        return new FormatSample(run, styleId, withParagraph ? paragraph.Properties : null, withParagraph ? paragraph.StyleId : null);
+    }
+
+    /// <summary>Applies a Format Painter sample to the selection (or the word at the caret), replacing the character formatting there.</summary>
+    public void PasteFormat(FormatSample sample)
+    {
+        ArgumentNullException.ThrowIfNull(sample);
+        TextRange range = FormatTarget() ?? Selection.Range;
+        Document document = Document;
+        ChangeSet? change = null;
+        void Apply(EditResult result)
+        {
+            if (result.IsNoOp)
+            {
+                return;
+            }
+
+            document = result.Document;
+            change = change is null ? result.Change : change.Value.Union(result.Change);
+        }
+
+        if (!range.IsEmpty)
+        {
+            Apply(DocumentEditor.ClearRunFormat(document, range));
+            Apply(DocumentEditor.ApplyCharacterStyle(document, range, sample.CharacterStyleId));
+            Apply(DocumentEditor.ApplyRunFormat(document, range, sample.Run));
+        }
+
+        if (sample.Paragraph is { } paragraphFormat)
+        {
+            Apply(DocumentEditor.SetParagraphStyle(document, range, sample.ParagraphStyleId));
+            Apply(DocumentEditor.ApplyParagraphFormat(document, range, paragraphFormat));
+        }
+
+        if (change is { } total)
+        {
+            Commit(new EditResult(document, Selection, total), EditKind.Formatting, startsNewGroup: true);
+        }
+    }
+
+    /// <summary>The selection, or the word around the caret; null when the caret is not inside a word.</summary>
+    private TextRange? FormatTarget() => Selection.IsCollapsed ? WordAroundCaret() : Selection.Range;
+
+    /// <summary>The word the caret sits strictly inside (a letter on both sides), without its trailing spaces.</summary>
+    private TextRange? WordAroundCaret()
+    {
+        TextPosition at = Selection.Active;
+        Paragraph paragraph = Document.GetParagraph(at);
+        string text = paragraph.FlatText;
+        bool letterBefore = at.Offset > 0 && at.Offset <= text.Length && Words.IsWordCharacter(text[at.Offset - 1]);
+        bool letterAfter = at.Offset < text.Length && Words.IsWordCharacter(text[at.Offset]);
+        if (!letterBefore || !letterAfter)
+        {
+            return null;
+        }
+
+        TextRange word = TextNavigation.WordAt(Document, at);
+        int end = word.End.Offset;
+        while (end > word.Start.Offset && !Words.IsWordCharacter(text[end - 1]))
+        {
+            end--;
+        }
+
+        return end > word.Start.Offset ? new TextRange(word.Start, word.Start.WithOffset(end)) : null;
+    }
+
     // ----- Change case -----
+
 
 
     /// <summary>Changes the case of the selection, or of the word at the caret when nothing is selected.</summary>

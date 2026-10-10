@@ -563,8 +563,65 @@ public sealed partial class MainViewModel : ObservableObject
         UpdateTitle();
     }
 
+    // ----- Clear formatting and Format Painter -----
+
+    private FormatSample? _copiedFormat;
+
+    /// <summary>Formatting the Format Painter will apply on the next click; null while it is off.</summary>
+    public FormatSample? PainterSample { get; private set; }
+
+    /// <summary>Set by a double-click on the Format Painter: it stays on until Esc.</summary>
+    public bool FormatPainterSticky { get; set; }
+
+    public event EventHandler? PainterChanged;
+
+    [ObservableProperty]
+    public partial bool IsFormatPainterActive { get; set; }
+
+    partial void OnIsFormatPainterActiveChanged(bool value)
+    {
+        if (value)
+        {
+            PainterSample = Session.CopyFormat();
+            StatusMessage = FormatPainterSticky ? "Format Painter on: click or drag over text; Esc to stop" : "Format Painter: click or drag over the text to format";
+        }
+        else
+        {
+            PainterSample = null;
+            FormatPainterSticky = false;
+        }
+
+        PainterChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void ClearFormatting()
+    {
+        Session.ClearFormatting();
+        RefreshFormatState();
+    }
+
+    /// <summary>Ctrl+Shift+C: remember the formatting at the caret for Ctrl+Shift+V.</summary>
+    [RelayCommand]
+    private void CopyFormat()
+    {
+        _copiedFormat = Session.CopyFormat();
+        StatusMessage = "Formatting copied; Ctrl+Shift+V applies it";
+    }
+
+    [RelayCommand]
+    private void PasteFormat()
+    {
+        if (_copiedFormat is { } sample)
+        {
+            Session.PasteFormat(sample);
+            RefreshFormatState();
+        }
+    }
+
     [RelayCommand]
     private void ChangeCase(string kind)
+
     {
         if (Enum.TryParse(kind, ignoreCase: true, out CaseChange change))
         {

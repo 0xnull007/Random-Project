@@ -242,7 +242,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
     private void OnReadOnlyChanged()
     {
-        Cursor = IsReadOnly ? Cursors.Arrow : Cursors.IBeam;
+        UpdateCursor();
         DrawCaret();
     }
 
@@ -1264,6 +1264,27 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
     }
 
+    private FormatSample? _pendingFormatSample;
+
+    /// <summary>Format Painter: while set, the next click or drag applies this sample to what was clicked or dragged over.</summary>
+    public FormatSample? PendingFormatSample
+    {
+        get => _pendingFormatSample;
+        set
+        {
+            _pendingFormatSample = value;
+            UpdateCursor();
+        }
+    }
+
+    /// <summary>Raised after the Format Painter applied its sample.</summary>
+    public event EventHandler? FormatPainted;
+
+    /// <summary>Raised when Esc cancels the Format Painter.</summary>
+    public event EventHandler? FormatPainterCancelled;
+
+    private void UpdateCursor() => Cursor = IsReadOnly ? Cursors.Arrow : _pendingFormatSample is not null ? Cursors.Pen : Cursors.IBeam;
+
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
@@ -1272,8 +1293,14 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             _dragging = false;
             ReleaseMouseCapture();
             e.Handled = true;
+            if (_pendingFormatSample is { } sample && Session is { } session && !IsReadOnly)
+            {
+                session.PasteFormat(sample);
+                FormatPainted?.Invoke(this, EventArgs.Empty);
+            }
         }
     }
+
 
     protected override void OnPreviewMouseWheel(MouseWheelEventArgs e)
     {
@@ -1454,7 +1481,12 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             case Key.Insert when ctrl:
                 CopySelection();
                 break;
+            case Key.Escape when _pendingFormatSample is not null:
+                PendingFormatSample = null;
+                FormatPainterCancelled?.Invoke(this, EventArgs.Empty);
+                break;
             case Key.Escape:
+
                 if (_headerFooterMode && session.Selection.IsCollapsed)
                 {
                     ExitHeaderFooter();
@@ -1468,14 +1500,14 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             case Key.A when ctrl:
                 session.SelectAll();
                 break;
-            case Key.C when ctrl:
+            case Key.C when ctrl && !shift:
                 CopySelection();
                 break;
             case Key.X when ctrl:
                 CutSelection();
                 break;
-            case Key.V when ctrl:
-                PasteFromClipboard(plainTextOnly: shift);
+            case Key.V when ctrl && !shift:
+                PasteFromClipboard();
                 break;
             case Key.Z when ctrl:
                 session.Undo();
@@ -1508,7 +1540,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 PageUp();
                 break;
             case Key.PageDown:
-            case Key.Space:
+            case Key.Space when !ctrl:
                 PageDown();
                 break;
             case Key.Up:

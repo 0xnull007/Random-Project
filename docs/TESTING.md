@@ -40,6 +40,12 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] With no selection, press Ctrl+B then type: the new text is bold (sticky format); moving the caret cancels it.
 - [ ] Font family (editable combo, type a name) and size; A↑ / A↓ (Ctrl+Shift+> / <); Ctrl+] / Ctrl+[ by 1 pt.
 - [ ] Font color and highlight pickers (swatch shows the caret's current color); highlight "No color" clears it.
+- [ ] Caret inside a word (no selection), Ctrl+B: the whole word turns bold, like Word. At the end of a word it
+      only affects what you type next.
+- [ ] Clear (Ctrl+Space) removes bold/color/size from the selection but keeps the paragraph style.
+- [ ] Format Painter: put the caret in bold red text, click Format Painter, then drag over other text: it becomes
+      bold red. Double-click Format Painter to keep painting; Esc stops. Ctrl+Shift+C / Ctrl+Shift+V do the same
+      from the keyboard.
 - [ ] Toolbar state mirrors the caret: put the caret in bold text and the B button lights up.
 - [ ] Select the whole text of a bullet item (or several items) and grow the font: the bullets grow with it.
       Triple-click a paragraph and press Ctrl+B: only that paragraph changes and the B button lights up.
@@ -123,7 +129,7 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 - [ ] Copy/paste inside Quill keeps formatting, lists and pictures.
 - [ ] Copy from Quill and paste into Word or WordPad: fonts, bold/italic/colors, alignment and list bullets arrive.
-- [ ] Copy from Word/browser and paste into Quill: formatting arrives (RTF); Ctrl+Shift+V pastes plain text.
+- [ ] Copy from Word/browser and paste into Quill: formatting arrives (RTF); Ctrl+Alt+V pastes plain text.
 - [ ] Ctrl+X cuts. The Cut/Copy/Paste buttons do the same.
 
 ## 14. View tab and status bar
