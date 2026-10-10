@@ -531,7 +531,55 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithMetadata(metadata), Selection, ChangeSet.From(Selection.Story, Selection.Active.Block.TopIndex)), EditKind.Other, startsNewGroup: true);
     }
 
+    /// <summary>Numbers Heading 1-3 as 1, 1.1, 1.1.1 through their styles (or removes that numbering).</summary>
+    public void NumberHeadings(bool on)
+    {
+        Document document = Document;
+        string[] ids = [DefaultStyleSheet.Heading1Id, DefaultStyleSheet.Heading2Id, DefaultStyleSheet.Heading3Id];
+        StyleSheet styles = document.Styles;
+        if (on)
+        {
+            var levels = ImmutableArray.CreateBuilder<ListLevel>(ListDefinition.LevelCount);
+            for (int i = 0; i < ListDefinition.LevelCount; i++)
+            {
+                string template = string.Join(".", Enumerable.Range(1, i + 1).Select(n => "%" + n.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                levels.Add(new ListLevel { Format = NumberFormat.Decimal, Text = template, LeftIndent = Twips.Zero, Hanging = Twips.Zero });
+            }
+
+            (ListStore store, int numberingId) = document.Lists.AddList(levels.MoveToImmutable());
+            document = document.WithLists(store);
+            for (int level = 0; level < ids.Length; level++)
+            {
+                if (styles.Get(ids[level]) is { } style)
+                {
+                    styles = styles.With(style with { ParagraphProperties = style.ParagraphProperties with { List = new ListFormat(numberingId, level) } });
+                }
+            }
+        }
+        else
+        {
+            foreach (string id in ids)
+            {
+                if (styles.Get(id) is { } style && style.ParagraphProperties.List is not null)
+                {
+                    styles = styles.With(style with { ParagraphProperties = style.ParagraphProperties with { List = null } });
+                }
+            }
+        }
+
+        if (ReferenceEquals(styles, document.Styles) && ReferenceEquals(document, Document))
+        {
+            return;
+        }
+
+        Commit(new EditResult(document.WithStyles(styles), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    /// <summary>True when Heading 1 is numbered through its style.</summary>
+    public bool HeadingsAreNumbered => Document.Styles.Get(DefaultStyleSheet.Heading1Id)?.ParagraphProperties.List is { IsNone: false };
+
     // ----- Footnotes -----
+
 
     /// <summary>Inserts a footnote reference at the caret and starts the note; the caret moves into the note text.</summary>
     public void InsertFootnote()

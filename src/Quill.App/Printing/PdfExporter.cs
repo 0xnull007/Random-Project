@@ -1,6 +1,7 @@
 using System.IO;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
+using PdfSharp.Pdf.Annotations;
 using Quill.Core.Model;
 using Quill.Core.Styles;
 using Quill.Core.Units;
@@ -35,6 +36,7 @@ public static class PdfExporter
 
         var fonts = new PdfFontCache();
         using var images = new PdfImageCache();
+        var outlineParents = new Dictionary<int, PdfOutline>();
         foreach (PageLayout page in layout.Pages)
         {
             PdfPage pdfPage = pdf.AddPage();
@@ -42,8 +44,20 @@ public static class PdfExporter
             pdfPage.Height = XUnitPt.FromPoint(page.Size.Height * PointsPerDip);
             using XGraphics gfx = XGraphics.FromPdfPage(pdfPage, XGraphicsUnit.Point);
             gfx.ScaleTransform(PointsPerDip); // draw in DIPs, exactly as the layout computed them
-            PageRenderer.DrawContent(page, new PdfRenderTarget(gfx, fonts, images));
+            var target = new PdfRenderTarget(gfx, fonts, images);
+            PageRenderer.DrawContent(page, target);
+            foreach ((XRect rect, string url) in target.Links)
+            {
+                if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) && uri.Scheme is "http" or "https" or "mailto")
+                {
+                    pdfPage.AddWebLink(new PdfRectangle(gfx.Transformer.WorldToDefaultPage(rect)), uri.AbsoluteUri);
+                }
+            }
+
+            AddOutlines(pdf, pdfPage, page, resolver, outlineParents);
         }
+
+
 
         string directory = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
         string temp = Path.Combine(directory, "." + Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
@@ -108,7 +122,39 @@ public static class PdfExporter
         }
     }
 
+    /// <summary>Headings (outline levels 0-2) that start on this page become nested PDF bookmarks.</summary>
+    private static void AddOutlines(PdfDocument pdf, PdfPage pdfPage, PageLayout page, StyleResolver resolver, Dictionary<int, PdfOutline> parents)
+    {
+        foreach (BlockFragment fragment in page.Body)
+        {
+            if (fragment is not ParagraphFragment { IsParagraphStart: true } paragraph || resolver.ResolveParagraph(paragraph.Paragraph).OutlineLevel is not { } level || level > 2)
+            {
+                continue;
+            }
+
+            string title = paragraph.Paragraph.FlatText.Trim();
+            if (title.Length == 0)
+            {
+                continue;
+            }
+
+            PdfOutline? parent = null;
+            for (int l = level - 1; l >= 0 && parent is null; l--)
+            {
+                parents.TryGetValue(l, out parent);
+            }
+
+            PdfOutline outline = parent is null ? pdf.Outlines.Add(title, pdfPage, true) : parent.Outlines.Add(title, pdfPage, true);
+            parents[level] = outline;
+            for (int deeper = level + 1; deeper <= 2; deeper++)
+            {
+                parents.Remove(deeper);
+            }
+        }
+    }
+
     /// <summary>Caches XFont instances per family, size and style; falls back to Arial when a font is not installed.</summary>
+
     internal sealed class PdfFontCache
     {
         private readonly Dictionary<(string Family, double Size, XFontStyleEx Style), XFont> _fonts = [];
@@ -147,6 +193,9 @@ public static class PdfExporter
         private readonly PdfFontCache _fonts;
         private readonly PdfImageCache _images;
         private readonly Stack<XGraphicsState> _states = new();
+
+        /// <summary>Hyperlink boxes (world coordinates) drawn on this page, for link annotations.</summary>
+        public List<(XRect Rect, string Url)> Links { get; } = [];
 
         public PdfRenderTarget(XGraphics gfx, PdfFontCache fonts, PdfImageCache images)
         {
@@ -226,6 +275,11 @@ public static class PdfExporter
 
                 XFont font = _fonts.Get(p.FontFamily, emSize, style);
                 _gfx.DrawString(segment.Text, font, new XSolidBrush(ToColor(p.Color)), new XPoint(origin.X + segment.X, baseline), XStringFormats.BaseLineLeft);
+                if (p.Link is { Length: > 0 } link)
+                {
+                    Links.Add((new XRect(origin.X + segment.X, origin.Y + segment.Top, segment.Width, segment.Height), link));
+                }
+
             }
         }
 

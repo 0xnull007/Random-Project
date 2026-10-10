@@ -523,7 +523,16 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleHeadingNumbers()
+    {
+        Session.NumberHeadings(!Session.HeadingsAreNumbered);
+        RefreshStyles();
+        StatusMessage = Session.HeadingsAreNumbered ? "Headings are numbered 1, 1.1, 1.1.1" : "Heading numbering removed";
+    }
+
+    [RelayCommand]
     private void InsertFootnote() => Session.InsertFootnote();
+
 
     [RelayCommand]
     private void InsertColumnBreak() => Session.InsertBreak(BreakKind.Column);

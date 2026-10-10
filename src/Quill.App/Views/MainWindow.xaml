@@ -203,6 +203,7 @@
           <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150"
                     ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
                     ToolTip="Paragraph style (Ctrl+Alt+1/2/3 headings, Ctrl+Shift+N normal)" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Number Headings" Command="{Binding ToggleHeadingNumbersCommand}" ToolTip="Number Heading 1-3 as 1, 1.1, 1.1.1 (click again to remove)" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Modify Style..." Click="OnModifyStyle" ToolTip="Change the formatting of the current paragraph style for the whole document" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Font..." Click="OnFontDialog" ToolTip="All character formatting in one dialog (Ctrl+D)" />

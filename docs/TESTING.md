@@ -95,6 +95,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Home > Modify Style...: change the font/paragraph formatting of the current style (preview and summary); every
       paragraph in that style updates; "Update to Match Selection" copies the caret paragraph's formatting into the
       style; the style list refreshes when a Word document brings its own styles **(new)**.
+- [ ] Home > Number Headings: Heading 1-3 paragraphs show 1, 1.1, 1.1.1 in front; clicking again removes the
+      numbers; the numbering survives save/reopen and shows in Word **(new)**.
+- [ ] Export PDF: the PDF has bookmarks for the headings (nested) and clickable web/mail links **(new)**.
 - [ ] Increase / decrease indent buttons (⇥ ⇤).
 
 ## 6. Change case (new)
