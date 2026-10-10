@@ -440,28 +440,19 @@ public static class DocumentEditor
         StoryId story = range.Story;
         ImmutableList<Block> blocks = document.GetStory(story);
         int firstIndex = range.Start.Block.TopIndex;
-        int lastIndex = range.End.Block.TopIndex;
         ImmutableList<Block>.Builder builder = blocks.ToBuilder();
         bool changed = false;
-        for (int i = firstIndex; i <= lastIndex; i++)
+        foreach (ParagraphSpan span in TextRanges.Paragraphs(blocks, range))
         {
-            if (blocks[i] is not Paragraph paragraph)
+            if (!touchWholeParagraphs && span.IsEmpty)
             {
-                continue;
+                continue; // the range only brushes this paragraph (ends exactly at its start)
             }
 
-            int start = i == firstIndex ? range.Start.Offset : 0;
-            int end = i == lastIndex ? range.End.Offset : paragraph.Length;
-            bool includesMark = i < lastIndex;
-            if (!touchWholeParagraphs && start == end && !includesMark)
+            Paragraph updated = transform(span.Paragraph, span.Start, span.End, span.IncludesMark);
+            if (!ReferenceEquals(updated, span.Paragraph))
             {
-                continue; // range ends exactly at the start of this paragraph
-            }
-
-            Paragraph updated = transform(paragraph, start, end, includesMark);
-            if (!ReferenceEquals(updated, paragraph))
-            {
-                builder[i] = updated;
+                builder[span.Index] = updated;
                 changed = true;
             }
         }

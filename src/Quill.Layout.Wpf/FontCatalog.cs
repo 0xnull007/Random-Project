@@ -18,11 +18,65 @@ public sealed class FontCatalog
     public FontFamily GetFamily(string name) => _families.GetOrAdd(name, static n => new FontFamily(n));
 
     public Typeface GetTypeface(string family, bool bold, bool italic) =>
-        _typefaces.GetOrAdd((family, bold, italic), key => new Typeface(
-            GetFamily(key.Family),
-            key.Italic ? FontStyles.Italic : FontStyles.Normal,
-            key.Bold ? FontWeights.Bold : FontWeights.Normal,
-            FontStretches.Normal));
+        _typefaces.GetOrAdd((family, bold, italic), key => CreateTypeface(key.Family, key.Bold, key.Italic));
+
+    /// <summary>
+    /// Families whose name carries the weight ("Calibri Light", "Segoe UI Semibold") have no bold or italic faces of
+    /// their own and WPF does not always simulate them; fall back to the base family ("Calibri") in that case.
+    /// </summary>
+    private static Typeface CreateTypeface(string family, bool bold, bool italic)
+    {
+        Typeface typeface = Make(family, bold, italic);
+        if ((!bold && !italic) || Satisfies(typeface, bold, italic))
+        {
+            return typeface;
+        }
+
+        if (BaseFamilyName(family) is { } baseFamily)
+        {
+            Typeface alternative = Make(baseFamily, bold, italic);
+            if (Satisfies(alternative, bold, italic))
+            {
+                return alternative;
+            }
+        }
+
+        return typeface;
+    }
+
+    private static Typeface Make(string family, bool bold, bool italic) => new(
+        Shared.GetFamily(family),
+        italic ? FontStyles.Italic : FontStyles.Normal,
+        bold ? FontWeights.Bold : FontWeights.Normal,
+        FontStretches.Normal);
+
+    private static bool Satisfies(Typeface typeface, bool bold, bool italic)
+    {
+        if (!typeface.TryGetGlyphTypeface(out GlyphTypeface? glyphs) || glyphs is null)
+        {
+            return true; // unknown family: WPF falls back on its own; nothing better to offer
+        }
+
+        bool boldOk = !bold || glyphs.Weight.ToOpenTypeWeight() >= 600 || (glyphs.StyleSimulations & StyleSimulations.BoldSimulation) != 0;
+        bool italicOk = !italic || glyphs.Style != FontStyles.Normal || (glyphs.StyleSimulations & StyleSimulations.ItalicSimulation) != 0;
+        return boldOk && italicOk;
+    }
+
+    private static string? BaseFamilyName(string family)
+    {
+        foreach (string suffix in WeightSuffixes)
+        {
+            if (family.Length > suffix.Length && family.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return family[..^suffix.Length].TrimEnd();
+            }
+        }
+
+        return null;
+    }
+
+    private static readonly string[] WeightSuffixes = [" Light", " Semilight", " Semibold", " Medium", " Thin", " Black", " Heavy", " ExtraLight", " Extra Light"];
+
 
     public SolidColorBrush GetBrush(DocColor color)
     {

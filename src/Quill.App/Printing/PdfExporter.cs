@@ -181,8 +181,15 @@ public static class PdfExporter
         public void DrawTextSegments(IEnumerable<TextSegment> segments, PointD origin)
         {
             ArgumentNullException.ThrowIfNull(segments);
-            foreach (TextSegment segment in segments)
+            List<TextSegment> list = segments as List<TextSegment> ?? segments.ToList();
+            DrawHighlights(list, origin);
+            foreach (TextSegment segment in list)
             {
+                if (segment.Text.Length == 0)
+                {
+                    continue;
+                }
+
                 ResolvedRunProperties p = segment.Properties;
                 double fullSize = p.FontSize.ToDips();
                 double emSize = p.VerticalAlignment == VerticalTextAlignment.Baseline ? fullSize : fullSize * 0.65;
@@ -207,12 +214,6 @@ public static class PdfExporter
                     style |= XFontStyleEx.Strikeout;
                 }
 
-                if (p.Highlight != HighlightColor.None && FontCatalog.Shared.GetHighlightBrush(p.Highlight) is { } highlight)
-                {
-                    System.Windows.Media.Color c = highlight.Color;
-                    _gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(c.A, c.R, c.G, c.B)), origin.X + segment.X, origin.Y + segment.Top, segment.Width, segment.Height);
-                }
-
                 double baseline = origin.Y + segment.Baseline;
                 if (p.VerticalAlignment == VerticalTextAlignment.Superscript)
                 {
@@ -225,6 +226,42 @@ public static class PdfExporter
 
                 XFont font = _fonts.Get(p.FontFamily, emSize, style);
                 _gfx.DrawString(segment.Text, font, new XSolidBrush(ToColor(p.Color)), new XPoint(origin.X + segment.X, baseline), XStringFormats.BaseLineLeft);
+            }
+        }
+
+        /// <summary>One rectangle per run of touching segments with the same highlight, so words and the spaces between them form a single band.</summary>
+        private void DrawHighlights(List<TextSegment> segments, PointD origin)
+        {
+            int i = 0;
+            while (i < segments.Count)
+            {
+                TextSegment first = segments[i];
+                if (first.Properties.Highlight == HighlightColor.None)
+                {
+                    i++;
+                    continue;
+                }
+
+                double left = first.X;
+                double right = first.X + first.Width;
+                double top = first.Top;
+                double bottom = first.Top + first.Height;
+                int j = i + 1;
+                while (j < segments.Count && segments[j].Properties.Highlight == first.Properties.Highlight && segments[j].X <= right + 0.75)
+                {
+                    right = Math.Max(right, segments[j].X + segments[j].Width);
+                    top = Math.Min(top, segments[j].Top);
+                    bottom = Math.Max(bottom, segments[j].Top + segments[j].Height);
+                    j++;
+                }
+
+                if (FontCatalog.Shared.GetHighlightBrush(first.Properties.Highlight) is { } highlight)
+                {
+                    System.Windows.Media.Color c = highlight.Color;
+                    _gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(c.A, c.R, c.G, c.B)), origin.X + left, origin.Y + top, right - left, bottom - top);
+                }
+
+                i = j;
             }
         }
 

@@ -45,22 +45,7 @@ public partial class PictureSizeWindow : Window
 
     public Twips ResultHeight { get; private set; }
 
-    private static (Twips Width, Twips Height)? OriginalSize(ImageData data)
-    {
-        if (ImageCache.Get(data) is { } bitmap)
-        {
-            double dpiX = bitmap.DpiX > 1 ? bitmap.DpiX : 96;
-            double dpiY = bitmap.DpiY > 1 ? bitmap.DpiY : 96;
-            return (Twips.FromInches(bitmap.PixelWidth / dpiX), Twips.FromInches(bitmap.PixelHeight / dpiY));
-        }
-
-        if (data.PixelWidth > 0 && data.PixelHeight > 0)
-        {
-            return (Twips.FromInches(data.PixelWidth / 96.0), Twips.FromInches(data.PixelHeight / 96.0));
-        }
-
-        return null;
-    }
+    private static (Twips Width, Twips Height)? OriginalSize(ImageData data) => Quill.App.Imaging.ImageFiles.NaturalSize(data);
 
     private void SetBoxes(Twips width, Twips height)
     {

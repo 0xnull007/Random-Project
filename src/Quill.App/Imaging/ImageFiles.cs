@@ -57,7 +57,25 @@ public static class ImageFiles
         return (maxWidth, new Twips(Math.Max(1, (int)Math.Round(height.Value * scale))));
     }
 
+    /// <summary>The size a picture has at its own resolution (96 DPI when the file does not say), or null when it cannot be decoded.</summary>
+    public static (Twips Width, Twips Height)? NaturalSize(ImageData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        if (Quill.Layout.Wpf.ImageCache.Get(data) is { } bitmap)
+        {
+            return NaturalSize(bitmap);
+        }
+
+        if (data.PixelWidth > 0 && data.PixelHeight > 0)
+        {
+            return (Twips.FromInches(data.PixelWidth / 96.0), Twips.FromInches(data.PixelHeight / 96.0));
+        }
+
+        return null;
+    }
+
     private static BitmapFrame Decode(byte[] bytes)
+
     {
         using var stream = new MemoryStream(bytes, writable: false);
         BitmapDecoder decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.OnLoad);

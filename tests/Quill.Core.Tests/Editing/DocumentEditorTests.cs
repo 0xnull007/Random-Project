@@ -158,14 +158,20 @@ public class DocumentEditorTests
     {
         Document doc = WithParagraphs("a", "b", "c");
         var center = new ParagraphProperties { Alignment = Alignment.Center };
-        Document edited = DocumentEditor.ApplyParagraphFormat(doc, Range(0, 1, 1, 0), center).Document;
+        Document edited = DocumentEditor.ApplyParagraphFormat(doc, Range(0, 1, 1, 1), center).Document;
         Assert.Equal(Alignment.Center, edited.Para(0).Properties.Alignment);
         Assert.Equal(Alignment.Center, edited.Para(1).Properties.Alignment);
         Assert.Null(edited.Para(2).Properties.Alignment);
 
+        // A range ending at the start of a paragraph (triple-click) does not touch that paragraph, like Word.
+        Document brushed = DocumentEditor.ApplyParagraphFormat(doc, Range(0, 1, 1, 0), center).Document;
+        Assert.Equal(Alignment.Center, brushed.Para(0).Properties.Alignment);
+        Assert.Null(brushed.Para(1).Properties.Alignment);
+
         Document collapsed = DocumentEditor.ApplyParagraphFormat(doc, Range(2, 0, 2, 0), center).Document;
         Assert.Equal(Alignment.Center, collapsed.Para(2).Properties.Alignment);
     }
+
 
     [Fact]
     public void SetParagraphStyle_clears_direct_paragraph_formatting()

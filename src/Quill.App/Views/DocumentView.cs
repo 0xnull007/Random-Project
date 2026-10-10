@@ -287,8 +287,21 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         session.InsertInline(field);
     }
 
-    /// <summary>Inserts a picture at the caret, shrunk proportionally when it is wider than the text column.</summary>
-    public void InsertImage(PictureSource picture)
+    /// <summary>Width of the text column of the section the caret is in (page width minus margins).</summary>
+    public Twips TextColumnWidth()
+    {
+        EditingSession? session = Session;
+        if (session is null)
+        {
+            return Twips.FromInches(6.5);
+        }
+
+        Core.Model.SectionProperties props = session.Document.Sections[session.Selection.Story.SectionIndex].Properties;
+        return new Twips(Math.Max(144, props.PageWidth.Value - props.MarginLeft.Value - props.MarginRight.Value - props.Gutter.Value));
+    }
+
+    /// <summary>Inserts a picture at the caret (replacing the selection), shrunk proportionally when wider than the text column unless a size is given.</summary>
+    public void InsertImage(PictureSource picture, Twips? width = null, Twips? height = null)
     {
         EditingSession? session = Session;
         if (session is null || IsReadOnly)
@@ -296,10 +309,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
-        Core.Model.SectionProperties props = session.Document.Sections[session.Selection.Story.SectionIndex].Properties;
-        var column = new Twips(Math.Max(144, props.PageWidth.Value - props.MarginLeft.Value - props.MarginRight.Value - props.Gutter.Value));
-        (Twips width, Twips height) = ImageFiles.FitWithin(picture.Width, picture.Height, column);
-        session.InsertImage(picture.Data, width, height);
+        (Twips w, Twips h) = width is { } fixedWidth && height is { } fixedHeight
+            ? (fixedWidth, fixedHeight)
+            : ImageFiles.FitWithin(picture.Width, picture.Height, TextColumnWidth());
+        session.InsertImage(picture.Data, w, h);
     }
 
     private bool TryInsertBitmap(BitmapSource bitmap)

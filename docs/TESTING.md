@@ -35,11 +35,15 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 4. Character formatting (Home tab)
 
-- [ ] Bold/Italic/Underline/Strikethrough/Superscript/Subscript buttons and Ctrl+B/I/U, Ctrl+Shift+Plus.
+- [ ] Bold/Italic/Underline/Strikethrough/Superscript/Subscript buttons and Ctrl+B/I/U, Ctrl+Shift+Plus, also on headings
+      (Calibri Light has no bold face of its own; bold headings use Calibri Bold).
 - [ ] With no selection, press Ctrl+B then type: the new text is bold (sticky format); moving the caret cancels it.
 - [ ] Font family (editable combo, type a name) and size; A↑ / A↓ (Ctrl+Shift+> / <); Ctrl+] / Ctrl+[ by 1 pt.
 - [ ] Font color and highlight pickers (swatch shows the caret's current color); highlight "No color" clears it.
 - [ ] Toolbar state mirrors the caret: put the caret in bold text and the B button lights up.
+- [ ] Select the whole text of a bullet item (or several items) and grow the font: the bullets grow with it.
+      Triple-click a paragraph and press Ctrl+B: only that paragraph changes and the B button lights up.
+
 
 ## 5. Paragraph formatting
 
@@ -87,6 +91,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       than the text column is shrunk to fit. WebP/ICO are converted to PNG.
 - [ ] Text wraps around the line with the picture; the line grows to the picture's height; the caret moves across
       it as one character; Backspace/Delete remove it; Ctrl+Z brings it back.
+- [ ] Clicking a picture switches the command bar to a **Picture** tab (Size, Original Size, Fit Width, 50%, 200%,
+      alignment, Replace, Delete); clicking text switches back to the tab you were on.
 - [ ] Click on the picture: it becomes selected (highlighted). Insert > Picture Size...: width/height in inches
       or cm, "Lock aspect ratio" keeps proportions while typing, "Original Size" resets. OK resizes, Ctrl+Z undoes.
 - [ ] Paste a screenshot (Win+Shift+S, then Ctrl+V in Quill): it is inserted as a PNG.
@@ -143,7 +149,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Print (Ctrl+P): printer dialog with page range; "Microsoft Print to PDF" works. Landscape sections print
       in landscape.
 - [ ] Print Preview: pages exactly as printed, Fit Page / Fit Width, scrolling, Close.
-- [ ] Export PDF...: the PDF opens in Edge/Acrobat; text is selectable; line breaks match the screen.
+- [ ] Export PDF...: the PDF opens in Edge/Acrobat; text is selectable; line breaks match the screen; a highlight
+      over several words is one continuous band.
 - [ ] Shortcuts (F1) lists all keys; About shows the version **(new)**.
 - [ ] Exit / closing the window asks to save when dirty.
 

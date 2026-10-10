@@ -9,6 +9,7 @@ using Quill.App.ViewModels;
 using Quill.Core.Editing;
 using Quill.Core.Model;
 using Quill.Core.Text;
+using Quill.Core.Units;
 
 namespace Quill.App.Views;
 
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Editor.Session = ViewModel.Session;
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Editor.ViewStateChanged += (_, _) =>
         {
             ViewModel.PageCount = Editor.PageCount;
@@ -347,7 +349,144 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private int _tabBeforePicture = 1;
+
+    /// <summary>Shows the Picture tab while a picture is selected and returns to the previous tab afterwards.</summary>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainViewModel.IsPictureSelected))
+        {
+            return;
+        }
+
+        if (ViewModel.IsPictureSelected)
+        {
+            if (!ReferenceEquals(Tabs.SelectedItem, PictureTab))
+            {
+                _tabBeforePicture = Tabs.SelectedIndex;
+                Tabs.SelectedItem = PictureTab;
+            }
+        }
+        else if (ReferenceEquals(Tabs.SelectedItem, PictureTab))
+        {
+            Tabs.SelectedIndex = Math.Max(0, Math.Min(_tabBeforePicture, Tabs.Items.Count - 1));
+        }
+    }
+
+    /// <summary>Tab contents are created on first use, so new drop-downs need the dark-mode fix attached then.</summary>
+    private void OnTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, Tabs))
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(() => PopupThemeFix.AttachAll(this), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
+
+    private (TextPosition Start, InlineImage Image)? RequirePicture()
+    {
+        if (ViewModel.Session.SelectedImage() is { } picture)
+        {
+            return picture;
+        }
+
+        MessageBox.Show(this, "Click a picture first.", "Quill", MessageBoxButton.OK, MessageBoxImage.Information);
+        return null;
+    }
+
+    private void SelectPicture(TextPosition start)
+    {
+        EditingSession session = ViewModel.Session;
+        session.MoveCaret(start, extend: false);
+        session.MoveCaret(start.WithOffset(start.Offset + 1), extend: true);
+    }
+
+    private void OnPictureOriginalSize(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        if (RequirePicture() is { } picture)
+        {
+            ImageData? data = session.Document.Images.Get(picture.Image.ImageId);
+            (Twips Width, Twips Height)? natural = data is null ? null : ImageFiles.NaturalSize(data);
+            if (natural is { } size)
+            {
+                session.ResizeImage(size.Width, size.Height);
+            }
+            else
+            {
+                MessageBox.Show(this, "The original size of this picture is not known.", "Quill", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnPictureFitWidth(object sender, RoutedEventArgs e)
+    {
+        if (RequirePicture() is { } picture)
+        {
+            ScalePicture(picture.Image, Editor.TextColumnWidth().Value / (double)Math.Max(1, picture.Image.Width.Value));
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnPictureScale(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string tag } && double.TryParse(tag, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double factor) && RequirePicture() is { } picture)
+        {
+            ScalePicture(picture.Image, factor);
+        }
+
+        Editor.Focus();
+    }
+
+    private void ScalePicture(InlineImage image, double factor)
+    {
+        var width = new Twips((int)Math.Clamp(Math.Round(image.Width.Value * factor), 15, 22 * 1440));
+        var height = new Twips((int)Math.Clamp(Math.Round(image.Height.Value * factor), 15, 22 * 1440));
+        ViewModel.Session.ResizeImage(width, height);
+    }
+
+    private void OnReplacePicture(object sender, RoutedEventArgs e)
+    {
+        if (RequirePicture() is { } picture)
+        {
+            var dialog = new OpenFileDialog { Filter = ImageFiles.Filter, Title = "Replace Picture" };
+            if (dialog.ShowDialog(this) == true)
+            {
+                try
+                {
+                    PictureSource source = ImageFiles.Load(dialog.FileName);
+                    double aspect = source.Width.Value > 0 ? source.Height.Value / (double)source.Width.Value : 1;
+                    SelectPicture(picture.Start);
+                    Editor.InsertImage(source, picture.Image.Width, new Twips(Math.Max(15, (int)Math.Round(picture.Image.Width.Value * aspect))));
+                    SelectPicture(picture.Start);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException or ArgumentException or InvalidOperationException or System.Runtime.InteropServices.COMException)
+                {
+                    MessageBox.Show(this, "Could not read the picture." + Environment.NewLine + Environment.NewLine + ex.Message, "Quill", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        Editor.Focus();
+    }
+
+    private void OnDeletePicture(object sender, RoutedEventArgs e)
+    {
+        if (RequirePicture() is { } picture)
+        {
+            SelectPicture(picture.Start);
+            ViewModel.Session.DeleteSelection();
+        }
+
+        Editor.Focus();
+    }
+
     private void OnPrintPreview(object sender, RoutedEventArgs e)
+
 
     {
         var preview = new PrintPreviewWindow(ViewModel.Session.Document, ViewModel.DocumentName) { Owner = this };

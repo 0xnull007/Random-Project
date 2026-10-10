@@ -106,8 +106,13 @@ public sealed partial class MainViewModel : ObservableObject
         };
     }
 
+    /// <summary>True while the selection is exactly one picture; shows the contextual Picture tab.</summary>
+    [ObservableProperty]
+    public partial bool IsPictureSelected { get; set; }
+
     [ObservableProperty]
     public partial RecentFile? SelectedRecent { get; set; }
+
 
 
     partial void OnSelectedRecentChanged(RecentFile? value)
@@ -943,6 +948,7 @@ public sealed partial class MainViewModel : ObservableObject
             Paragraph current = Session.Document.GetParagraph(Session.Selection.Active);
             CurrentStyle = ParagraphStyles.FirstOrDefault(s => s.Id == (current.StyleId ?? Session.Document.Styles.DefaultParagraphStyleId));
             bool? listKind = Session.ListKind(current);
+            IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
             IsBulleted = listKind == true;
             IsNumbered = listKind == false;
             CanUndo = Session.CanUndo;

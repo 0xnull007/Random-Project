@@ -100,7 +100,7 @@ public class ListTests
     public void Toggle_list_creates_joins_and_removes_lists()
     {
         var session = new EditingSession(WithParagraphs("first", "second", "third"), new UndoStack(time: new FakeTime()));
-        session.SetSelection(new Selection(Pos(0, 0), Pos(1, 0)));
+        session.SetSelection(new Selection(Pos(0, 0), Pos(1, 3)));
         session.ToggleList(bulleted: true);
         Assert.True(session.ListKind(session.Document.Para(0)));
         Assert.True(session.ListKind(session.Document.Para(1)));

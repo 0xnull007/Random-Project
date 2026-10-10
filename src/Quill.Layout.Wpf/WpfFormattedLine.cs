@@ -166,25 +166,37 @@ public sealed class WpfFormattedLine : IFormattedLine
                 int i = position;
                 while (i < end)
                 {
-                    while (i < end && char.IsWhiteSpace(text[i]))
-                    {
-                        i++;
-                    }
-
-                    int wordStart = i;
+                    // A segment is a word plus the spaces after it. Tabs and other whitespace end the drawn text but
+                    // still count towards the segment's width, so highlights form one continuous band like on screen.
+                    int start = i;
                     while (i < end && !char.IsWhiteSpace(text[i]))
                     {
                         i++;
                     }
 
-                    if (i > wordStart)
+                    while (i < end && text[i] is ' ' or ' ')
                     {
-                        double x = _line.GetDistanceFromCharacterHit(new CharacterHit(wordStart, 0));
-                        double right = _line.GetDistanceFromCharacterHit(new CharacterHit(i, 0));
-                        IList<TextBounds> bounds = _line.GetTextBounds(wordStart, i - wordStart);
-                        Rect box = bounds.Count > 0 ? bounds[0].Rectangle : new Rect(x, 0, Math.Max(0, right - x), _line.Height);
-                        yield return new TextSegment(text.Substring(wordStart, i - wordStart), props.Properties, x, _line.Baseline, Math.Max(0, right - x), box.Y, box.Height);
+                        i++;
                     }
+
+                    int textEnd = i;
+                    while (i < end && char.IsWhiteSpace(text[i]))
+                    {
+                        i++;
+                    }
+
+                    int reach = i;
+                    if (reach == start)
+                    {
+                        i++;
+                        continue;
+                    }
+
+                    double x = _line.GetDistanceFromCharacterHit(new CharacterHit(start, 0));
+                    double right = _line.GetDistanceFromCharacterHit(new CharacterHit(reach, 0));
+                    IList<TextBounds> bounds = _line.GetTextBounds(start, reach - start);
+                    Rect box = bounds.Count > 0 ? bounds[0].Rectangle : new Rect(x, 0, Math.Max(0, right - x), _line.Height);
+                    yield return new TextSegment(text.Substring(start, textEnd - start), props.Properties, x, _line.Baseline, Math.Max(0, right - x), box.Y, box.Height);
                 }
             }
 

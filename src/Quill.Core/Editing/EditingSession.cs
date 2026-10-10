@@ -322,15 +322,16 @@ public sealed class EditingSession
         TextRange range = Selection.Range;
         ImmutableList<Block> blocks = Document.GetStory(range.Story);
         int first = range.Start.Block.TopIndex;
-        int last = range.End.Block.TopIndex;
+        int last = TextRanges.LastBlockIndex(range);
         bool allAlready = true;
-        for (int i = first; i <= last; i++)
+        foreach (ParagraphSpan span in TextRanges.Paragraphs(blocks, range))
         {
-            if (blocks[i] is Paragraph paragraph && ListKind(paragraph) != bulleted)
+            if (ListKind(span.Paragraph) != bulleted)
             {
                 allAlready = false;
             }
         }
+
 
         if (allAlready)
         {
@@ -359,14 +360,12 @@ public sealed class EditingSession
         Document document = Document;
         ImmutableList<Block>.Builder builder = blocks.ToBuilder();
         bool changed = false;
-        for (int i = range.Start.Block.TopIndex; i <= range.End.Block.TopIndex; i++)
+        foreach (ParagraphSpan span in TextRanges.Paragraphs(blocks, range))
         {
-            if (blocks[i] is not Paragraph paragraph)
-            {
-                continue;
-            }
-
+            Paragraph paragraph = span.Paragraph;
+            int i = span.Index;
             ResolvedParagraphProperties resolved = _resolver.ResolveParagraph(paragraph);
+
             ParagraphProperties update;
             if (resolved.List is { IsNone: false } list)
             {
@@ -448,30 +447,21 @@ public sealed class EditingSession
 
         TextRange range = Selection.Range;
         ImmutableList<Block> blocks = Document.GetStory(range.Story);
-        int firstIndex = range.Start.Block.TopIndex;
-        int lastIndex = range.End.Block.TopIndex;
-        for (int i = firstIndex; i <= lastIndex; i++)
+        foreach (ParagraphSpan span in TextRanges.Paragraphs(blocks, range))
         {
-            if (blocks[i] is not Paragraph paragraph)
-            {
-                continue;
-            }
-
-            int start = i == firstIndex ? range.Start.Offset : 0;
-            int end = i == lastIndex ? range.End.Offset : paragraph.Length;
             bool any = false;
-            foreach (InlineSpan span in paragraph.Spans())
+            foreach (InlineSpan inline in span.Paragraph.Spans())
             {
-                if (span.End > start && span.Start < end)
+                if (inline.End > span.Start && inline.Start < span.End)
                 {
                     any = true;
-                    yield return _resolver.ResolveRun(paragraph, span.Inline);
+                    yield return _resolver.ResolveRun(span.Paragraph, inline.Inline);
                 }
             }
 
-            if (!any || i < lastIndex)
+            if (!any || span.IncludesMark)
             {
-                yield return _resolver.ResolveParagraphMark(paragraph);
+                yield return _resolver.ResolveParagraphMark(span.Paragraph);
             }
         }
     }

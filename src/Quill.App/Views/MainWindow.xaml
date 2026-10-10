@@ -10,6 +10,9 @@
   <Window.DataContext>
     <vm:MainViewModel />
   </Window.DataContext>
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVis" />
+  </Window.Resources>
   <Window.InputBindings>
     <KeyBinding Modifiers="Ctrl" Key="B" Command="{Binding ToggleBoldCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="I" Command="{Binding ToggleItalicCommand}" />
@@ -60,7 +63,7 @@
 
   <DockPanel>
     <!-- One compact command bar (Word's "simplified ribbon"): tabs on top, a single row of controls below. -->
-    <TabControl DockPanel.Dock="Top" SelectedIndex="1" Margin="0" Padding="6,3" BorderThickness="0,0,0,1">
+    <TabControl x:Name="Tabs" DockPanel.Dock="Top" SelectedIndex="1" Margin="0" Padding="6,3" BorderThickness="0,0,0,1" SelectionChanged="OnTabChanged">
       <TabItem Header="File">
         <StackPanel Orientation="Horizontal">
           <Button Style="{StaticResource Quill.CommandButton}" Content="New" Command="{Binding NewDocumentCommand}" ToolTip="New document (Ctrl+N)" />
@@ -203,6 +206,24 @@
           <Button Style="{StaticResource Quill.CommandButton}" Content="Go To Page..." Click="OnGoToPage" ToolTip="Jump to a page (Ctrl+G)" />
           <Border Style="{StaticResource Quill.CommandDivider}" />
           <Button Style="{StaticResource Quill.CommandButton}" Content="Select All" Click="OnSelectAll" ToolTip="Select all (Ctrl+A)" />
+        </WrapPanel>
+      </TabItem>
+
+      <!-- Contextual tab: appears while a picture is selected, like Word's Picture Format. -->
+      <TabItem x:Name="PictureTab" Header="Picture" Visibility="{Binding IsPictureSelected, Converter={StaticResource BoolToVis}}">
+        <WrapPanel Orientation="Horizontal">
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Size..." Click="OnPictureSize" ToolTip="Exact width and height" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Original Size" Click="OnPictureOriginalSize" ToolTip="Back to the picture's own size" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Width" Click="OnPictureFitWidth" ToolTip="As wide as the text column" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="50%" Click="OnPictureScale" Tag="0.5" ToolTip="Half the current size" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="200%" Click="OnPictureScale" Tag="2" ToolTip="Double the current size" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Left" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Paragraph alignment" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Center" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Paragraph alignment" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Right" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Paragraph alignment" />
+          <Border Style="{StaticResource Quill.CommandDivider}" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Replace..." Click="OnReplacePicture" ToolTip="Swap in another picture file at the same width" />
+          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete" Click="OnDeletePicture" />
         </WrapPanel>
       </TabItem>
     </TabControl>
