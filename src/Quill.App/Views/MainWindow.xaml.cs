@@ -57,6 +57,7 @@ public partial class MainWindow : Window
             ViewModel.RefreshFormatState();
         };
         Editor.FormatPainterCancelled += (_, _) => ViewModel.IsFormatPainterActive = false;
+        Editor.LayoutFailed += (_, ex) => ViewModel.StatusMessage = "Layout error (" + ex.GetType().Name + "): the previous layout is shown; details in crash.log";
 
         Editor.ViewStateChanged += (_, _) =>
         {
@@ -550,7 +551,7 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
-    private FindReplaceWindow FindWindow => _findWindow ??= new FindReplaceWindow(ViewModel.Session) { Owner = this };
+    private FindReplaceWindow FindWindow => _findWindow ??= new FindReplaceWindow(ViewModel.Session) { Owner = this, Editor = Editor };
 
     /// <summary>Short single-paragraph selections pre-fill the Find box, like Word.</summary>
     private string? SelectedTextForSearch()

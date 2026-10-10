@@ -20,6 +20,15 @@ public partial class FindReplaceWindow : Window
         InitializeComponent();
         _session = session;
         Loaded += (_, _) => PopupThemeFix.AttachAll(this);
+        IsVisibleChanged += (_, _) => UpdateHighlights();
+        _session.DocumentChanged += (_, _) =>
+        {
+            if (IsVisible)
+            {
+                UpdateHighlights();
+            }
+        };
+
         Closing += (_, e) =>
         {
             if (!_allowClose)
@@ -30,7 +39,36 @@ public partial class FindReplaceWindow : Window
         };
     }
 
+    /// <summary>The editor whose matches are highlighted while the window is open.</summary>
+    public DocumentView? Editor { get; set; }
+
+    private void UpdateHighlights()
+    {
+        if (Editor is null)
+        {
+            return;
+        }
+
+        string query = FindBox.Text;
+        if (!IsVisible || string.IsNullOrEmpty(query))
+        {
+            Editor.HighlightedRanges = [];
+            return;
+        }
+
+        IReadOnlyList<TextRange> all = TextSearch.FindAll(_session.Document, query, Options);
+        Editor.HighlightedRanges = all;
+        SetStatus(all.Count == 0
+            ? string.Format(CultureInfo.CurrentCulture, "Cannot find \"{0}\".", query)
+            : string.Format(CultureInfo.CurrentCulture, all.Count == 1 ? "{0} match" : "{0} matches", all.Count));
+    }
+
+    private void OnFindTextChanged(object sender, TextChangedEventArgs e) => UpdateHighlights();
+
+    private void OnOptionsChanged(object sender, RoutedEventArgs e) => UpdateHighlights();
+
     private SearchOptions Options => new(MatchCaseBox.IsChecked == true, WholeWordBox.IsChecked == true);
+
 
     public void ShowFind(string? prefill)
     {
@@ -97,6 +135,7 @@ public partial class FindReplaceWindow : Window
         Activate();
         box.Focus();
         box.SelectAll();
+        UpdateHighlights();
     }
 
     private void PositionNearOwner()

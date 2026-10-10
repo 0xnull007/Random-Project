@@ -70,6 +70,9 @@ public partial class App : Application
         }
     }
 
+    /// <summary>Records a handled failure in the crash log (no dialog).</summary>
+    internal static void LogError(string kind, Exception exception) => WriteCrashLog(exception, kind);
+
     private static string WriteCrashLog(Exception exception, string kind)
     {
         string path = CrashLogPath;

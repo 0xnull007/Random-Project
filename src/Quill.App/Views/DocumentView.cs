@@ -141,7 +141,77 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
     }
 
+    private IReadOnlyList<TextRange> _highlightedRanges = [];
+
+    /// <summary>Ranges painted with a translucent yellow (all Find matches); set an empty list to clear.</summary>
+    public IReadOnlyList<TextRange> HighlightedRanges
+    {
+        get => _highlightedRanges;
+        set
+        {
+            _highlightedRanges = value ?? [];
+            foreach ((int index, PageVisuals visuals) in _pageVisuals)
+            {
+                DrawHighlights(visuals.Highlights, index);
+            }
+        }
+    }
+
+    private static readonly Brush HighlightBrush = Frozen(new SolidColorBrush(Color.FromArgb(0x70, 0xFF, 0xD5, 0x4F)));
+
+    private static Brush Frozen(Brush brush)
+    {
+        brush.Freeze();
+        return brush;
+    }
+
+    private void DrawHighlights(DrawingVisual visual, int index)
+    {
+        using DrawingContext dc = visual.RenderOpen();
+        if (_highlightedRanges.Count == 0 || index >= _layout.PageCount)
+        {
+            return;
+        }
+
+        Rect pageRect = PageRect(index);
+        foreach (BlockFragment fragment in _layout.Pages[index].AllFragments())
+        {
+            if (fragment is not ParagraphFragment paragraph)
+            {
+                continue;
+            }
+
+            foreach (TextRange range in _highlightedRanges)
+            {
+                if (paragraph.Story != range.Story || paragraph.Path < range.Start.Block || paragraph.Path > range.End.Block)
+                {
+                    continue;
+                }
+
+                bool startsHere = paragraph.Path == range.Start.Block;
+                bool endsHere = paragraph.Path == range.End.Block;
+                for (int i = paragraph.FirstLine; i <= paragraph.LastLine; i++)
+                {
+                    IFormattedLine line = paragraph.Layout.Lines[i];
+                    int from = startsHere ? Math.Max(line.Start, range.Start.Offset) : line.Start;
+                    int to = endsHere ? Math.Min(line.End, range.End.Offset) : line.End;
+                    if (to <= from)
+                    {
+                        continue;
+                    }
+
+                    PointD origin = paragraph.LineOrigin(i);
+                    foreach (RectD box in line.GetTextBounds(from, to - from))
+                    {
+                        dc.DrawRectangle(HighlightBrush, null, new Rect(pageRect.X + origin.X + box.X, pageRect.Y + origin.Y + box.Y, Math.Max(1, box.Width), box.Height));
+                    }
+                }
+            }
+        }
+    }
+
     private void RedrawSquigglesAll()
+
     {
         foreach ((int index, PageVisuals visuals) in _pageVisuals)
         {
@@ -887,10 +957,23 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         return ("Segoe UI", 16);
     }
 
+    /// <summary>Raised when laying the document out threw; the previous layout stays on screen.</summary>
+    public event EventHandler<Exception>? LayoutFailed;
+
     private void Relayout()
     {
         EditingSession? session = Session;
-        _layout = session is null ? LayoutDocument.Empty : _paginator.Layout(session.Document, session.Resolver);
+        try
+        {
+            _layout = session is null ? LayoutDocument.Empty : _paginator.Layout(session.Document, session.Resolver);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // A layout bug must not take the document down with it: keep the last good layout and report.
+            App.LogError("layout", ex);
+            LayoutFailed?.Invoke(this, ex);
+        }
+
         ComputeGeometry();
         BuildLineIndex();
         foreach (PageVisuals visuals in _pageVisuals.Values)
@@ -1052,6 +1135,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             DrawChrome(visuals.Chrome, index);
             DrawContent(visuals.Content, index);
             DrawSquiggles(visuals.Squiggles, index);
+            DrawHighlights(visuals.Highlights, index);
             DrawOverlay(visuals.Overlay, index);
             DrawSelection(visuals.Selection, index);
             _pagesLayer.Children.Add(visuals.Root);
@@ -2506,6 +2590,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             PageIndex = pageIndex;
             Root.Children.Add(Chrome);
             Root.Children.Add(Content);
+            Root.Children.Add(Highlights);
             Root.Children.Add(Squiggles);
             Root.Children.Add(Overlay);
             Root.Children.Add(Selection);
@@ -2521,6 +2606,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
         /// <summary>Red wavy underlines from the spell checker.</summary>
         public DrawingVisual Squiggles { get; } = new();
+
+        /// <summary>Find matches.</summary>
+        public DrawingVisual Highlights { get; } = new();
 
         /// <summary>Dimming and guides shown while editing a header or footer.</summary>
         public DrawingVisual Overlay { get; } = new();

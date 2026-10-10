@@ -23,12 +23,12 @@
         <RowDefinition />
       </Grid.RowDefinitions>
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Find what:" VerticalAlignment="Center" Margin="0,0,8,0" />
-      <TextBox Grid.Row="0" Grid.Column="1" x:Name="FindBox" Margin="0,3" KeyDown="OnFindBoxKeyDown" />
+      <TextBox Grid.Row="0" Grid.Column="1" x:Name="FindBox" Margin="0,3" KeyDown="OnFindBoxKeyDown" TextChanged="OnFindTextChanged" />
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Replace with:" VerticalAlignment="Center" Margin="0,0,8,0" />
       <TextBox Grid.Row="1" Grid.Column="1" x:Name="ReplaceBox" Margin="0,3" KeyDown="OnReplaceBoxKeyDown" />
       <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,0">
-        <CheckBox x:Name="MatchCaseBox" Content="Match case" Margin="0,0,16,0" />
-        <CheckBox x:Name="WholeWordBox" Content="Whole words only" />
+        <CheckBox x:Name="MatchCaseBox" Content="Match case" Margin="0,0,16,0" Checked="OnOptionsChanged" Unchecked="OnOptionsChanged" />
+        <CheckBox x:Name="WholeWordBox" Content="Whole words only" Checked="OnOptionsChanged" Unchecked="OnOptionsChanged" />
       </StackPanel>
       <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StatusText" Margin="0,10,0,0" Opacity="0.8" TextWrapping="Wrap" />
     </Grid>

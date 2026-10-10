@@ -184,7 +184,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 - [ ] Ctrl+F opens Find pre-filled with the selected word; Enter / Find Next / F3 moves forward, Shift+F4 back,
       wrapping around with a note; the match is selected and scrolled into view.
-- [ ] Match case and Whole word options.
+- [ ] Match case and Whole word options. While the Find window is open every match is highlighted in yellow and the
+      status shows the match count; the highlights go away when it closes **(new)**.
 - [ ] Ctrl+H: Replace replaces the current match and finds the next; Replace All reports the count; Ctrl+Z undoes.
 - [ ] Close button and Esc close the window; the window can stay open while editing (non-modal).
 
