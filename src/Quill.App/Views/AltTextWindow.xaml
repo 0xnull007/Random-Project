@@ -1,0 +1,17 @@
+<Window x:Class="Quill.App.Views.AltTextWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Alt Text"
+        Width="400" SizeToContent="Height"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20,16,20,16">
+    <TextBlock Text="How would you describe this picture to someone who cannot see it?" TextWrapping="Wrap" Margin="0,0,0,6" />
+    <TextBox x:Name="TextBox" AcceptsReturn="True" TextWrapping="Wrap" Height="90" VerticalScrollBarVisibility="Auto" />
+    <TextBlock Text="Screen readers read this description; Word shows it in its Alt Text pane." Margin="0,6,0,0" Opacity="0.75" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Content="OK" Width="80" IsDefault="True" Click="OnOk" Margin="0,0,8,0" />
+      <Button Content="Cancel" Width="80" IsCancel="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

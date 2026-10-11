@@ -124,10 +124,16 @@ public sealed class WpfFormattedLine : IFormattedLine
         target.DrawTextSegments(GetSegments(), origin);
         foreach (ImagePlacement placement in GetImages())
         {
+            RectD b = placement.Bounds;
+            var bounds = new RectD(origin.X + b.X, origin.Y + b.Y, b.Width, b.Height);
             if (placement.Data is { } data)
             {
-                RectD b = placement.Bounds;
-                target.DrawImage(data, new RectD(origin.X + b.X, origin.Y + b.Y, b.Width, b.Height));
+                target.DrawImage(data, bounds);
+            }
+
+            if (placement.Image.Border is { } border)
+            {
+                PageRenderer.DrawImageBorder(bounds, border, target);
             }
         }
     }

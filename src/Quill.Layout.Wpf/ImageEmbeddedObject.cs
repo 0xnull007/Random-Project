@@ -52,9 +52,16 @@ internal sealed class ImageEmbeddedObject : TextEmbeddedObject
     /// <summary><paramref name="origin"/> is the pen position on the baseline.</summary>
     public override void Draw(DrawingContext drawingContext, Point origin, bool rightToLeft, bool sideways)
     {
-        if (!IsFloating)
+        if (IsFloating)
         {
-            DrawInto(drawingContext, Run.ImageData, new Rect(origin.X, origin.Y - Height, Width, Height));
+            return;
+        }
+
+        var bounds = new Rect(origin.X, origin.Y - Height, Width, Height);
+        DrawInto(drawingContext, Run.ImageData, bounds);
+        if (Run.Image?.Border is { } border)
+        {
+            PageRenderer.DrawImageBorder(new RectD(bounds.X, bounds.Y, bounds.Width, bounds.Height), border, new WpfRenderTarget(drawingContext));
         }
     }
 

@@ -133,6 +133,38 @@ public class ImageTests
     }
 
     [Fact]
+    public void Picture_border_and_alt_text_are_set_kept_through_other_edits_and_undone()
+    {
+        var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));
+        session.MoveCaret(Pos(0, 1), extend: false);
+        session.InsertImage(new ImageData(Png, "image/png"), new Twips(1440), new Twips(720));
+
+        var border = new BorderLine(PageBorderStyle.Dashed, 12, DocColor.FromRgb(0x2F, 0x54, 0x96));
+        session.SetImageBorder(border);
+        session.SetImageAltText("  A small square  ");
+        var image = Assert.IsType<InlineImage>(session.Document.Para(0).Inlines[1]);
+        Assert.Equal(border, image.Border);
+        Assert.Equal("A small square", image.AltText);
+
+        session.ResizeImage(new Twips(720), new Twips(360));
+        session.SetImageAnchor(ImageAnchor.Default);
+        image = (InlineImage)session.Document.Para(0).Inlines[1];
+        Assert.Equal(border, image.Border);
+        Assert.Equal("A small square", image.AltText);
+        Assert.True(image.IsFloating);
+
+        session.SetImageAltText(string.Empty);
+        Assert.Null(((InlineImage)session.Document.Para(0).Inlines[1]).AltText);
+        session.SetImageBorder(null);
+        Assert.Null(((InlineImage)session.Document.Para(0).Inlines[1]).Border);
+        session.Undo();
+        session.Undo();
+        image = (InlineImage)session.Document.Para(0).Inlines[1];
+        Assert.Equal(border, image.Border);
+        Assert.Equal("A small square", image.AltText);
+    }
+
+    [Fact]
     public void Selected_picture_can_be_resized_and_undone()
     {
         var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));

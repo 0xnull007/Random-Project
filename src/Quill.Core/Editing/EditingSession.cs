@@ -253,6 +253,25 @@ public sealed partial class EditingSession
         Commit(ReplaceImage(Document, at, image.WithAnchor(anchor)), EditKind.Formatting, startsNewGroup: true);
     }
 
+    /// <summary>Word's Picture Border for the selected picture; null removes it. One undo step.</summary>
+    public void SetImageBorder(BorderLine? border)
+    {
+        if (SelectedImage() is ({ } at, { } image) && !Equals(image.Border, border))
+        {
+            Commit(ReplaceImage(Document, at, image.WithBorder(border)), EditKind.Formatting, startsNewGroup: true);
+        }
+    }
+
+    /// <summary>Alt text (description) of the selected picture; empty clears it. One undo step.</summary>
+    public void SetImageAltText(string? altText)
+    {
+        string? value = string.IsNullOrWhiteSpace(altText) ? null : altText.Trim();
+        if (SelectedImage() is ({ } at, { } image) && !string.Equals(image.AltText, value, StringComparison.Ordinal))
+        {
+            Commit(ReplaceImage(Document, at, image.WithAltText(value)), EditKind.Other, startsNewGroup: true);
+        }
+    }
+
     /// <summary>Changes the selected picture's wrapping while keeping its position; no-op for an inline picture.</summary>
     public void SetImageWrap(ImageWrap wrap)
     {

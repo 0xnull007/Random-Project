@@ -258,6 +258,11 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] (new) Picture Format > Position > Right with Square Text Wrapping: the picture sits at the right edge of the
       column with the text on its left. A floating picture can be moved past the margins onto the page edge.
 - [ ] (new) Save and reopen in Word: floating pictures keep their position, wrapping and distance from text.
+- [ ] (new) Picture Format > Picture Border: a black, grey, blue, red, dashed, dotted or double line appears around
+      the picture (inline or floating), on screen, in print and in the PDF; No Border removes it; Ctrl+Z undoes.
+      Word shows the same border after a save.
+- [ ] (new) Picture Format > Alt Text: type a description, OK; reopen the dialog and it is still there; after a
+      save Word's Alt Text pane shows it (and Narrator can read it in Word).
 - [ ] (new) A floating picture near the bottom of a page stays with its paragraph; text that no longer fits beside it
       moves to the next page. Floating pictures print and export to PDF where they appear on screen.
 - [ ] Pictures appear in Print Preview, on paper and in the exported PDF.

@@ -98,6 +98,29 @@ public static class PageRenderer
             target.FillRectangle(image.Bounds, PlaceholderFill);
             target.DrawRectangle(image.Bounds, PlaceholderStroke, 1);
         }
+
+        if (image.Image.Border is { } border)
+        {
+            DrawImageBorder(image.Bounds, border, target);
+        }
+    }
+
+    /// <summary>Word's Picture Border: a line (single, double, dotted or dashed) just inside the picture's edges.</summary>
+    public static void DrawImageBorder(RectD bounds, BorderLine border, IRenderTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(border);
+        ArgumentNullException.ThrowIfNull(target);
+        double inset = border.ThicknessDips / 2;
+        RectD edge = bounds.Inflate(-inset, -inset);
+        if (edge.IsEmpty)
+        {
+            return;
+        }
+
+        DrawBorderLine(new PointD(edge.Left, edge.Top), new PointD(edge.Right, edge.Top), border, target);
+        DrawBorderLine(new PointD(edge.Left, edge.Bottom), new PointD(edge.Right, edge.Bottom), border, target);
+        DrawBorderLine(new PointD(edge.Left, edge.Top), new PointD(edge.Left, edge.Bottom), border, target);
+        DrawBorderLine(new PointD(edge.Right, edge.Top), new PointD(edge.Right, edge.Bottom), border, target);
     }
 
     /// <summary>Word's page border: single, double (two lines a gap apart), dotted, dashed or thick, in the chosen colour.</summary>

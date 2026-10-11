@@ -340,6 +340,31 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SetWatermark(string text) => Session.SetWatermark(string.IsNullOrWhiteSpace(text) ? null : new Watermark(text));
 
+    /// <summary>Picture Format > Picture Border: "None", or "Colour:width" / "Dashed:width" with the width in eighths of a point.</summary>
+    [RelayCommand]
+    private void SetPictureBorder(string spec)
+    {
+        if (spec == "None")
+        {
+            Session.SetImageBorder(null);
+            return;
+        }
+
+        string[] parts = spec.Split(':');
+        int width = parts.Length > 1 && int.TryParse(parts[1], out int parsed) ? parsed : 12;
+        (PageBorderStyle style, DocColor color) = parts[0] switch
+        {
+            "Gray" => (PageBorderStyle.Single, DocColor.FromRgb(0x80, 0x80, 0x80)),
+            "Blue" => (PageBorderStyle.Single, DocColor.FromRgb(0x2F, 0x54, 0x96)),
+            "Red" => (PageBorderStyle.Single, DocColor.FromRgb(0xC0, 0x00, 0x00)),
+            "Dashed" => (PageBorderStyle.Dashed, DocColor.Black),
+            "Dotted" => (PageBorderStyle.Dotted, DocColor.Black),
+            "Double" => (PageBorderStyle.Double, DocColor.Black),
+            _ => (PageBorderStyle.Single, DocColor.Black),
+        };
+        Session.SetImageBorder(new BorderLine(style, width, color, 0));
+    }
+
     /// <summary>Insert > Drop Cap: "None", or "Dropped:3" / "InMargin:3" (position and lines).</summary>
     [RelayCommand]
     private void SetDropCap(string choice)

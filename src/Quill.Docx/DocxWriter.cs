@@ -1168,6 +1168,30 @@ public static class DocxWriter
         long cx = Math.Max(1, image.Width.ToEmu());
         long cy = Math.Max(1, image.Height.ToEmu());
         string name = "Picture " + pictureId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var shapeProperties = new PIC.ShapeProperties(
+            new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = cx, Cy = cy }),
+            new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle });
+        if (image.Border is { } border)
+        {
+            // Word's Picture Border: a:ln with the width in EMU (12700 per point; BorderLine widths are eighths of a point).
+            var outline = new A.Outline(new A.SolidFill(new A.RgbColorModelHex { Val = border.EffectiveColor.ToHex() }))
+            {
+                Width = (int)Math.Max(1, Math.Round(border.Width / 8.0 * 12700)),
+            };
+            A.PresetLineDashValues? dash = border.Style switch
+            {
+                PageBorderStyle.Dashed => A.PresetLineDashValues.Dash,
+                PageBorderStyle.Dotted => A.PresetLineDashValues.Dot,
+                _ => null,
+            };
+            if (dash is { } value)
+            {
+                outline.Append(new A.PresetDash { Val = value });
+            }
+
+            shapeProperties.Append(outline);
+        }
+
         var graphic = new A.Graphic(
             new A.GraphicData(
                 new PIC.Picture(
@@ -1177,16 +1201,14 @@ public static class DocxWriter
                     new PIC.BlipFill(
                         new A.Blip { Embed = relationshipId },
                         new A.Stretch(new A.FillRectangle())),
-                    new PIC.ShapeProperties(
-                        new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = cx, Cy = cy }),
-                        new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })))
+                    shapeProperties))
             { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" });
         OpenXmlElement drawing = image.Anchor is { } anchor
-            ? BuildAnchor(anchor, cx, cy, pictureId, name, graphic)
+            ? BuildAnchor(anchor, cx, cy, pictureId, name, image.AltText, graphic)
             : new DW.Inline(
                 new DW.Extent { Cx = cx, Cy = cy },
                 new DW.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-                new DW.DocProperties { Id = pictureId, Name = name },
+                DocProperties(pictureId, name, image.AltText),
                 new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
                 graphic)
             {
@@ -1201,8 +1223,20 @@ public static class DocxWriter
         return run;
     }
 
+    /// <summary>The drawing's id, name and alt text (wp:docPr descr, what Word's Alt Text pane shows).</summary>
+    private static DW.DocProperties DocProperties(uint pictureId, string name, string? altText)
+    {
+        var properties = new DW.DocProperties { Id = pictureId, Name = name };
+        if (!string.IsNullOrWhiteSpace(altText))
+        {
+            properties.Description = altText;
+        }
+
+        return properties;
+    }
+
     /// <summary>A floating picture as Word writes it: wp:anchor with its position, wrapping and distances from text.</summary>
-    private static DW.Anchor BuildAnchor(ImageAnchor anchor, long cx, long cy, uint pictureId, string name, A.Graphic graphic)
+    private static DW.Anchor BuildAnchor(ImageAnchor anchor, long cx, long cy, uint pictureId, string name, string? altText, A.Graphic graphic)
     {
         OpenXmlElement horizontalChild = anchor.HorizontalAlignment is { } alignment
             ? new DW.HorizontalAlignment(alignment switch
@@ -1245,7 +1279,7 @@ public static class DocxWriter
             new DW.Extent { Cx = cx, Cy = cy },
             new DW.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
             wrap,
-            new DW.DocProperties { Id = pictureId, Name = name },
+            DocProperties(pictureId, name, altText),
             new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
             graphic)
         {

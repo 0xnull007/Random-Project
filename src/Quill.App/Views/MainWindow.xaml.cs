@@ -1377,6 +1377,21 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnPictureAltText(object sender, RoutedEventArgs e)
+    {
+        if (RequirePicture() is { } picture)
+        {
+            var dialog = new AltTextWindow(picture.Image.AltText) { Owner = this };
+            if (dialog.ShowDialog() == true)
+            {
+                SelectPicture(picture.Start);
+                ViewModel.Session.SetImageAltText(dialog.Result);
+            }
+        }
+
+        Editor.Focus();
+    }
+
     private void OnDeletePicture(object sender, RoutedEventArgs e)
     {
         if (RequirePicture() is { } picture)

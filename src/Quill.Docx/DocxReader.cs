@@ -8,6 +8,7 @@ using Quill.Core.Model;
 using Quill.Core.Units;
 using A = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
+using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 using static Quill.Docx.OoxmlValues;
 
@@ -688,7 +689,31 @@ public sealed class DocxReader
             }
         }
 
-        builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId, anchor));
+        string? altText = drawing.Descendants<DW.DocProperties>().FirstOrDefault()?.Description?.Value;
+        BorderLine? border = ReadPictureBorder(drawing.Descendants<PIC.ShapeProperties>().FirstOrDefault()?.GetFirstChild<A.Outline>());
+        builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId, anchor, altText, border));
+    }
+
+    /// <summary>Word's Picture Border (a:ln on the picture's shape): a solid colour with a width in EMU and an optional dash preset.</summary>
+    private static BorderLine? ReadPictureBorder(A.Outline? outline)
+    {
+        if (outline is null || outline.GetFirstChild<A.NoFill>() is not null || outline.GetFirstChild<A.SolidFill>() is not { } fill)
+        {
+            return null;
+        }
+
+        DocColor color = DocColor.Black;
+        if (fill.RgbColorModelHex?.Val?.Value is { Length: 6 } hex && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgb))
+        {
+            color = DocColor.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+        }
+
+        int width = Math.Max(1, (int)Math.Round((outline.Width?.Value ?? 9525) / 12700.0 * 8));
+        A.PresetLineDashValues? dash = outline.GetFirstChild<A.PresetDash>()?.Val?.Value;
+        PageBorderStyle style = dash == A.PresetLineDashValues.Dash || dash == A.PresetLineDashValues.LargeDash || dash == A.PresetLineDashValues.DashDot ? PageBorderStyle.Dashed
+            : dash == A.PresetLineDashValues.Dot || dash == A.PresetLineDashValues.SystemDot ? PageBorderStyle.Dotted
+            : PageBorderStyle.Single;
+        return new BorderLine(style, width, color, 0);
     }
 
     /// <summary>Word's wp:anchor: the wrapping, what the position is measured from, and the offsets or alignment.</summary>

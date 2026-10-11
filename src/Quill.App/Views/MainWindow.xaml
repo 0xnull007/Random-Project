@@ -679,7 +679,28 @@
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8B9;" Content="Replace" Click="OnReplacePicture" ToolTip="Swap in another picture file at the same width" />
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE74D;" Content="Delete" Click="OnDeletePicture" ToolTip="Remove the picture" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE946;" Content="Alt Text" Click="OnPictureAltText" ToolTip="Describe the picture for screen readers (saved in the .docx)" />
             </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Picture Styles">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Picture Border" Click="OnCaseMenu" ToolTip="A line around the picture, like Word's Picture Border">
+              <Button.ContextMenu>
+                <ContextMenu Closed="OnMenuClosed">
+                  <MenuItem Header="No Border" Command="{Binding SetPictureBorderCommand}" CommandParameter="None" />
+                  <Separator />
+                  <MenuItem Header="Black, ¾ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Black:6" />
+                  <MenuItem Header="Black, 1½ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Black:12" />
+                  <MenuItem Header="Black, 3 pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Black:24" />
+                  <MenuItem Header="Gray, 1½ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Gray:12" />
+                  <MenuItem Header="Blue, 1½ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Blue:12" />
+                  <MenuItem Header="Red, 1½ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Red:12" />
+                  <Separator />
+                  <MenuItem Header="Dashed, 1½ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Dashed:12" />
+                  <MenuItem Header="Dotted, 1½ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Dotted:12" />
+                  <MenuItem Header="Double, ¾ pt" Command="{Binding SetPictureBorderCommand}" CommandParameter="Double:6" />
+                </ContextMenu>
+              </Button.ContextMenu>
+            </Button>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Arrange">
             <StackPanel Orientation="Horizontal">

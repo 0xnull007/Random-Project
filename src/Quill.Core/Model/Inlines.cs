@@ -120,7 +120,7 @@ public sealed class Field : Inline
 /// <summary>An inline picture, displayed at <see cref="Width"/> by <see cref="Height"/>. Occupies one character; the bytes live in the document's <see cref="ImageStore"/>.</summary>
 public sealed class InlineImage : Inline
 {
-    public InlineImage(string imageId, Units.Twips width, Units.Twips height, RunProperties? properties = null, string? styleId = null, ImageAnchor? anchor = null)
+    public InlineImage(string imageId, Units.Twips width, Units.Twips height, RunProperties? properties = null, string? styleId = null, ImageAnchor? anchor = null, string? altText = null, BorderLine? border = null)
         : base(styleId, properties)
     {
         ArgumentNullException.ThrowIfNull(imageId);
@@ -128,6 +128,8 @@ public sealed class InlineImage : Inline
         Width = width;
         Height = height;
         Anchor = anchor;
+        AltText = string.IsNullOrWhiteSpace(altText) ? null : altText;
+        Border = border;
     }
 
     public string ImageId { get; }
@@ -139,17 +141,27 @@ public sealed class InlineImage : Inline
     /// <summary>Floating placement, or null for a picture that sits in the line like a character.</summary>
     public ImageAnchor? Anchor { get; }
 
+    /// <summary>Description for screen readers and for Word's Alt Text pane (docx <c>wp:docPr descr</c>), or null.</summary>
+    public string? AltText { get; }
+
+    /// <summary>Line drawn around the picture (Word's Picture Border), or null.</summary>
+    public BorderLine? Border { get; }
+
     public bool IsFloating => Anchor is not null;
 
     public override int Length => 1;
 
-    public InlineImage WithSize(Units.Twips width, Units.Twips height) => new(ImageId, width, height, Properties, StyleId, Anchor);
+    public InlineImage WithSize(Units.Twips width, Units.Twips height) => new(ImageId, width, height, Properties, StyleId, Anchor, AltText, Border);
 
-    public InlineImage WithAnchor(ImageAnchor? anchor) => new(ImageId, Width, Height, Properties, StyleId, anchor);
+    public InlineImage WithAnchor(ImageAnchor? anchor) => new(ImageId, Width, Height, Properties, StyleId, anchor, AltText, Border);
 
-    public override InlineImage WithProperties(RunProperties properties) => new(ImageId, Width, Height, properties, StyleId, Anchor);
+    public InlineImage WithAltText(string? altText) => new(ImageId, Width, Height, Properties, StyleId, Anchor, altText, Border);
 
-    public override InlineImage WithStyle(string? styleId) => new(ImageId, Width, Height, Properties, styleId, Anchor);
+    public InlineImage WithBorder(BorderLine? border) => new(ImageId, Width, Height, Properties, StyleId, Anchor, AltText, border);
+
+    public override InlineImage WithProperties(RunProperties properties) => new(ImageId, Width, Height, properties, StyleId, Anchor, AltText, Border);
+
+    public override InlineImage WithStyle(string? styleId) => new(ImageId, Width, Height, Properties, styleId, Anchor, AltText, Border);
 
     internal override void AppendFlatText(System.Text.StringBuilder builder) => builder.Append(Paragraph.ObjectReplacementChar);
 
