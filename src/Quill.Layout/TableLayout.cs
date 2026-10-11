@@ -92,6 +92,9 @@ public sealed class TableCellLayout
 
     /// <summary>Rows this cell spans when it starts a vertical merge (1 otherwise); set once the whole table is built.</summary>
     public int MergedRows { get; internal set; } = 1;
+
+    /// <summary>How far down the cell's content is shifted by centre or bottom alignment; set once the row heights are known.</summary>
+    public double ContentOffset { get; internal set; }
 }
 
 /// <summary>One block inside a cell: a paragraph layout or a nested table, with its top relative to the cell's top.</summary>
@@ -143,17 +146,18 @@ public sealed class TableFragment : BlockFragment
                 }
 
                 double contentLeft = Bounds.Left + cell.Left + TableLayout.CellPadding;
+                double contentTop = rowTop + cell.ContentOffset;
                 for (int b = 0; b < cell.Blocks.Length; b++)
                 {
                     CellBlockLayout block = cell.Blocks[b];
                     BlockPath childPath = path.Child(r, c, b);
                     if (block.Paragraph is { } paragraph)
                     {
-                        paragraphs.Add(new ParagraphFragment(story, childPath, paragraph, 0, paragraph.LineCount - 1, rowTop + block.Top, contentLeft, paragraph.SpaceBefore, paragraph.SpaceAfter));
+                        paragraphs.Add(new ParagraphFragment(story, childPath, paragraph, 0, paragraph.LineCount - 1, contentTop + block.Top, contentLeft, paragraph.SpaceBefore, paragraph.SpaceAfter));
                     }
                     else if (block.Table is { } nested && nested.Rows.Length > 0)
                     {
-                        tables.Add(new TableFragment(story, childPath, nested, 0, nested.Rows.Length - 1, rowTop + block.Top, contentLeft));
+                        tables.Add(new TableFragment(story, childPath, nested, 0, nested.Rows.Length - 1, contentTop + block.Top, contentLeft));
                     }
                 }
             }

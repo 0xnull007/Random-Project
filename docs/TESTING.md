@@ -270,6 +270,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 10b. Tables (new)
 
+- [ ] (new) Table Layout > Alignment > Align Center / Align Bottom: in a tall row (drag a row taller or set a row
+      height) the cell's text moves to the middle or bottom; clicking in the moved text still places the caret;
+      Align Top restores it; the setting survives save/reopen and shows the same in Word.
 - [ ] Insert > Table...: enter 3 columns and 2 rows; a bordered grid as wide as the text column appears at the
       caret (before the paragraph when the caret is at its start, after it at its end, splitting it in the middle)
       and the caret is in the first cell. The Table tab appears while the caret is inside a table and disappears

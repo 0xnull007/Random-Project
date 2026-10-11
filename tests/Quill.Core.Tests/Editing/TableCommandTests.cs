@@ -18,6 +18,26 @@ public class TableCommandTests
 
     private static string CellText(Table table, int row, int cell) => ((Paragraph)table.Rows[row].Cells[cell].Blocks[0]).FlatText;
 
+    [Fact]
+    public void Cell_vertical_alignment_is_set_per_cell_and_undone()
+    {
+        EditingSession session = SessionWithGrid();
+        session.MoveCaret(Cell(1, 0, 0), extend: false);
+        Assert.Equal(CellVerticalAlignment.Top, session.CellVerticalAlignmentAtCaret);
+
+        session.SetCellVerticalAlignment(CellVerticalAlignment.Bottom);
+        Assert.Equal(CellVerticalAlignment.Bottom, TableOf(session).Rows[0].Cells[0].VerticalAlignment);
+        Assert.Equal(CellVerticalAlignment.Bottom, session.CellVerticalAlignmentAtCaret);
+        Assert.All(TableOf(session).Rows[0].Cells.Skip(1), cell => Assert.Equal(CellVerticalAlignment.Top, cell.VerticalAlignment));
+
+        session.SetCellShading(DocColor.Parse("FFFF00")); // other cell edits keep the alignment
+        Assert.Equal(CellVerticalAlignment.Bottom, TableOf(session).Rows[0].Cells[0].VerticalAlignment);
+
+        session.Undo();
+        session.Undo();
+        Assert.Equal(CellVerticalAlignment.Top, TableOf(session).Rows[0].Cells[0].VerticalAlignment);
+    }
+
     private static EditingSession SessionWithGrid()
     {
         var session = new EditingSession(WithParagraphs("Before", "After"));

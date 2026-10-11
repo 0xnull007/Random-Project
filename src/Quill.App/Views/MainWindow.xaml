@@ -775,6 +775,13 @@
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF740;" Content="Split Cell" Command="{Binding SplitCellCommand}" ToolTip="Undo a merge: one cell per column, or one per row" />
             </StackPanel>
           </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Alignment">
+            <StackPanel Style="{StaticResource Quill.RibbonStack}">
+              <Button Style="{StaticResource Quill.StackButton}" Content="Align Top" Command="{Binding AlignCellCommand}" CommandParameter="Top" ToolTip="Cell content at the top of the cell" />
+              <Button Style="{StaticResource Quill.StackButton}" Content="Align Center" Command="{Binding AlignCellCommand}" CommandParameter="Center" ToolTip="Cell content centred vertically" />
+              <Button Style="{StaticResource Quill.StackButton}" Content="Align Bottom" Command="{Binding AlignCellCommand}" CommandParameter="Bottom" ToolTip="Cell content at the bottom of the cell" />
+            </StackPanel>
+          </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Table Styles">
             <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF207;" Content="Table Styles" Click="OnCaseMenu" ToolTip="Apply a built-in look: borders, a coloured bold header row and banded rows">
               <Button.ContextMenu>

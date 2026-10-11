@@ -340,6 +340,10 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SetWatermark(string text) => Session.SetWatermark(string.IsNullOrWhiteSpace(text) ? null : new Watermark(text));
 
+    /// <summary>Table Layout > Alignment: Top, Center or Bottom for the caret cell.</summary>
+    [RelayCommand]
+    private void AlignCell(string where) => Session.SetCellVerticalAlignment(Enum.TryParse(where, out CellVerticalAlignment alignment) ? alignment : CellVerticalAlignment.Top);
+
     /// <summary>Picture Format > Picture Border: "None", or "Colour:width" / "Dashed:width" with the width in eighths of a point.</summary>
     [RelayCommand]
     private void SetPictureBorder(string spec)

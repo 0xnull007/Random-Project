@@ -35,7 +35,7 @@ public sealed record TableStylePreset(string Name, bool Borders, DocColor? Heade
             foreach (TableCell cell in row.Cells)
             {
                 ImmutableList<Block> blocks = BlockWalker.MapParagraphs(cell.Blocks, p => Restyle(p, header));
-                cells.Add(new TableCell(blocks, cell.GridSpan, cell.VerticalMerge, fill));
+                cells.Add(new TableCell(blocks, cell.GridSpan, cell.VerticalMerge, fill, cell.VerticalAlignment));
             }
 
             rows.Add(new TableRow(cells.MoveToImmutable(), row.Height, row.ExactHeight, isHeader: header));

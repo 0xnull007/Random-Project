@@ -413,3 +413,39 @@ public class LineNumberLayoutTests
         Assert.Empty(new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(none, new StyleResolver(none.Styles)).Pages[0].LineNumbers);
     }
 }
+
+public class CellVerticalAlignmentTests
+{
+    private static SectionProperties Page() => new()
+    {
+        PageWidth = Twips.FromDips(400),
+        PageHeight = Twips.FromDips(400),
+        MarginTop = Twips.FromDips(20),
+        MarginBottom = Twips.FromDips(20),
+        MarginLeft = Twips.FromDips(20),
+        MarginRight = Twips.FromDips(20),
+    };
+
+    [Fact]
+    public void Centre_and_bottom_alignment_shift_cell_content_inside_a_tall_row()
+    {
+        TableCell Cell(CellVerticalAlignment alignment) => new(ImmutableList.Create<Block>(Paragraph.FromText("x")), verticalAlignment: alignment);
+        var table = new Table(
+            [new TableRow([Cell(CellVerticalAlignment.Top), Cell(CellVerticalAlignment.Center), Cell(CellVerticalAlignment.Bottom)], Twips.FromDips(100), exactHeight: true)],
+            [Twips.FromDips(100), Twips.FromDips(100), Twips.FromDips(100)],
+            hasBorders: true,
+            Twips.Zero);
+        var document = new Document(ImmutableList.Create(new Section(Page(), ImmutableList.Create<Block>(table))), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        var fragment = Assert.IsType<TableFragment>(layout.Pages[0].Body[0]);
+
+        ImmutableArray<TableCellLayout> cells = fragment.Layout.Rows[0].Cells;
+        double content = cells[0].ContentHeight;
+        Assert.Equal(0, cells[0].ContentOffset);
+        Assert.Equal((100 - content) / 2, cells[1].ContentOffset, 3);
+        Assert.Equal(100 - content, cells[2].ContentOffset, 3);
+        Assert.Equal(fragment.Bounds.Top, fragment.CellParagraphs[0].Bounds.Top, 3);
+        Assert.Equal(fragment.Bounds.Top + (100 - content) / 2, fragment.CellParagraphs[1].Bounds.Top, 3);
+        Assert.Equal(fragment.Bounds.Top + 100 - content, fragment.CellParagraphs[2].Bounds.Top, 3);
+    }
+}

@@ -214,17 +214,18 @@ public static class PageRenderer
 
                 target.PushClip(rect);
                 double contentLeft = rect.Left + TableLayout.CellPadding;
+                double contentTop = top + cell.ContentOffset;
                 foreach (CellBlockLayout block in cell.Blocks)
                 {
                     if (block.Paragraph is { } paragraph)
                     {
-                        DrawCellParagraph(paragraph, contentLeft, top + block.Top, target);
+                        DrawCellParagraph(paragraph, contentLeft, contentTop + block.Top, target);
                     }
                     else if (block.Table is { } nested)
                     {
                         for (int r = 0; r < nested.Rows.Length; r++)
                         {
-                            DrawRow(nested, r, contentLeft + nested.Left, top + block.Top + nested.RowTops[r], target);
+                            DrawRow(nested, r, contentLeft + nested.Left, contentTop + block.Top + nested.RowTops[r], target);
                         }
                     }
                 }

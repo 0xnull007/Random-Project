@@ -18,16 +18,25 @@ public enum TableAlignment
     Right,
 }
 
+/// <summary>Where a cell's content sits when the row is taller than the content (Word's cell vertical alignment).</summary>
+public enum CellVerticalAlignment
+{
+    Top,
+    Center,
+    Bottom,
+}
+
 /// <summary>A table cell: block content plus the grid properties that matter for display.</summary>
 public sealed class TableCell
 {
-    public TableCell(ImmutableList<Block> blocks, int gridSpan = 1, VerticalMerge verticalMerge = VerticalMerge.None, DocColor? shading = null)
+    public TableCell(ImmutableList<Block> blocks, int gridSpan = 1, VerticalMerge verticalMerge = VerticalMerge.None, DocColor? shading = null, CellVerticalAlignment verticalAlignment = CellVerticalAlignment.Top)
     {
         ArgumentNullException.ThrowIfNull(blocks);
         Blocks = blocks.IsEmpty ? ImmutableList.Create<Block>(Paragraph.Empty()) : blocks;
         GridSpan = Math.Max(1, gridSpan);
         VerticalMerge = verticalMerge;
         Shading = shading;
+        VerticalAlignment = verticalAlignment;
     }
 
     public ImmutableList<Block> Blocks { get; }
@@ -38,6 +47,10 @@ public sealed class TableCell
 
     /// <summary>Background fill, or null for none.</summary>
     public DocColor? Shading { get; }
+
+    public CellVerticalAlignment VerticalAlignment { get; }
+
+    public TableCell WithVerticalAlignment(CellVerticalAlignment alignment) => new(Blocks, GridSpan, VerticalMerge, Shading, alignment);
 }
 
 public sealed class TableRow
@@ -129,7 +142,7 @@ public sealed class Table : Block
         ArgumentNullException.ThrowIfNull(blocks);
         TableRow target = Rows[row];
         TableCell old = target.Cells[cell];
-        var updatedCell = new TableCell(blocks, old.GridSpan, old.VerticalMerge, old.Shading);
+        var updatedCell = new TableCell(blocks, old.GridSpan, old.VerticalMerge, old.Shading, old.VerticalAlignment);
         var updatedRow = new TableRow(target.Cells.SetItem(cell, updatedCell), target.Height, target.ExactHeight, target.IsHeader);
         return new Table(Rows.SetItem(row, updatedRow), ColumnWidths, HasBorders, Indent, outerXml: null, Alignment);
     }

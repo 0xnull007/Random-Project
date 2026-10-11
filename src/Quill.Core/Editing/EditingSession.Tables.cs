@@ -91,7 +91,7 @@ public sealed partial class EditingSession
             bool continuesMerge = below
                 ? cell.VerticalMerge != VerticalMerge.None && next is not null && CellAtGrid(next, gridStart) is { VerticalMerge: VerticalMerge.Continue }
                 : cell.VerticalMerge == VerticalMerge.Continue;
-            cells.Add(new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(cell)), cell.GridSpan, continuesMerge ? VerticalMerge.Continue : VerticalMerge.None, cell.Shading));
+            cells.Add(new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(cell)), cell.GridSpan, continuesMerge ? VerticalMerge.Continue : VerticalMerge.None, cell.Shading, cell.VerticalAlignment));
             gridStart += cell.GridSpan;
         }
 
@@ -224,7 +224,7 @@ public sealed partial class EditingSession
             return; // one of them is part of a vertical merge the other is not
         }
 
-        var merged = new TableCell(JoinBlocks(left.Blocks, right.Blocks), left.GridSpan + right.GridSpan, left.VerticalMerge, left.Shading);
+        var merged = new TableCell(JoinBlocks(left.Blocks, right.Blocks), left.GridSpan + right.GridSpan, left.VerticalMerge, left.Shading, left.VerticalAlignment);
         TableRow updated = WithCells(row, row.Cells.RemoveAt(at.Cell + 1).SetItem(at.Cell, merged));
         CommitTable(at.Path, at.Table.WithRows(at.Table.Rows.SetItem(at.Row, updated)), at.Path.Child(at.Row, at.Cell, 0));
     }
@@ -265,8 +265,8 @@ public sealed partial class EditingSession
         }
 
         TableCell below = next.Cells[belowIndex];
-        var top = new TableCell(JoinBlocks(cell.Blocks, below.Blocks), cell.GridSpan, VerticalMerge.Restart, cell.Shading);
-        var continuation = new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(below)), below.GridSpan, VerticalMerge.Continue, below.Shading);
+        var top = new TableCell(JoinBlocks(cell.Blocks, below.Blocks), cell.GridSpan, VerticalMerge.Restart, cell.Shading, cell.VerticalAlignment);
+        var continuation = new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(below)), below.GridSpan, VerticalMerge.Continue, below.Shading, below.VerticalAlignment);
         ImmutableArray<TableRow> rows = at.Table.Rows
             .SetItem(at.Row, WithCells(row, row.Cells.SetItem(at.Cell, top)))
             .SetItem(at.Row + 1, WithCells(next, next.Cells.SetItem(belowIndex, continuation)));
@@ -288,7 +288,7 @@ public sealed partial class EditingSession
             var parts = new List<TableCell> { new(cell.Blocks, 1, cell.VerticalMerge, cell.Shading) };
             for (int i = 1; i < cell.GridSpan; i++)
             {
-                parts.Add(new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(cell)), 1, cell.VerticalMerge, cell.Shading));
+                parts.Add(new TableCell(ImmutableList.Create<Block>(EmptyCellParagraph(cell)), 1, cell.VerticalMerge, cell.Shading, cell.VerticalAlignment));
             }
 
             TableRow updated = WithCells(row, row.Cells.RemoveAt(at.Cell).InsertRange(at.Cell, parts));
@@ -300,7 +300,7 @@ public sealed partial class EditingSession
         {
             int gridStart = GridStart(row, at.Cell);
             ImmutableArray<TableRow>.Builder rows = at.Table.Rows.ToBuilder();
-            rows[at.Row] = WithCells(row, row.Cells.SetItem(at.Cell, new TableCell(cell.Blocks, cell.GridSpan, VerticalMerge.None, cell.Shading)));
+            rows[at.Row] = WithCells(row, row.Cells.SetItem(at.Cell, new TableCell(cell.Blocks, cell.GridSpan, VerticalMerge.None, cell.Shading, cell.VerticalAlignment)));
             for (int r = at.Row + 1; r < rows.Count; r++)
             {
                 TableRow lower = rows[r];
@@ -311,7 +311,7 @@ public sealed partial class EditingSession
                 }
 
                 TableCell part = lower.Cells[index];
-                rows[r] = WithCells(lower, lower.Cells.SetItem(index, new TableCell(part.Blocks, part.GridSpan, VerticalMerge.None, part.Shading)));
+                rows[r] = WithCells(lower, lower.Cells.SetItem(index, new TableCell(part.Blocks, part.GridSpan, VerticalMerge.None, part.Shading, part.VerticalAlignment)));
             }
 
             CommitTable(at.Path, at.Table.WithRows(rows.ToImmutable()), at.Path.Child(at.Row, at.Cell, 0));
@@ -530,6 +530,21 @@ public sealed partial class EditingSession
     }
 
     /// <summary>Fills the caret's cell with a colour (null clears it).</summary>
+    /// <summary>The caret cell's vertical alignment (Top outside tables).</summary>
+    public CellVerticalAlignment CellVerticalAlignmentAtCaret => TableAtCaret() is { } at ? at.Table.Rows[at.Row].Cells[at.Cell].VerticalAlignment : CellVerticalAlignment.Top;
+
+    /// <summary>Table Layout > Align Top/Center/Bottom for the caret cell; one undo step.</summary>
+    public void SetCellVerticalAlignment(CellVerticalAlignment alignment)
+    {
+        if (TableAtCaret() is not { } at || at.Table.Rows[at.Row].Cells[at.Cell].VerticalAlignment == alignment)
+        {
+            return;
+        }
+
+        TableRow row = at.Table.Rows[at.Row];
+        CommitTableFormat(at.Path, at.Table.WithRows(at.Table.Rows.SetItem(at.Row, WithCells(row, row.Cells.SetItem(at.Cell, row.Cells[at.Cell].WithVerticalAlignment(alignment))))));
+    }
+
     public void SetCellShading(DocColor? color)
     {
         if (TableAtCaret() is not { } at)
@@ -539,7 +554,7 @@ public sealed partial class EditingSession
 
         TableRow row = at.Table.Rows[at.Row];
         TableCell cell = row.Cells[at.Cell];
-        var updatedCell = new TableCell(cell.Blocks, cell.GridSpan, cell.VerticalMerge, color is { IsAuto: true } ? null : color);
+        var updatedCell = new TableCell(cell.Blocks, cell.GridSpan, cell.VerticalMerge, color is { IsAuto: true } ? null : color, cell.VerticalAlignment);
         CommitTableFormat(at.Path, at.Table.WithRows(at.Table.Rows.SetItem(at.Row, WithCells(row, row.Cells.SetItem(at.Cell, updatedCell)))));
     }
 
@@ -663,7 +678,7 @@ public sealed partial class EditingSession
 
             if (start < boundary && boundary < start + cell.GridSpan)
             {
-                return WithCells(row, row.Cells.SetItem(i, new TableCell(cell.Blocks, cell.GridSpan + 1, cell.VerticalMerge, cell.Shading)));
+                return WithCells(row, row.Cells.SetItem(i, new TableCell(cell.Blocks, cell.GridSpan + 1, cell.VerticalMerge, cell.Shading, cell.VerticalAlignment)));
             }
 
             start += cell.GridSpan;
@@ -690,7 +705,7 @@ public sealed partial class EditingSession
             }
             else if (overlap < cell.GridSpan)
             {
-                cells.Add(new TableCell(cell.Blocks, cell.GridSpan - overlap, cell.VerticalMerge, cell.Shading));
+                cells.Add(new TableCell(cell.Blocks, cell.GridSpan - overlap, cell.VerticalMerge, cell.Shading, cell.VerticalAlignment));
             }
 
             position = cellEnd;
@@ -714,7 +729,7 @@ public sealed partial class EditingSession
                 TableCell cell = cells[c];
                 if (cell.VerticalMerge == VerticalMerge.Continue && (r == 0 || CellAtGrid(result[r - 1], start) is null or { VerticalMerge: VerticalMerge.None }))
                 {
-                    cells[c] = new TableCell(cell.Blocks, cell.GridSpan, VerticalMerge.Restart, cell.Shading);
+                    cells[c] = new TableCell(cell.Blocks, cell.GridSpan, VerticalMerge.Restart, cell.Shading, cell.VerticalAlignment);
                     changed = true;
                 }
 

@@ -1135,6 +1135,27 @@ public sealed class Paginator
                 }
             }
 
+            // Centre and bottom alignment shift the content inside the (possibly merged) cell's height.
+            for (int r = 0; r < built.Length; r++)
+            {
+                foreach (TableCellLayout cell in built[r].Cells)
+                {
+                    if (cell.Cell.VerticalAlignment == CellVerticalAlignment.Top || cell.Cell.VerticalMerge == VerticalMerge.Continue)
+                    {
+                        continue;
+                    }
+
+                    double cellHeight = 0;
+                    for (int k = r; k < Math.Min(built.Length, r + cell.MergedRows); k++)
+                    {
+                        cellHeight += built[k].Height;
+                    }
+
+                    double spare = Math.Max(0, cellHeight - cell.ContentHeight);
+                    cell.ContentOffset = cell.Cell.VerticalAlignment == CellVerticalAlignment.Center ? spare / 2 : spare;
+                }
+            }
+
             double tableWidth = widths.Sum();
             double tableLeft = table.Alignment switch
             {

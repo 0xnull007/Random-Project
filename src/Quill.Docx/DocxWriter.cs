@@ -368,6 +368,11 @@ public static class DocxWriter
                     tcPr.Append(new W.Shading { Val = W.ShadingPatternValues.Clear, Color = "auto", Fill = shading.ToHex() });
                 }
 
+                if (cell.VerticalAlignment != CellVerticalAlignment.Top)
+                {
+                    tcPr.Append(new W.TableCellVerticalAlignment { Val = cell.VerticalAlignment == CellVerticalAlignment.Center ? W.TableVerticalAlignmentValues.Center : W.TableVerticalAlignmentValues.Bottom });
+                }
+
                 var tc = new W.TableCell(tcPr);
                 for (int k = 0; k < cell.Blocks.Count; k++)
                 {

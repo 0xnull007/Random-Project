@@ -958,13 +958,18 @@ public sealed class DocxReader
                     }
                 }
 
+                W.TableVerticalAlignmentValues? vAlign = tcPr?.TableCellVerticalAlignment?.Val?.Value;
+                CellVerticalAlignment verticalAlignment = vAlign == W.TableVerticalAlignmentValues.Center ? CellVerticalAlignment.Center
+                    : vAlign == W.TableVerticalAlignmentValues.Bottom ? CellVerticalAlignment.Bottom
+                    : CellVerticalAlignment.Top;
+
                 var content = ImmutableList.CreateBuilder<Block>();
                 foreach (OpenXmlElement child in tc.ChildElements)
                 {
                     ReadBlock(child, content);
                 }
 
-                cells.Add(new TableCell(EnsureParagraph(content.ToImmutable()), span, merge, shading));
+                cells.Add(new TableCell(EnsureParagraph(content.ToImmutable()), span, merge, shading, verticalAlignment));
             }
 
             rows.Add(new TableRow(cells.ToImmutable(), height, exact, isHeader));
