@@ -69,7 +69,7 @@ public sealed partial class MainViewModel : ObservableObject
             _autosaveTimer.Start();
         }
         FontSizes = new ObservableCollection<double>(StandardSizes);
-        ParagraphStyles = new ObservableCollection<Style>(Session.Document.Styles.ParagraphStyles.Where(s => s.QuickFormat).OrderBy(s => s.Priority));
+        ParagraphStyles = new ObservableCollection<StyleEntry>(Session.Document.Styles.ParagraphStyles.Where(s => s.QuickFormat).OrderBy(s => s.Priority).Select(ToStyleEntry));
         _knownStyles = Session.Document.Styles;
         if (ShowComments)
         {
@@ -454,7 +454,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    public ObservableCollection<Style> ParagraphStyles { get; }
+    public ObservableCollection<StyleEntry> ParagraphStyles { get; }
 
     public IReadOnlyList<string> FontFamilies { get; } = Fonts.SystemFontFamilies
         .Select(f => f.Source)
@@ -550,7 +550,7 @@ public sealed partial class MainViewModel : ObservableObject
     public partial double FontSize { get; set; }
 
     [ObservableProperty]
-    public partial Style? CurrentStyle { get; set; }
+    public partial StyleEntry? CurrentStyle { get; set; }
 
     [ObservableProperty]
     public partial bool CanUndo { get; set; }
@@ -1591,7 +1591,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    partial void OnCurrentStyleChanged(Style? value)
+    partial void OnCurrentStyleChanged(StyleEntry? value)
     {
         if (!_syncingFormat && value is not null)
         {
@@ -1599,7 +1599,23 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Name shown in the style's own font, weight, slant and colour, with the size clamped so the list stays readable.</summary>
+    private StyleEntry ToStyleEntry(Style style)
+    {
+        ResolvedRunProperties run = Session.ResolveStyleRun(style.Id);
+        Brush? foreground = null;
+        if (run.Color is { IsAuto: false } color)
+        {
+            var brush = new SolidColorBrush(Color.FromRgb(color.R, color.G, color.B));
+            brush.Freeze();
+            foreground = brush;
+        }
+
+        return new StyleEntry(style, run.FontFamily, Math.Clamp(run.FontSize.ToPoints() * 96 / 72, 12, 24), run.Bold ? FontWeights.SemiBold : FontWeights.Normal, run.Italic ? FontStyles.Italic : FontStyles.Normal, foreground);
+    }
+
     private StyleSheet? _knownStyles;
+
 
     /// <summary>Rebuilds the style list when the document's style sheet changes (open, Modify Style).</summary>
     public void RefreshStyles()
@@ -1612,7 +1628,7 @@ public sealed partial class MainViewModel : ObservableObject
             ParagraphStyles.Clear();
             foreach (Style style in styles.ParagraphStyles.Where(s => s.QuickFormat).OrderBy(s => s.Priority).ThenBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase))
             {
-                ParagraphStyles.Add(style);
+                ParagraphStyles.Add(ToStyleEntry(style));
             }
         }
         finally
@@ -1744,4 +1760,14 @@ public sealed partial class CommentEntry(int id, string author, DateTimeOffset? 
 
     [ObservableProperty]
     public partial string Text { get; set; } = text;
+}
+
+/// <summary>A paragraph style in the Styles gallery with how its name should look there (Word shows each style in its own formatting).</summary>
+public sealed record StyleEntry(Style Style, string FontFamily, double FontSize, FontWeight FontWeight, FontStyle FontStyle, Brush? Foreground)
+{
+    public string Id => Style.Id;
+
+    public string Name => Style.Name;
+
+    public bool HasColor => Foreground is not null;
 }

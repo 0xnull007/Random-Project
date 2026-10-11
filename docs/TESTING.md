@@ -87,6 +87,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 4. Character formatting (Home tab)
 
+- [ ] The Styles box shows each style's name in its own font, weight, slant and colour (Heading 1 big and blue,
+      Title bigger), like Word's gallery; New Style... creates a style from the caret paragraph's formatting, lists
+      it in the box and applies it; a duplicate name is refused **(new)**.
 - [ ] Bold/Italic/Underline/Strikethrough/Superscript/Subscript buttons and Ctrl+B/I/U, Ctrl+Shift+Plus, also on headings
       (Calibri Light has no bold face of its own; bold headings use Calibri Bold).
 - [ ] With no selection, press Ctrl+B then type: the new text is bold (sticky format); moving the caret cancels it.

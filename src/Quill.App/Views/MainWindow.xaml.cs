@@ -288,7 +288,23 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnNewStyle(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        Paragraph current = session.Document.GetParagraph(session.Selection.Active);
+        string basedOn = session.Document.Styles.Get(current.StyleId ?? session.Document.Styles.DefaultParagraphStyleId)?.Name ?? "Normal";
+        var dialog = new NewStyleWindow(basedOn, name => session.Document.Styles.Styles.Values.Any(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase))) { Owner = this };
+        if (dialog.ShowDialog() == true && session.CreateStyleFromSelection(dialog.StyleName) is { } id)
+        {
+            ViewModel.RefreshStyles();
+            ViewModel.StatusMessage = "Style \"" + dialog.StyleName + "\" created and applied";
+        }
+
+        Editor.Focus();
+    }
+
     private void OnModifyStyle(object sender, RoutedEventArgs e)
+
     {
         EditingSession session = ViewModel.Session;
         Paragraph current = session.Document.GetParagraph(session.Selection.Active);

@@ -834,7 +834,55 @@ public sealed partial class EditingSession
         Commit(new EditResult(document, Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
     }
 
+    /// <summary>
+    /// Word's "Create a Style": a new paragraph style named <paramref name="name"/>, based on the caret paragraph's style and
+    /// carrying its direct paragraph and character formatting; the paragraph switches to it. Returns the new style id, or
+    /// null when a style of that name exists.
+    /// </summary>
+    public string? CreateStyleFromSelection(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        name = name.Trim();
+        if (Document.Styles.Styles.Values.Any(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        string baseId = new(name.Where(char.IsLetterOrDigit).ToArray());
+        if (baseId.Length == 0)
+        {
+            baseId = "Style";
+        }
+
+        string id = baseId;
+        for (int n = 2; Document.Styles.Contains(id); n++)
+        {
+            id = baseId + n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        Paragraph paragraph = Document.GetParagraph(Selection.Active);
+        string basedOn = paragraph.StyleId ?? Document.Styles.DefaultParagraphStyleId;
+        (string? _, RunProperties runDirect) = paragraph.GetTypingFormatAt(Selection.Active.Offset);
+        var style = new Style
+        {
+            Id = id,
+            Name = name,
+            BasedOn = basedOn,
+            Next = Document.Styles.DefaultParagraphStyleId,
+            QuickFormat = true,
+            Priority = 50,
+            ParagraphProperties = paragraph.Properties with { List = null },
+            RunProperties = runDirect with { Link = null, CommentId = null, Revision = null },
+        };
+        Document document = Document.WithStyles(Document.Styles.With(style));
+        Paragraph restyled = paragraph.WithStyle(id).WithProperties(new ParagraphProperties { List = paragraph.Properties.List });
+        document = DocumentEditor.ReplaceBlock(document, Selection.Story, Selection.Active.Block, restyled);
+        Commit(new EditResult(document, Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+        return id;
+    }
+
     /// <summary>The character formatting a style produces on its own (for the Modify Style dialog).</summary>
+
     public ResolvedRunProperties ResolveStyleRun(string styleId) => _resolver.ResolveRun(styleId, null, RunProperties.Empty);
 
     public ResolvedParagraphProperties ResolveStyleParagraph(string styleId) => _resolver.ResolveParagraph(new Paragraph(ImmutableArray<Inline>.Empty, styleId));
