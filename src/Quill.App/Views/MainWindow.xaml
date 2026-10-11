@@ -96,6 +96,7 @@
     <KeyBinding Modifiers="Ctrl" Key="G" Command="{x:Static views:MainWindow.GoToPageCommand}" />
     <KeyBinding Modifiers="Ctrl+Shift" Key="G" Command="{x:Static views:MainWindow.WordCountCommand}" />
     <KeyBinding Key="F1" Command="{x:Static views:MainWindow.ShortcutsCommand}" />
+    <KeyBinding Modifiers="Ctrl" Key="F1" Command="{x:Static views:MainWindow.ToggleRibbonCommand}" />
     <KeyBinding Modifiers="Ctrl+Shift" Key="C" Command="{Binding CopyFormatCommand}" />
     <KeyBinding Modifiers="Ctrl+Shift" Key="V" Command="{Binding PasteFormatCommand}" />
     <KeyBinding Modifiers="Ctrl+Alt" Key="V" Command="{x:Static views:MainWindow.PastePlainCommand}" />
@@ -118,6 +119,7 @@
     <CommandBinding Command="{x:Static views:MainWindow.FindPreviousCommand}" Executed="OnFindPrevious" />
     <CommandBinding Command="{x:Static views:MainWindow.GoToPageCommand}" Executed="OnGoToPageCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.WordCountCommand}" Executed="OnWordCountCommand" />
+    <CommandBinding Command="{x:Static views:MainWindow.ToggleRibbonCommand}" Executed="OnToggleRibbon" />
     <CommandBinding Command="{x:Static views:MainWindow.ShortcutsCommand}" Executed="OnShortcutsCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.PastePlainCommand}" Executed="OnPastePlain" />
     <CommandBinding Command="{x:Static views:MainWindow.InsertLinkCommand}" Executed="OnInsertLinkCommand" />
@@ -131,7 +133,8 @@
       plus the contextual Picture Format and Table Layout tabs); each tab shows groups named underneath, with large
       icon-and-label buttons for the main commands and rows of small ones for the rest.
     -->
-    <TabControl x:Name="Tabs" DockPanel.Dock="Top" SelectedIndex="1" Margin="0" Padding="4,2" BorderThickness="0,0,0,1" SelectionChanged="OnTabChanged">
+    <Grid DockPanel.Dock="Top">
+    <TabControl x:Name="Tabs" SelectedIndex="1" Margin="0" Padding="4,2" BorderThickness="0,0,0,1" SelectionChanged="OnTabChanged">
       <TabItem Header="File">
         <WrapPanel Orientation="Horizontal">
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Document">
@@ -526,6 +529,11 @@
         </WrapPanel>
       </TabItem>
     </TabControl>
+    <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsRibbonCollapsed}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,8,0" Height="24" Width="26"
+                  ToolTip="Collapse the ribbon to its tabs; click a tab to use it (Ctrl+F1)" AutomationProperties.Name="Collapse the ribbon">
+      <TextBlock Text="&#xE70E;" FontFamily="{StaticResource Quill.IconFont}" FontSize="11" />
+    </ToggleButton>
+    </Grid>
 
     <StatusBar DockPanel.Dock="Bottom" Padding="6,0" FontSize="12">
       <StatusBarItem Padding="4,0">

@@ -28,6 +28,7 @@ public partial class ShortcutsWindow : Window
         new("Ctrl+G", "Go to page"),
         new("Ctrl+Shift+G", "Word count"),
         new("F1", "This list"),
+        new("Ctrl+F1", "Collapse or expand the ribbon"),
         new("Ctrl+B / Ctrl+I / Ctrl+U", "Bold / Italic / Underline"),
         new("Ctrl+Shift+Plus", "Superscript"),
         new("Ctrl+Shift+> / Ctrl+Shift+<", "Grow / shrink font"),

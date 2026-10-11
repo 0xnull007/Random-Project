@@ -58,6 +58,7 @@ public sealed partial class MainViewModel : ObservableObject
         ShowNavigation = _settings.ShowNavigation;
         CheckSpelling = _settings.CheckSpelling;
         ShowRuler = _settings.ShowRuler;
+        IsRibbonCollapsed = _settings.RibbonCollapsed;
         ShowComments = _settings.ShowComments;
         UnitPreference.Apply(_settings.Units);
         RecentFiles = new ObservableCollection<RecentFile>(_settings.RecentFiles.Select(p => new RecentFile(p)));
@@ -879,6 +880,17 @@ public sealed partial class MainViewModel : ObservableObject
         _settings.ShowRuler = value;
         _settings.Save();
     }
+
+    /// <summary>Word's "show tabs only": the ribbon content is hidden until a tab is clicked (Ctrl+F1).</summary>
+    [ObservableProperty]
+    public partial bool IsRibbonCollapsed { get; set; }
+
+    partial void OnIsRibbonCollapsedChanged(bool value)
+    {
+        _settings.RibbonCollapsed = value;
+        _settings.Save();
+    }
+
 
     [ObservableProperty]
     public partial bool ShowNavigation { get; set; }

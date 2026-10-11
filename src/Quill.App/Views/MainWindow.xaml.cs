@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand FindPreviousCommand = new("FindPrevious", typeof(MainWindow));
     public static readonly RoutedCommand GoToPageCommand = new("GoToPage", typeof(MainWindow));
     public static readonly RoutedCommand WordCountCommand = new("WordCount", typeof(MainWindow));
+    public static readonly RoutedCommand ToggleRibbonCommand = new("ToggleRibbon", typeof(MainWindow));
     public static readonly RoutedCommand ShortcutsCommand = new("Shortcuts", typeof(MainWindow));
     public static readonly RoutedCommand PastePlainCommand = new("PastePlain", typeof(MainWindow));
     public static readonly RoutedCommand InsertLinkCommand = new("InsertLink", typeof(MainWindow));
@@ -31,6 +32,14 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Loaded += (_, _) => ApplyRibbonCollapse();
+        Editor.GotKeyboardFocus += (_, _) =>
+        {
+            if (ViewModel.IsRibbonCollapsed && Tabs.SelectedIndex >= 0 && !ReferenceEquals(Tabs.SelectedItem, PictureTab))
+            {
+                Tabs.SelectedIndex = -1;
+            }
+        };
         ViewModel.RestoreWindowState(this);
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -783,6 +792,24 @@ public partial class MainWindow : Window
 
     private int _tabBeforePicture = 1;
 
+    private void OnToggleRibbon(object sender, ExecutedRoutedEventArgs e) => ViewModel.IsRibbonCollapsed = !ViewModel.IsRibbonCollapsed;
+
+    /// <summary>Collapsed ribbon: no tab selected, so only the tab strip shows; clicking a tab opens it until the editor takes focus again.</summary>
+    private void ApplyRibbonCollapse()
+    {
+        if (ViewModel.IsRibbonCollapsed)
+        {
+            Tabs.SelectedIndex = -1;
+        }
+        else if (Tabs.SelectedIndex < 0)
+        {
+            Tabs.SelectedIndex = Math.Max(0, Math.Min(_tabBeforePicture, Tabs.Items.Count - 1));
+        }
+    }
+
+    private void RestoreTab() => Tabs.SelectedIndex = ViewModel.IsRibbonCollapsed ? -1 : Math.Max(0, Math.Min(_tabBeforePicture, Tabs.Items.Count - 1));
+
+
     /// <summary>
     /// Shows the Picture tab while a picture is selected and returns to the previous tab afterwards; the Table tab
     /// only appears (Word does not switch to it either) but gives way to the previous tab when the caret leaves the table.
@@ -793,9 +820,15 @@ public partial class MainWindow : Window
         {
             if (!ViewModel.IsInTable && ReferenceEquals(Tabs.SelectedItem, TableTab))
             {
-                Tabs.SelectedIndex = Math.Max(0, Math.Min(_tabBeforePicture, Tabs.Items.Count - 1));
+                RestoreTab();
             }
 
+            return;
+        }
+
+        if (e.PropertyName == nameof(MainViewModel.IsRibbonCollapsed))
+        {
+            ApplyRibbonCollapse();
             return;
         }
 
@@ -804,8 +837,8 @@ public partial class MainWindow : Window
             return;
         }
 
-
         if (ViewModel.IsPictureSelected)
+
         {
             if (!ReferenceEquals(Tabs.SelectedItem, PictureTab))
             {
@@ -815,7 +848,7 @@ public partial class MainWindow : Window
         }
         else if (ReferenceEquals(Tabs.SelectedItem, PictureTab))
         {
-            Tabs.SelectedIndex = Math.Max(0, Math.Min(_tabBeforePicture, Tabs.Items.Count - 1));
+            RestoreTab();
         }
     }
 

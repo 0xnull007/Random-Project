@@ -28,6 +28,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Narrow the window: groups wrap to a second row instead of being cut off; widen it again and they return.
 - [ ] Selecting a picture shows the **Picture Format** tab and switches to it; placing the caret in a table shows the
       **Table Layout** tab (not switched to automatically); leaving either hides the tab again.
+- [ ] The chevron at the right end of the tab strip (or Ctrl+F1) collapses the ribbon to its tabs, like Word's
+      "Show tabs only": clicking a tab opens it, clicking back into the text hides it again; the choice is remembered
+      across restarts **(new)**.
 
 ## 2. Typing, navigation, selection
 

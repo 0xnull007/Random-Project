@@ -41,6 +41,9 @@ public sealed class AppSettings
 
     public bool ShowRuler { get; set; } = true;
 
+    /// <summary>Word's "show tabs only": the ribbon content hides until a tab is clicked (Ctrl+F1).</summary>
+    public bool RibbonCollapsed { get; set; }
+
     public bool ShowComments { get; set; }
 
     /// <summary>Name written on new comments.</summary>
