@@ -138,7 +138,7 @@ public sealed class WpfFormattedLine : IFormattedLine
         int position = _layoutStart;
         foreach (TextSpan<TextRun> span in _line.GetTextRunSpans())
         {
-            if (span.Value is ImageEmbeddedObject image && image.Run.Image is { } inline)
+            if (span.Value is ImageEmbeddedObject { IsFloating: false } image && image.Run.Image is { } inline)
             {
                 double x = _line.GetDistanceFromCharacterHit(new CharacterHit(position, 0));
                 yield return new ImagePlacement(inline, image.Run.ImageData, new RectD(x, _line.Baseline - image.Height, image.Width, image.Height));

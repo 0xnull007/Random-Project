@@ -39,7 +39,7 @@ internal sealed class FakeLineFormatter : ILineFormatter
                         widths[i] = 0;
                         break;
                     case RunKind.Image:
-                        widths[i] = run.Image?.Width.ToDips() ?? CharWidth;
+                        widths[i] = run.Image is { IsFloating: false } picture ? picture.Width.ToDips() : run.Image is null ? CharWidth : 0;
                         break;
                     default:
                         isBreak[i] = true;
@@ -52,9 +52,12 @@ internal sealed class FakeLineFormatter : ILineFormatter
         var lines = new List<IFormattedLine>();
         int pos = 0;
         bool first = true;
+        double top = 0;
         while (true)
         {
-            double maxWidth = input.LineWidth(first);
+            LineSlot slot = input.PlaceLine(first, top);
+            top = slot.Top + ParagraphLayout.SlotHeight(input.Properties.LineSpacing, LineHeight, Baseline);
+            double maxWidth = slot.Width;
             int lineStart = pos;
             double width = 0;
             int lastSpace = -1;

@@ -51,9 +51,9 @@ Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). 
 character and paragraph formatting (toolbar, Font and Paragraph dialogs, Format Painter, Modify Style, New Style), a styles gallery with previews,
 bulleted, numbered and multilevel lists with numbering styles, change case, AutoCorrect, page and section breaks, multi-column
 sections, page colour, page borders, watermarks and line numbers, paragraph shading and borders, headers and footers with page-number fields and a Header & Footer tab (link to previous, first-page and odd/even variants), Page Setup, horizontal and vertical rulers with draggable indents and tab stops, a mini toolbar on selection,
-inline pictures, hyperlinks, tables (editable cells, rows and columns, draggable column borders, shading, merged cells, repeating header rows, table style presets, alignment, autofit, text-table conversion), a table of contents, captions (Figure 1, Table 2) with a table of figures, bookmarks and cross-references, date and document-property fields, footnotes and endnotes,
+inline and floating pictures (square, top-and-bottom, behind and in-front wrapping, drag to move), hyperlinks, tables (editable cells, rows and columns, draggable column borders, shading, merged cells, repeating header rows, table style presets, alignment, autofit, text-table conversion), a table of contents, captions (Figure 1, Table 2) with a table of figures, bookmarks and cross-references, date and document-property fields, footnotes and endnotes,
 comments, track changes (Review tab), heading numbering, symbols and date/time, cover and blank pages, paragraph sorting, .docx
-open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop (tables included, HTML tables from Excel and browsers), find and replace, spell
+open and save (and .dotx templates), RTF and plain-text import/export, rich clipboard and drag-and-drop (tables included, HTML tables from Excel and browsers), find and replace, spell
 checking (Windows Spell Checking API) with a Spelling dialog, IME input, print, print preview, PDF export, recent files, autosave
 recovery, formatting marks, navigation pane with document search and page thumbnails, word count, light/dark theme, document properties, and a UI
 Automation text pattern. Next: packaging as MSIX. The full manual

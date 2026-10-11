@@ -29,6 +29,13 @@ public static class PageRenderer
             target.DrawLabel(number.Number.ToString(System.Globalization.CultureInfo.CurrentCulture), new PointD(page.LineNumberX, number.Baseline), number.FontSize, DocColor.Black);
         }
 
+        foreach (FloatingImage image in page.Floats)
+        {
+            if (image.Anchor.Wrap == ImageWrap.BehindText)
+            {
+                DrawFloatingImage(image, target);
+            }
+        }
 
         foreach (double? separator in new[] { page.FootnoteSeparatorY, page.EndnoteSeparatorY })
         {
@@ -58,6 +65,30 @@ public static class PageRenderer
                     target.DrawRectangle(opaque.Bounds, PlaceholderStroke, 1);
                     break;
             }
+        }
+
+        foreach (FloatingImage image in page.Floats)
+        {
+            if (image.Anchor.Wrap != ImageWrap.BehindText)
+            {
+                DrawFloatingImage(image, target);
+            }
+        }
+    }
+
+    /// <summary>A floating picture at its page rectangle, or a grey box when its bytes are missing.</summary>
+    public static void DrawFloatingImage(FloatingImage image, IRenderTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentNullException.ThrowIfNull(target);
+        if (image.Data is { } data)
+        {
+            target.DrawImage(data, image.Bounds);
+        }
+        else
+        {
+            target.FillRectangle(image.Bounds, PlaceholderFill);
+            target.DrawRectangle(image.Bounds, PlaceholderStroke, 1);
         }
     }
 

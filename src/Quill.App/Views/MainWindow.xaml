@@ -636,9 +636,32 @@
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Arrange">
             <StackPanel Orientation="Horizontal">
-              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E4;" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Align left" />
-              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E3;" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Center" />
-              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E2;" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Align right" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF683;" Content="Wrap Text" Click="OnCaseMenu" ToolTip="How text flows around the picture; a floating picture can be dragged anywhere on the page">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="In Line with Text" Command="{Binding WrapPictureCommand}" CommandParameter="Inline" />
+                    <Separator />
+                    <MenuItem Header="Square" Command="{Binding WrapPictureCommand}" CommandParameter="Square" />
+                    <MenuItem Header="Top and Bottom" Command="{Binding WrapPictureCommand}" CommandParameter="TopAndBottom" />
+                    <MenuItem Header="Behind Text" Command="{Binding WrapPictureCommand}" CommandParameter="BehindText" />
+                    <MenuItem Header="In Front of Text" Command="{Binding WrapPictureCommand}" CommandParameter="InFrontOfText" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF574;" Content="Position" Click="OnCaseMenu" ToolTip="Float the picture at the left, centre or right of the column with square text wrapping">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Left with Square Text Wrapping" Command="{Binding PositionPictureCommand}" CommandParameter="Left" />
+                    <MenuItem Header="Center with Square Text Wrapping" Command="{Binding PositionPictureCommand}" CommandParameter="Center" />
+                    <MenuItem Header="Right with Square Text Wrapping" Command="{Binding PositionPictureCommand}" CommandParameter="Right" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <StackPanel Style="{StaticResource Quill.RibbonStack}" ToolTip="Paragraph alignment (for an in-line picture)">
+                <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E4;" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Align left" />
+                <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E3;" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Center" />
+                <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E2;" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Align right" />
+              </StackPanel>
             </StackPanel>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Size">

@@ -5,7 +5,11 @@ using Quill.Core.Model;
 
 namespace Quill.Layout.Wpf;
 
-/// <summary>An inline picture as the TextFormatter sees it: a one-character box standing on the baseline.</summary>
+/// <summary>
+/// An inline picture as the TextFormatter sees it: a one-character box standing on the baseline. A floating
+/// picture's anchor is the same object with no size: it keeps the character (and caret stop) in the line while
+/// the paginator draws the picture elsewhere.
+/// </summary>
 internal sealed class ImageEmbeddedObject : TextEmbeddedObject
 {
     private static readonly Brush PlaceholderFill = Frozen(new SolidColorBrush(Color.FromRgb(0xF3, 0xF3, 0xF3)));
@@ -15,19 +19,23 @@ internal sealed class ImageEmbeddedObject : TextEmbeddedObject
     {
         Run = run;
         Properties = properties;
-        Width = Math.Max(1, run.Image?.Width.ToDips() ?? 1);
-        Height = Math.Max(1, run.Image?.Height.ToDips() ?? 1);
+        IsFloating = run.Image?.IsFloating == true;
+        Width = IsFloating ? 0 : Math.Max(1, run.Image?.Width.ToDips() ?? 1);
+        Height = IsFloating ? 0 : Math.Max(1, run.Image?.Height.ToDips() ?? 1);
     }
 
     public RunSpan Run { get; }
+
+    /// <summary>True for a floating picture's anchor, which takes no room on the line.</summary>
+    public bool IsFloating { get; }
 
     public double Width { get; }
 
     public double Height { get; }
 
-    public override LineBreakCondition BreakBefore => LineBreakCondition.BreakDesired;
+    public override LineBreakCondition BreakBefore => IsFloating ? LineBreakCondition.BreakRestrained : LineBreakCondition.BreakDesired;
 
-    public override LineBreakCondition BreakAfter => LineBreakCondition.BreakDesired;
+    public override LineBreakCondition BreakAfter => IsFloating ? LineBreakCondition.BreakRestrained : LineBreakCondition.BreakDesired;
 
     public override bool HasFixedSize => true;
 
@@ -42,8 +50,13 @@ internal sealed class ImageEmbeddedObject : TextEmbeddedObject
     public override Rect ComputeBoundingBox(bool rightToLeft, bool sideways) => new(0, -Height, Width, Height);
 
     /// <summary><paramref name="origin"/> is the pen position on the baseline.</summary>
-    public override void Draw(DrawingContext drawingContext, Point origin, bool rightToLeft, bool sideways) =>
-        DrawInto(drawingContext, Run.ImageData, new Rect(origin.X, origin.Y - Height, Width, Height));
+    public override void Draw(DrawingContext drawingContext, Point origin, bool rightToLeft, bool sideways)
+    {
+        if (!IsFloating)
+        {
+            DrawInto(drawingContext, Run.ImageData, new Rect(origin.X, origin.Y - Height, Width, Height));
+        }
+    }
 
     /// <summary>Draws the picture, or a grey placeholder box when the bytes are missing or undecodable.</summary>
     internal static void DrawInto(DrawingContext context, ImageData? data, Rect bounds)

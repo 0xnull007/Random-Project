@@ -58,7 +58,7 @@ public sealed class ParagraphFragment : BlockFragment
     public bool IsParagraphEnd => LastLine == Layout.LineCount - 1;
 
     /// <summary>Page y of the top of line <paramref name="lineIndex"/>'s slot.</summary>
-    public double LineTop(int lineIndex) => ContentTop + Layout.LineTops[lineIndex] - Layout.LineTops[FirstLine];
+    public double LineTop(int lineIndex) => ContentTop + Layout.LineTops[lineIndex] - Layout.StartOfLines(FirstLine);
 
     public double LineBottom(int lineIndex) => LineTop(lineIndex) + Layout.LineHeights[lineIndex];
 
@@ -100,11 +100,12 @@ public sealed class OpaqueFragment : BlockFragment
 /// <summary>A laid-out header or footer story on one page.</summary>
 public sealed class StoryLayout
 {
-    public StoryLayout(StoryId story, RectD bounds, ImmutableArray<BlockFragment> fragments)
+    public StoryLayout(StoryId story, RectD bounds, ImmutableArray<BlockFragment> fragments, ImmutableArray<FloatingImage> floats = default)
     {
         Story = story;
         Bounds = bounds;
         Fragments = fragments;
+        Floats = floats.IsDefault ? ImmutableArray<FloatingImage>.Empty : floats;
     }
 
     public StoryId Story { get; }
@@ -112,6 +113,9 @@ public sealed class StoryLayout
     public RectD Bounds { get; }
 
     public ImmutableArray<BlockFragment> Fragments { get; }
+
+    /// <summary>Floating pictures anchored in this story, in page coordinates.</summary>
+    public ImmutableArray<FloatingImage> Floats { get; }
 
     public double Height => Fragments.IsEmpty ? 0 : Fragments[^1].Bounds.Bottom - Bounds.Top;
 }
@@ -137,8 +141,10 @@ public sealed class PageLayout
         DocColor? pageColor = null,
         Watermark? watermark = null,
         ImmutableArray<LineNumber> lineNumbers = default,
-        double lineNumberX = 0)
+        double lineNumberX = 0,
+        ImmutableArray<FloatingImage> floats = default)
     {
+        Floats = floats.IsDefault ? ImmutableArray<FloatingImage>.Empty : floats;
         Borders = borders;
         PageColor = pageColor;
         Watermark = watermark;
@@ -158,6 +164,24 @@ public sealed class PageLayout
         Footer = footer;
         IsBlankFiller = isBlankFiller;
         Variant = variant;
+    }
+
+    /// <summary>Every floating picture on the page (body, header and footer), in page coordinates, in document order.</summary>
+    public ImmutableArray<FloatingImage> Floats { get; }
+
+    /// <summary>The topmost floating picture under a page point, or null; pictures drawn in front win over those behind the text.</summary>
+    public FloatingImage? FloatAt(PointD pagePoint)
+    {
+        FloatingImage? hit = null;
+        foreach (FloatingImage image in Floats)
+        {
+            if (image.Bounds.Contains(pagePoint) && (hit is null || hit.Anchor.Wrap == ImageWrap.BehindText || image.Anchor.Wrap != ImageWrap.BehindText))
+            {
+                hit = image;
+            }
+        }
+
+        return hit;
     }
 
     /// <summary>The section's page border, or null.</summary>

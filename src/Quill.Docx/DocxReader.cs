@@ -627,12 +627,78 @@ public sealed class DocxReader
             _imageIdsByUri[key] = imageId;
         }
 
-        if (drawing.GetFirstChild<DW.Anchor>() is not null)
+        ImageAnchor? anchor = null;
+        if (drawing.GetFirstChild<DW.Anchor>() is { } anchored)
         {
-            Warn("Floating pictures are placed in the text in this version.");
+            if (drawing.Ancestors<W.TableCell>().Any())
+            {
+                Warn("Floating pictures inside table cells are placed in the text.");
+            }
+            else
+            {
+                anchor = ReadAnchor(anchored);
+            }
         }
 
-        builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId));
+        builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId, anchor));
+    }
+
+    /// <summary>Word's wp:anchor: the wrapping, what the position is measured from, and the offsets or alignment.</summary>
+    private static ImageAnchor ReadAnchor(DW.Anchor anchor)
+    {
+        ImageWrap wrap = anchor.GetFirstChild<DW.WrapTopBottom>() is not null ? ImageWrap.TopAndBottom
+            : anchor.GetFirstChild<DW.WrapNone>() is not null ? (anchor.BehindDoc?.Value == true ? ImageWrap.BehindText : ImageWrap.InFrontOfText)
+            : ImageWrap.Square;
+        var result = new ImageAnchor
+        {
+            Wrap = wrap,
+            DistanceX = Twips.FromEmu(Math.Max(anchor.DistanceFromLeft?.Value ?? 0, anchor.DistanceFromRight?.Value ?? 0)),
+            DistanceY = Twips.FromEmu(Math.Max(anchor.DistanceFromTop?.Value ?? 0, anchor.DistanceFromBottom?.Value ?? 0)),
+        };
+
+        if (anchor.GetFirstChild<DW.HorizontalPosition>() is { } horizontal)
+        {
+            DW.HorizontalRelativePositionValues? from = horizontal.RelativeFrom?.Value;
+            result = result with
+            {
+                HorizontalRelativeTo = from == DW.HorizontalRelativePositionValues.Page ? HorizontalAnchor.Page
+                    : from == DW.HorizontalRelativePositionValues.Column || from == DW.HorizontalRelativePositionValues.Character ? HorizontalAnchor.Column
+                    : HorizontalAnchor.Margin,
+            };
+            if (horizontal.GetFirstChild<DW.HorizontalAlignment>()?.Text is { } alignment)
+            {
+                result = result with
+                {
+                    HorizontalAlignment = alignment switch
+                    {
+                        "center" => ImageHorizontalAlignment.Center,
+                        "right" or "outside" => ImageHorizontalAlignment.Right,
+                        _ => ImageHorizontalAlignment.Left,
+                    },
+                };
+            }
+            else if (long.TryParse(horizontal.GetFirstChild<DW.PositionOffset>()?.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long offsetX))
+            {
+                result = result with { OffsetX = Twips.FromEmu(offsetX) };
+            }
+        }
+
+        if (anchor.GetFirstChild<DW.VerticalPosition>() is { } vertical)
+        {
+            DW.VerticalRelativePositionValues? from = vertical.RelativeFrom?.Value;
+            result = result with
+            {
+                VerticalRelativeTo = from == DW.VerticalRelativePositionValues.Page ? VerticalAnchor.Page
+                    : from == DW.VerticalRelativePositionValues.Paragraph || from == DW.VerticalRelativePositionValues.Line ? VerticalAnchor.Paragraph
+                    : VerticalAnchor.Margin,
+            };
+            if (long.TryParse(vertical.GetFirstChild<DW.PositionOffset>()?.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long offsetY))
+            {
+                result = result with { OffsetY = Twips.FromEmu(offsetY) };
+            }
+        }
+
+        return result;
     }
 
     // ------------------------------------------------------------------ bookmarks

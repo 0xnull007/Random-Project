@@ -126,6 +126,37 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsPictureSelected { get; set; }
 
+    /// <summary>Word's Wrap Text menu: "Inline" puts the picture back in the line; any other value floats it (keeping its place if it already floats).</summary>
+    [RelayCommand]
+    private void WrapPicture(string mode)
+    {
+        if (mode == "Inline")
+        {
+            Session.SetImageAnchor(null);
+            return;
+        }
+
+        var wrap = Enum.Parse<ImageWrap>(mode);
+        ImageAnchor current = Session.SelectedImage() is (_, { Anchor: { } anchor }) ? anchor : ImageAnchor.Default;
+        Session.SetImageAnchor(current with { Wrap = wrap });
+    }
+
+    /// <summary>Word's Position gallery, simplified: square wrap at the left, centre or right of the column, level with the paragraph's top.</summary>
+    [RelayCommand]
+    private void PositionPicture(string where)
+    {
+        var alignment = Enum.Parse<ImageHorizontalAlignment>(where);
+        ImageAnchor current = Session.SelectedImage() is (_, { Anchor: { } anchor }) ? anchor : ImageAnchor.Default;
+        Session.SetImageAnchor(current with
+        {
+            Wrap = current.AffectsText ? current.Wrap : ImageWrap.Square,
+            HorizontalRelativeTo = HorizontalAnchor.Column,
+            HorizontalAlignment = alignment,
+            VerticalRelativeTo = VerticalAnchor.Paragraph,
+            OffsetY = Twips.Zero,
+        });
+    }
+
     /// <summary>True while the caret is inside a table; shows the contextual Table tab.</summary>
     [ObservableProperty]
     public partial bool IsInTable { get; set; }

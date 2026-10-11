@@ -32,12 +32,13 @@ public sealed class ParagraphLayout : IDisposable
         for (int i = 0; i < lines.Count; i++)
         {
             IFormattedLine line = lines[i];
+            LineSlot placed = input.PlaceLine(i == 0, y);
             (double slot, double baselineOffset) = ApplyLineSpacing(props.LineSpacing, line.Height, line.Baseline);
-            tops[i] = y;
+            tops[i] = placed.Top;
             heights[i] = slot;
             baselines[i] = baselineOffset;
-            starts[i] = input.LineStart(i == 0);
-            y += slot;
+            starts[i] = placed.Start;
+            y = placed.Top + slot;
         }
 
         LineTops = tops;
@@ -83,10 +84,10 @@ public sealed class ParagraphLayout : IDisposable
 
     public double SpaceAfter { get; }
 
-    /// <summary>Sum of all line slots.</summary>
+    /// <summary>Height of all lines, including any gap a floating picture forces above the first line.</summary>
     public double ContentHeight { get; }
 
-    /// <summary>Height of lines [first, last].</summary>
+    /// <summary>Height of lines [first, last]; from the first line this includes the gap a floating picture forces above it.</summary>
     public double HeightOfLines(int first, int last)
     {
         if (last < first)
@@ -94,8 +95,14 @@ public sealed class ParagraphLayout : IDisposable
             return 0;
         }
 
-        return LineTops[last] + LineHeights[last] - LineTops[first];
+        return LineTops[last] + LineHeights[last] - StartOfLines(first);
     }
+
+    /// <summary>Where a fragment starting at <paramref name="first"/> begins, relative to the content top.</summary>
+    public double StartOfLines(int first) => first == 0 ? 0 : LineTops[first];
+
+    /// <summary>The height one formatted line occupies after the paragraph's line-spacing rule.</summary>
+    public static double SlotHeight(LineSpacing spacing, double naturalHeight, double naturalBaseline) => ApplyLineSpacing(spacing, naturalHeight, naturalBaseline).Slot;
 
     /// <summary>Index of the line containing the flat offset (end-of-paragraph maps to the last line).</summary>
     public int LineIndexOf(int offset, bool upstream = false)

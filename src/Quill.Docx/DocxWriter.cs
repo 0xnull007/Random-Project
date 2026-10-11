@@ -1073,34 +1073,98 @@ public static class DocxWriter
         long cx = Math.Max(1, image.Width.ToEmu());
         long cy = Math.Max(1, image.Height.ToEmu());
         string name = "Picture " + pictureId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var inline = new DW.Inline(
-            new DW.Extent { Cx = cx, Cy = cy },
-            new DW.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
-            new DW.DocProperties { Id = pictureId, Name = name },
-            new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
-            new A.Graphic(
-                new A.GraphicData(
-                    new PIC.Picture(
-                        new PIC.NonVisualPictureProperties(
-                            new PIC.NonVisualDrawingProperties { Id = 0U, Name = name },
-                            new PIC.NonVisualPictureDrawingProperties()),
-                        new PIC.BlipFill(
-                            new A.Blip { Embed = relationshipId },
-                            new A.Stretch(new A.FillRectangle())),
-                        new PIC.ShapeProperties(
-                            new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = cx, Cy = cy }),
-                            new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })))
-                { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }))
-        {
-            DistanceFromTop = 0U,
-            DistanceFromBottom = 0U,
-            DistanceFromLeft = 0U,
-            DistanceFromRight = 0U,
-        };
+        var graphic = new A.Graphic(
+            new A.GraphicData(
+                new PIC.Picture(
+                    new PIC.NonVisualPictureProperties(
+                        new PIC.NonVisualDrawingProperties { Id = 0U, Name = name },
+                        new PIC.NonVisualPictureDrawingProperties()),
+                    new PIC.BlipFill(
+                        new A.Blip { Embed = relationshipId },
+                        new A.Stretch(new A.FillRectangle())),
+                    new PIC.ShapeProperties(
+                        new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = cx, Cy = cy }),
+                        new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })))
+            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" });
+        OpenXmlElement drawing = image.Anchor is { } anchor
+            ? BuildAnchor(anchor, cx, cy, pictureId, name, graphic)
+            : new DW.Inline(
+                new DW.Extent { Cx = cx, Cy = cy },
+                new DW.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                new DW.DocProperties { Id = pictureId, Name = name },
+                new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
+                graphic)
+            {
+                DistanceFromTop = 0U,
+                DistanceFromBottom = 0U,
+                DistanceFromLeft = 0U,
+                DistanceFromRight = 0U,
+            };
         var run = new W.Run();
         AppendRunProperties(run, image.Properties, image.StyleId);
-        run.Append(new W.Drawing(inline));
+        run.Append(new W.Drawing(drawing));
         return run;
+    }
+
+    /// <summary>A floating picture as Word writes it: wp:anchor with its position, wrapping and distances from text.</summary>
+    private static DW.Anchor BuildAnchor(ImageAnchor anchor, long cx, long cy, uint pictureId, string name, A.Graphic graphic)
+    {
+        OpenXmlElement horizontalChild = anchor.HorizontalAlignment is { } alignment
+            ? new DW.HorizontalAlignment(alignment switch
+            {
+                ImageHorizontalAlignment.Center => "center",
+                ImageHorizontalAlignment.Right => "right",
+                _ => "left",
+            })
+            : new DW.PositionOffset(anchor.OffsetX.ToEmu().ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var horizontal = new DW.HorizontalPosition(horizontalChild)
+        {
+            RelativeFrom = anchor.HorizontalRelativeTo switch
+            {
+                HorizontalAnchor.Page => DW.HorizontalRelativePositionValues.Page,
+                HorizontalAnchor.Margin => DW.HorizontalRelativePositionValues.Margin,
+                _ => DW.HorizontalRelativePositionValues.Column,
+            },
+        };
+        var vertical = new DW.VerticalPosition(new DW.PositionOffset(anchor.OffsetY.ToEmu().ToString(System.Globalization.CultureInfo.InvariantCulture)))
+        {
+            RelativeFrom = anchor.VerticalRelativeTo switch
+            {
+                VerticalAnchor.Page => DW.VerticalRelativePositionValues.Page,
+                VerticalAnchor.Margin => DW.VerticalRelativePositionValues.Margin,
+                _ => DW.VerticalRelativePositionValues.Paragraph,
+            },
+        };
+        OpenXmlElement wrap = anchor.Wrap switch
+        {
+            ImageWrap.TopAndBottom => new DW.WrapTopBottom(),
+            ImageWrap.BehindText or ImageWrap.InFrontOfText => new DW.WrapNone(),
+            _ => new DW.WrapSquare { WrapText = DW.WrapTextValues.Largest },
+        };
+        uint distanceX = (uint)Math.Max(0, anchor.DistanceX.ToEmu());
+        uint distanceY = (uint)Math.Max(0, anchor.DistanceY.ToEmu());
+        return new DW.Anchor(
+            new DW.SimplePosition { X = 0L, Y = 0L },
+            horizontal,
+            vertical,
+            new DW.Extent { Cx = cx, Cy = cy },
+            new DW.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+            wrap,
+            new DW.DocProperties { Id = pictureId, Name = name },
+            new DW.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
+            graphic)
+        {
+            DistanceFromTop = distanceY,
+            DistanceFromBottom = distanceY,
+            DistanceFromLeft = distanceX,
+            DistanceFromRight = distanceX,
+            SimplePos = false,
+            RelativeHeight = 251658240U,
+            BehindDoc = anchor.Wrap == ImageWrap.BehindText,
+            Locked = false,
+            LayoutInCell = true,
+            AllowOverlap = true,
+        };
     }
 
     /// <summary>State shared by every part of one package: the picture bytes, the referenced footnotes, comment bookkeeping and the running drawing id.</summary>

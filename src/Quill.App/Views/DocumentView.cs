@@ -360,6 +360,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private bool _caretOn = true;
     private bool _dragging;
     private ColumnDrag? _columnDrag;
+    private FloatDrag? _floatDrag;
+    private bool _hoverFloat;
     private bool _hoverColumnBorder;
 
     private double? _desiredCaretX;
@@ -1387,6 +1389,31 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         Brush brush = TryFindResource("Quill.SelectionBrush") as Brush ?? new SolidColorBrush(Color.FromArgb(0x55, 0, 0x78, 0xD4));
         Rect pageRect = PageRect(index);
         TextRange range = session.Selection.Range;
+        if (session.SelectedImage() is ({ } selectedStart, { IsFloating: true }) && range.End.Offset - range.Start.Offset == 1)
+        {
+            // A selected floating picture shows a frame with handles around the picture itself rather than its (zero-width) anchor.
+            foreach (FloatingImage image in _layout.Pages[index].Floats)
+            {
+                if (image.Position == selectedStart)
+                {
+                    var frame = new Rect(pageRect.X + image.Bounds.X, pageRect.Y + image.Bounds.Y, image.Bounds.Width, image.Bounds.Height);
+                    var pen = new Pen(TryFindResource("Quill.GuideBrush") as Brush ?? Brushes.DodgerBlue, 1.5);
+                    dc.DrawRectangle(brush, pen, frame);
+                    foreach (Point handle in new[]
+                    {
+                        frame.TopLeft, new Point(frame.Left + frame.Width / 2, frame.Top), frame.TopRight,
+                        new Point(frame.Left, frame.Top + frame.Height / 2), new Point(frame.Right, frame.Top + frame.Height / 2),
+                        frame.BottomLeft, new Point(frame.Left + frame.Width / 2, frame.Bottom), frame.BottomRight,
+                    })
+                    {
+                        dc.DrawRectangle(Brushes.White, pen, new Rect(handle.X - 3, handle.Y - 3, 6, 6));
+                    }
+
+                    return;
+                }
+            }
+        }
+
         foreach (BlockFragment fragment in _layout.Pages[index].AllFragments())
         {
             if (fragment is not ParagraphFragment paragraph || paragraph.Story != range.Story)
@@ -1710,6 +1737,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
 
     private sealed record ColumnDrag(StoryId Story, BlockPath Path, int GridLine, double StartX, ImmutableArray<double> Widths, double Scale);
 
+    /// <summary>A press on a floating picture: it moves once the pointer travels past the drag threshold.</summary>
+    private sealed record FloatDrag(FloatingImage Image, Point StartView, bool Moved = false);
+
     /// <summary>A vertical cell border within a few pixels of the pointer: the table and the grid line (1..columns) it belongs to.</summary>
     private (TableFragment Fragment, int GridLine)? TableBorderAt(Point viewPoint)
     {
@@ -1784,6 +1814,42 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         _columnDrag = null;
         ReleaseMouseCapture();
         Session?.EndColumnResize();
+        UpdateCursor();
+    }
+
+    /// <summary>The floating picture under a view point, in the kind of story being edited (body, or header/footer), or null.</summary>
+    private FloatingImage? FloatAt(Point viewPoint)
+    {
+        if (Session is not { } session || _layout.PageCount == 0)
+        {
+            return null;
+        }
+
+        Point doc = ToDocument(viewPoint);
+        int pageIndex = PageIndexAt(doc.Y);
+        if (pageIndex < 0)
+        {
+            return null;
+        }
+
+        Rect pageRect = PageRect(pageIndex);
+        FloatingImage? hit = _layout.Pages[pageIndex].FloatAt(new PointD(doc.X - pageRect.X, doc.Y - pageRect.Y));
+        return hit is not null && hit.Story.IsBody == session.Selection.Story.IsBody ? hit : null;
+    }
+
+    /// <summary>Selects a floating picture (its anchor character), which brings up the Picture Format tab.</summary>
+    private static void SelectFloat(EditingSession session, FloatingImage image)
+    {
+        TextPosition anchor = image.Position;
+        SafeMove(session, anchor, extend: false);
+        SafeMove(session, anchor.WithOffset(anchor.Offset + 1), extend: true);
+    }
+
+    private void FinishFloatDrag()
+    {
+        _floatDrag = null;
+        ReleaseMouseCapture();
+        Session?.EndImageMove();
         UpdateCursor();
     }
 
@@ -2012,6 +2078,16 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
+        if (e.ClickCount == 1 && Keyboard.Modifiers == ModifierKeys.None && FloatAt(viewPoint) is { } floating)
+        {
+            // A press on a floating picture selects it; moving the pointer drags it (one undo step for the whole drag).
+            SelectFloat(session, floating);
+            _floatDrag = new FloatDrag(floating, viewPoint);
+            CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
         if (HitTest(viewPoint) is not { } hit)
         {
             return;
@@ -2128,6 +2204,28 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
+        if (_floatDrag is { } floatDrag)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                FinishFloatDrag();
+                return;
+            }
+
+            Vector moved = e.GetPosition(this) - floatDrag.StartView;
+            if (!floatDrag.Moved && Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+            {
+                return;
+            }
+
+            _floatDrag = floatDrag with { Moved = true };
+            FloatingImage image = floatDrag.Image;
+            double x = image.Bounds.X + moved.X / Zoom - image.Reference.X;
+            double y = image.Bounds.Y + moved.Y / Zoom - image.Reference.Y;
+            Session?.PreviewImageAnchor(image.Position, image.Anchor with { HorizontalAlignment = null, OffsetX = Twips.FromDips(x), OffsetY = Twips.FromDips(y) });
+            return;
+        }
+
 
         if (_textDragStart is { } dragStart)
         {
@@ -2158,6 +2256,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             }
 
             _hoverColumnBorder = TableBorderAt(e.GetPosition(this)) is not null;
+            _hoverFloat = !_hoverColumnBorder && FloatAt(e.GetPosition(this)) is not null;
             UpdateCursor();
         }
 
@@ -2200,6 +2299,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         : _pendingFormatSample is not null ? Cursors.Pen
         : _hoverLink is not null && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? Cursors.Hand
         : _hoverColumnBorder ? Cursors.SizeWE
+        : _hoverFloat || _floatDrag is not null ? Cursors.SizeAll
         : Cursors.IBeam;
 
     /// <summary>Right-click outside the selection moves the caret there first (and selects a clicked picture), like Word; the context menu then opens.</summary>
@@ -2213,6 +2313,12 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         Point viewPoint = e.GetPosition(this);
+        if (FloatAt(viewPoint) is { } floating)
+        {
+            SelectFloat(session, floating);
+            return;
+        }
+
         if (HitTest(viewPoint) is not { } hit)
         {
             return;
@@ -2333,6 +2439,13 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         if (_columnDrag is not null)
         {
             FinishColumnDrag();
+            e.Handled = true;
+            return;
+        }
+
+        if (_floatDrag is not null)
+        {
+            FinishFloatDrag();
             e.Handled = true;
             return;
         }

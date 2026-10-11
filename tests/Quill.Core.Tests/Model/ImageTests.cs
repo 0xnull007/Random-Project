@@ -49,6 +49,56 @@ public class ImageTests
     }
 
     [Fact]
+    public void Selected_picture_can_float_and_return_to_the_line()
+    {
+        var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));
+        session.MoveCaret(Pos(0, 1), extend: false);
+        session.InsertImage(new ImageData(Png, "image/png"), new Twips(1440), new Twips(720));
+
+        session.SetImageAnchor(ImageAnchor.Aligned(ImageHorizontalAlignment.Right) with { Wrap = ImageWrap.TopAndBottom });
+        var image = Assert.IsType<InlineImage>(session.Document.Para(0).Inlines[1]);
+        Assert.True(image.IsFloating);
+        Assert.Equal(ImageWrap.TopAndBottom, image.Anchor!.Wrap);
+        Assert.Equal(ImageHorizontalAlignment.Right, image.Anchor.HorizontalAlignment);
+        Assert.Equal("a￼b", session.Document.Para(0).FlatText);
+        Assert.NotNull(session.SelectedImage());
+
+        session.SetImageWrap(ImageWrap.Square);
+        Assert.Equal(ImageWrap.Square, ((InlineImage)session.Document.Para(0).Inlines[1]).Anchor!.Wrap);
+
+        session.Undo();
+        Assert.Equal(ImageWrap.TopAndBottom, ((InlineImage)session.Document.Para(0).Inlines[1]).Anchor!.Wrap);
+
+        session.SetImageAnchor(null);
+        Assert.False(((InlineImage)session.Document.Para(0).Inlines[1]).IsFloating);
+        Assert.NotNull(session.SelectedImage());
+    }
+
+    [Fact]
+    public void Dragging_a_floating_picture_is_one_undo_step()
+    {
+        var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));
+        session.MoveCaret(Pos(0, 1), extend: false);
+        session.InsertImage(new ImageData(Png, "image/png"), new Twips(1440), new Twips(720));
+        session.SetImageAnchor(ImageAnchor.Default);
+
+        session.PreviewImageAnchor(Pos(0, 1), ImageAnchor.Default with { OffsetX = new Twips(100) });
+        session.PreviewImageAnchor(Pos(0, 1), ImageAnchor.Default with { OffsetX = new Twips(200), OffsetY = new Twips(50) });
+        session.EndImageMove();
+        ImageAnchor moved = ((InlineImage)session.Document.Para(0).Inlines[1]).Anchor!;
+        Assert.Equal(new Twips(200), moved.OffsetX);
+        Assert.Equal(new Twips(50), moved.OffsetY);
+
+        session.Undo();
+        ImageAnchor before = ((InlineImage)session.Document.Para(0).Inlines[1]).Anchor!;
+        Assert.Equal(Twips.Zero, before.OffsetX);
+        Assert.Equal(Twips.Zero, before.OffsetY);
+
+        session.Undo();
+        Assert.False(((InlineImage)session.Document.Para(0).Inlines[1]).IsFloating);
+    }
+
+    [Fact]
     public void Selected_picture_can_be_resized_and_undone()
     {
         var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));

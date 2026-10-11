@@ -224,8 +224,20 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Copy a picture with text (Ctrl+C), paste elsewhere in the document and into a *new* document (Ctrl+N then
       Ctrl+V): the picture comes along.
 - [ ] Save, reopen: pictures are back at the same size. Open the file in Word: pictures show correctly.
-- [ ] Open a Word document with pictures: inline pictures show; floating pictures are placed in the text (status
-      bar says so); EMF/WMF clip art shows as a grey box but is preserved on save.
+- [ ] Open a Word document with pictures: inline pictures show; floating pictures keep their place and wrapping
+      (square, top and bottom, behind or in front of text); floating pictures inside table cells are placed in the
+      text (status bar says so); EMF/WMF clip art shows as a grey box but is preserved on save.
+- [ ] (new) Picture Format > Wrap Text > Square: the picture floats at the top-left of its paragraph and the text
+      flows down its right side; Top and Bottom leaves a gap; Behind Text / In Front of Text ignore the text.
+      In Line with Text puts it back. Each change is one Ctrl+Z step.
+- [ ] (new) Drag a floating picture: it follows the pointer and the text reflows while you drag; release to drop it
+      (one Ctrl+Z step undoes the whole move). Clicking it selects it (frame with handles) and shows the Picture
+      Format tab; Delete removes it with its anchor character.
+- [ ] (new) Picture Format > Position > Right with Square Text Wrapping: the picture sits at the right edge of the
+      column with the text on its left. A floating picture can be moved past the margins onto the page edge.
+- [ ] (new) Save and reopen in Word: floating pictures keep their position, wrapping and distance from text.
+- [ ] (new) A floating picture near the bottom of a page stays with its paragraph; text that no longer fits beside it
+      moves to the next page. Floating pictures print and export to PDF where they appear on screen.
 - [ ] Pictures appear in Print Preview, on paper and in the exported PDF.
 - [ ] Pictures in a header or footer work too.
 

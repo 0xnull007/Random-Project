@@ -220,10 +220,55 @@ public sealed partial class EditingSession
             return;
         }
 
+        Commit(ReplaceImage(Document, at, image.WithSize(width, height)), EditKind.Other, startsNewGroup: true);
+    }
+
+    /// <summary>
+    /// Makes the selected picture float with the given placement, or puts it back in the line when
+    /// <paramref name="anchor"/> is null (Word's Wrap Text menu). Pictures inside table cells stay inline.
+    /// </summary>
+    public void SetImageAnchor(ImageAnchor? anchor)
+    {
+        if (SelectedImage() is not ({ } at, { } image) || Equals(image.Anchor, anchor) || (anchor is not null && at.Block.TablePath is not null))
+        {
+            return;
+        }
+
+        Commit(ReplaceImage(Document, at, image.WithAnchor(anchor)), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    /// <summary>Changes the selected picture's wrapping while keeping its position; no-op for an inline picture.</summary>
+    public void SetImageWrap(ImageWrap wrap)
+    {
+        if (SelectedImage() is ({ } _, { Anchor: { } anchor }))
+        {
+            SetImageAnchor(anchor with { Wrap = wrap });
+        }
+    }
+
+    /// <summary>Moves the floating picture at <paramref name="at"/> during a drag without recording undo; <see cref="EndImageMove"/> commits the whole drag.</summary>
+    public void PreviewImageAnchor(TextPosition at, ImageAnchor anchor)
+    {
+        ArgumentNullException.ThrowIfNull(anchor);
+        if (ImageAt(Document.GetParagraph(at), at) is not (_, { Anchor: not null } image))
+        {
+            return;
+        }
+
+        _resizeBase ??= Document;
+        EditResult result = ReplaceImage(Document, at, image.WithAnchor(anchor));
+        ApplyState(result.Document, result.Selection, result.Change);
+    }
+
+    /// <summary>Ends a picture drag: the whole move becomes one undo step.</summary>
+    public void EndImageMove() => EndColumnResize();
+
+    private static EditResult ReplaceImage(Document document, TextPosition at, InlineImage replacement)
+    {
         TextPosition end = at.WithOffset(at.Offset + 1);
-        EditResult deleted = DocumentEditor.DeleteRange(Document, new TextRange(at, end));
-        EditResult inserted = DocumentEditor.InsertInline(deleted.Document, at, image.WithSize(width, height));
-        Commit(inserted with { Change = inserted.Change.Union(deleted.Change), Selection = new Selection(at, end) }, EditKind.Other, startsNewGroup: true);
+        EditResult deleted = DocumentEditor.DeleteRange(document, new TextRange(at, end));
+        EditResult inserted = DocumentEditor.InsertInline(deleted.Document, at, replacement, inheritFormat: false);
+        return inserted with { Change = inserted.Change.Union(deleted.Change), Selection = new Selection(at, end) };
     }
 
     private static (TextPosition Start, InlineImage Image)? ImageAt(Paragraph paragraph, TextPosition at) =>

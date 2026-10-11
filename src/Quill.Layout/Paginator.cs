@@ -267,8 +267,7 @@ public sealed class Paginator
                 }
 
                 var paragraph = (Paragraph)placement.Block;
-                ParagraphLayout layout = GetLayout(paragraph, page.Column.Width, _bodyFields, markers.TryGetValue(i, out ListMarker bodyMarker) ? bodyMarker : null);
-                ResolvedParagraphProperties pp = layout.Properties;
+                ResolvedParagraphProperties pp = _resolver.ResolveParagraph(paragraph);
 
                 if (pp.PageBreakBefore && !page.IsEmpty && placement.NextLine == 0)
                 {
@@ -277,7 +276,17 @@ public sealed class Paginator
                     continue;
                 }
 
-                double spaceBefore = placement.NextLine == 0 ? EffectiveSpaceBefore(section, i, layout, page.IsEmpty, afterHardBreak) : 0;
+                double spaceBefore = placement.NextLine == 0 ? EffectiveSpaceBefore(section, i, paragraph, pp, page.IsEmpty, afterHardBreak) : 0;
+
+                // Floating pictures anchored here are placed relative to the paragraph's top; the paragraph's lines (and
+                // those of later paragraphs on the page) flow around every picture already on the page. A paragraph
+                // continued from the previous page keeps the line breaks it was given there.
+                List<FloatingImage> newFloats = placement.NextLine == 0
+                    ? PlaceFloats(paragraph, placement.Story, placement.Path, page.Column, page.BodyArea, page.Size, page.Y + spaceBefore)
+                    : [];
+                ParagraphLayout layout = placement.NextLine > 0 && placement.ContinuedLayout is { } continued
+                    ? continued
+                    : GetLayout(paragraph, page.Column.Width, _bodyFields, markers.TryGetValue(i, out ListMarker bodyMarker) ? bodyMarker : null, ObstaclesFor(page.Floats.Concat(newFloats), page.Column, page.Y + spaceBefore));
                 double available = page.Column.Bottom - page.Y - spaceBefore;
                 int first = placement.NextLine;
                 int last = layout.LineCount - 1;
@@ -339,6 +348,7 @@ public sealed class Paginator
                 double top = page.Y;
                 var fragment = new ParagraphFragment(placement.Story, placement.Path, layout, first, lastLine, top, page.Column.Left, spaceBefore, spaceAfter);
                 page.Fragments.Add(fragment);
+                page.Floats.AddRange(newFloats);
                 page.Y = fragment.Bounds.Bottom;
                 page.IsEmpty = false;
                 foreach (int noteId in newNotes)
@@ -366,6 +376,7 @@ public sealed class Paginator
                 else
                 {
                     placement.NextLine = lastLine + 1;
+                    placement.ContinuedLayout = layout;
                     page = NextColumn(page, ref pageNumber, sectionIndex, ref afterHardBreak, forcePage: forcedBreak == BreakKind.Page);
                     afterHardBreak = forcedBreak is not null;
                 }
@@ -382,20 +393,83 @@ public sealed class Paginator
         }
 
         /// <summary>Space before is suppressed at the top of a page that results from natural flow.</summary>
-        private double EffectiveSpaceBefore(Section section, int blockIndex, ParagraphLayout layout, bool pageIsEmpty, bool afterHardBreak)
+        private static double EffectiveSpaceBefore(Section section, int blockIndex, Paragraph paragraph, ResolvedParagraphProperties pp, bool pageIsEmpty, bool afterHardBreak)
         {
             if (pageIsEmpty && !afterHardBreak)
             {
                 return 0;
             }
 
-            if (layout.Properties.ContextualSpacing && blockIndex > 0 && blockIndex < section.Body.Count && section.Body[blockIndex - 1] is Paragraph previous
-                && string.Equals(previous.StyleId, layout.Paragraph.StyleId, StringComparison.Ordinal))
+            if (pp.ContextualSpacing && blockIndex > 0 && blockIndex < section.Body.Count && section.Body[blockIndex - 1] is Paragraph previous
+                && string.Equals(previous.StyleId, paragraph.StyleId, StringComparison.Ordinal))
             {
                 return 0;
             }
 
-            return layout.SpaceBefore;
+            return Math.Max(0, pp.SpaceBefore.ToDips());
+        }
+
+        /// <summary>Page rectangles of the floating pictures anchored in a paragraph whose first line starts at <paramref name="contentTop"/>.</summary>
+        private List<FloatingImage> PlaceFloats(Paragraph paragraph, StoryId story, BlockPath path, RectD column, RectD margins, SizeD pageSize, double contentTop)
+        {
+            List<FloatingImage> result = [];
+            foreach (InlineSpan span in paragraph.Spans())
+            {
+                if (span.Inline is not InlineImage { Anchor: { } anchor } image)
+                {
+                    continue;
+                }
+
+                double width = Math.Max(1, image.Width.ToDips());
+                double height = Math.Max(1, image.Height.ToDips());
+                RectD horizontal = anchor.HorizontalRelativeTo switch
+                {
+                    HorizontalAnchor.Page => new RectD(0, 0, pageSize.Width, pageSize.Height),
+                    HorizontalAnchor.Margin => margins,
+                    _ => column,
+                };
+                double referenceY = anchor.VerticalRelativeTo switch
+                {
+                    VerticalAnchor.Page => 0,
+                    VerticalAnchor.Margin => margins.Top,
+                    _ => contentTop,
+                };
+                double x = horizontal.Left + anchor.HorizontalAlignment switch
+                {
+                    ImageHorizontalAlignment.Center => (horizontal.Width - width) / 2,
+                    ImageHorizontalAlignment.Right => horizontal.Width - width,
+                    ImageHorizontalAlignment.Left => 0,
+                    _ => anchor.OffsetX.ToDips(),
+                };
+                double y = referenceY + anchor.OffsetY.ToDips();
+                result.Add(new FloatingImage(story, path, span.Start, image, _document.Images.Get(image.ImageId), new RectD(x, y, width, height), new PointD(horizontal.Left, referenceY)));
+            }
+
+            return result;
+        }
+
+        /// <summary>The pictures text must flow around, as rectangles relative to the column's left edge and a paragraph's content top.</summary>
+        private static ImmutableArray<FlowObstacle> ObstaclesFor(IEnumerable<FloatingImage> floats, RectD column, double contentTop)
+        {
+            var result = ImmutableArray.CreateBuilder<FlowObstacle>();
+            foreach (FloatingImage image in floats)
+            {
+                ImageAnchor anchor = image.Anchor;
+                if (!anchor.AffectsText)
+                {
+                    continue;
+                }
+
+                RectD box = image.Bounds.Inflate(Math.Max(0, anchor.DistanceX.ToDips()), Math.Max(0, anchor.DistanceY.ToDips())).Offset(-column.Left, -contentTop);
+                if (box.Bottom <= 0 || box.Right <= 0 || box.Left >= column.Width)
+                {
+                    continue;
+                }
+
+                result.Add(new FlowObstacle(box, anchor.Wrap == ImageWrap.TopAndBottom));
+            }
+
+            return result.ToImmutable();
         }
 
         private double EffectiveSpaceAfter(Section section, int blockIndex, ParagraphLayout layout)
@@ -511,10 +585,12 @@ public sealed class Paginator
 
                 page.Fragments.RemoveAt(page.Fragments.Count - 1);
                 page.RemoveNotesOf(previous.Path);
+                page.Floats.RemoveAll(f => f.Path == previous.Path);
                 page.Y = page.Fragments.Count == 0 ? page.BodyArea.Top : page.Fragments[^1].Bounds.Bottom;
                 previous.PlacedWholeOnPage = false;
                 previous.FragmentsOnPage = 0;
                 previous.NextLine = 0;
+                previous.ContinuedLayout = null;
                 resume--;
             }
 
@@ -619,7 +695,7 @@ public sealed class Paginator
         {
             if (!_measuredNotes.TryGetValue(id, out StoryLayout? measured))
             {
-                measured = LayoutStory(StoryId.Footnote(id), _document.Footnotes[id], new RectD(page.BodyArea.Left, 0, page.BodyArea.Width, 0), _bodyFields);
+                measured = LayoutStory(StoryId.Footnote(id), _document.Footnotes[id], new RectD(page.BodyArea.Left, 0, page.BodyArea.Width, 0), _bodyFields, page.Size);
                 _measuredNotes[id] = measured;
             }
 
@@ -639,7 +715,7 @@ public sealed class Paginator
             var notes = ImmutableArray.CreateBuilder<StoryLayout>(page.Footnotes.Count);
             foreach (int id in page.Footnotes)
             {
-                StoryLayout placed = LayoutStory(StoryId.Footnote(id), _document.Footnotes[id], new RectD(page.BodyArea.Left, y, page.BodyArea.Width, 0), _bodyFields);
+                StoryLayout placed = LayoutStory(StoryId.Footnote(id), _document.Footnotes[id], new RectD(page.BodyArea.Left, y, page.BodyArea.Width, 0), _bodyFields, page.Size);
                 notes.Add(placed);
                 y += placed.Height;
             }
@@ -717,7 +793,26 @@ public sealed class Paginator
                 _document.Settings.PageColor,
                 _document.Settings.Watermark,
                 lineNumbers,
-                lineNumberX));
+                lineNumberX,
+                AllFloats(page)));
+        }
+
+        /// <summary>Body, header and footer floats of a page in one list, in document order.</summary>
+        private static ImmutableArray<FloatingImage> AllFloats(PageBuilder page)
+        {
+            var result = ImmutableArray.CreateBuilder<FloatingImage>();
+            if (page.Header is { } header)
+            {
+                result.AddRange(header.Floats);
+            }
+
+            result.AddRange(page.Floats);
+            if (page.Footer is { } footer)
+            {
+                result.AddRange(footer.Floats);
+            }
+
+            return result.ToImmutable();
         }
 
 
@@ -738,7 +833,8 @@ public sealed class Paginator
                 page.Variant,
                 borders: _document.Sections[sectionIndex].Properties.PageBorders,
                 pageColor: _document.Settings.PageColor,
-                watermark: _document.Settings.Watermark));
+                watermark: _document.Settings.Watermark,
+                floats: AllFloats(page)));
         }
 
         private (StoryLayout? Header, StoryLayout? Footer, HeaderFooterVariant Variant) LayoutHeaderFooter(int sectionIndex, int pageNumber, bool isFirstOfSection, SizeD pageSize)
@@ -768,7 +864,7 @@ public sealed class Paginator
             if (headerBlocks is not null)
             {
                 double top = props.HeaderDistance.ToDips();
-                header = LayoutStory(headerStory, headerBlocks, new RectD(left, top, width, pageSize.Height), fields);
+                header = LayoutStory(headerStory, headerBlocks, new RectD(left, top, width, pageSize.Height), fields, pageSize);
             }
 
             StoryLayout? footer = null;
@@ -776,10 +872,10 @@ public sealed class Paginator
             if (footerBlocks is not null)
             {
                 // Lay out at y=0 to measure, then shift so the bottom sits at the footer distance.
-                StoryLayout measured = LayoutStory(footerStory, footerBlocks, new RectD(left, 0, width, pageSize.Height), fields);
+                StoryLayout measured = LayoutStory(footerStory, footerBlocks, new RectD(left, 0, width, pageSize.Height), fields, pageSize);
                 double bottom = pageSize.Height - props.FooterDistance.ToDips();
                 double top = bottom - measured.Height;
-                footer = LayoutStory(footerStory, footerBlocks, new RectD(left, top, width, measured.Height), fields);
+                footer = LayoutStory(footerStory, footerBlocks, new RectD(left, top, width, measured.Height), fields, pageSize);
             }
 
             return (header, footer, variant);
@@ -813,9 +909,10 @@ public sealed class Paginator
             return (new StoryId(sectionIndex, kind), null);
         }
 
-        private StoryLayout LayoutStory(StoryId story, ImmutableList<Block> blocks, RectD area, FieldValues fields)
+        private StoryLayout LayoutStory(StoryId story, ImmutableList<Block> blocks, RectD area, FieldValues fields, SizeD pageSize)
         {
             var fragments = ImmutableArray.CreateBuilder<BlockFragment>();
+            var floats = new List<FloatingImage>();
             IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(blocks, _document.Lists, _resolver);
             double y = area.Top;
             for (int i = 0; i < blocks.Count; i++)
@@ -838,7 +935,10 @@ public sealed class Paginator
                     continue;
                 }
 
-                ParagraphLayout layout = GetLayout(paragraph, area.Width, fields, markers.TryGetValue(i, out ListMarker storyMarker) ? storyMarker : null);
+                double spaceBefore = i == 0 ? 0 : Math.Max(0, _resolver.ResolveParagraph(paragraph).SpaceBefore.ToDips());
+                List<FloatingImage> newFloats = PlaceFloats(paragraph, story, BlockPath.Of(i), area, area, pageSize, y + spaceBefore);
+                ParagraphLayout layout = GetLayout(paragraph, area.Width, fields, markers.TryGetValue(i, out ListMarker storyMarker) ? storyMarker : null, ObstaclesFor(floats.Concat(newFloats), area, y + spaceBefore));
+                floats.AddRange(newFloats);
 
                 if (layout.Input.ContainsFields && layout.Input.Runs.Any(r => r.Kind == RunKind.Field && r.FieldText != null)
                     && paragraph.Inlines.OfType<Field>().Any(f => f.Kind is FieldKind.NumPages or FieldKind.SectionPages))
@@ -846,14 +946,13 @@ public sealed class Paginator
                     UsedTotalDependentField = true;
                 }
 
-                double spaceBefore = i == 0 ? 0 : layout.SpaceBefore;
                 var fragment = new ParagraphFragment(story, BlockPath.Of(i), layout, 0, layout.LineCount - 1, y, area.Left, spaceBefore, layout.SpaceAfter);
                 fragments.Add(fragment);
                 y = fragment.Bounds.Bottom;
             }
 
             double height = y - area.Top;
-            return new StoryLayout(story, new RectD(area.Left, area.Top, area.Width, height), fragments.ToImmutable());
+            return new StoryLayout(story, new RectD(area.Left, area.Top, area.Width, height), fragments.ToImmutable(), floats.ToImmutableArray());
         }
 
         /// <summary>Header rows at the top of a table (w:tblHeader) that repeat on every page the table continues on; never all of them.</summary>
@@ -924,7 +1023,7 @@ public sealed class Paginator
                             {
                                 case Paragraph paragraph:
                                 {
-                                    ParagraphLayout layout = GetLayout(paragraph, contentWidth, fields, markers.TryGetValue(b, out ListMarker marker) ? marker : null);
+                                    ParagraphLayout layout = GetLayout(paragraph, contentWidth, fields, markers.TryGetValue(b, out ListMarker marker) ? marker : null, inCell: true);
                                     double height = layout.SpaceBefore + layout.ContentHeight + layout.SpaceAfter;
                                     blocks.Add(new CellBlockLayout(layout, null, y, height));
                                     y += height;
@@ -987,18 +1086,25 @@ public sealed class Paginator
 
         }
 
-        private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields, ListMarker? marker)
-
+        /// <param name="inCell">Table cells do not place floating pictures, so theirs are laid out in the line.</param>
+        private ParagraphLayout GetLayout(Paragraph paragraph, double width, FieldValues fields, ListMarker? marker, ImmutableArray<FlowObstacle> obstacles = default, bool inCell = false)
         {
             string signature = (paragraph.Inlines.Any(i => i is Field or FootnoteReference) ? fields.Signature : string.Empty)
                 + (paragraph.Inlines.OfType<FootnoteReference>().Any() ? "|fn:" + string.Join(",", paragraph.Inlines.OfType<FootnoteReference>().Select(n => fields.NoteNumber(n))) : string.Empty)
                 + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Seq }) ? "|seq:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind == FieldKind.Seq).Select(fields.Resolve)) : string.Empty)
                 + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.PageRef }) ? "|ref:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind == FieldKind.PageRef).Select(fields.Resolve)) : string.Empty)
                 + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Date or FieldKind.Time or FieldKind.DocProperty }) ? "|auto:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind is FieldKind.Date or FieldKind.Time or FieldKind.DocProperty).Select(fields.Resolve)) : string.Empty)
-                + (marker is { } m ? "|" + m.Text : string.Empty);
+                + (marker is { } m ? "|" + m.Text : string.Empty)
+                + (obstacles.IsDefaultOrEmpty ? string.Empty : "|flt:" + string.Join(";", obstacles.Select(o => o.Signature)))
+                + (inCell ? "|cell" : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {
-                ParagraphLayoutInput input = ParagraphLayoutInput.Create(paragraph, _resolver, fields, width, _document.Settings.DefaultTabStop, _options.PixelsPerDip, images: _document.Images);
+                ParagraphLayoutInput input = ParagraphLayoutInput.Create(paragraph, _resolver, fields, width, _document.Settings.DefaultTabStop, _options.PixelsPerDip, images: _document.Images, floatsInline: inCell);
+                if (!obstacles.IsDefaultOrEmpty)
+                {
+                    input = input with { Obstacles = obstacles };
+                }
+
                 IFormattedLine? markerLine = null;
                 double markerX = 0;
                 if (marker is { Text.Length: > 0 } listMarker)
@@ -1073,6 +1179,9 @@ public sealed class Paginator
             /// <summary>Next line of the paragraph to place (continuation after a page break).</summary>
             public int NextLine { get; set; }
 
+            /// <summary>The lines placed so far, reused for the continuation so text flowing around a picture keeps its breaks.</summary>
+            public ParagraphLayout? ContinuedLayout { get; set; }
+
             public bool PlacedWholeOnPage { get; set; }
 
             public int FragmentsOnPage { get; set; }
@@ -1097,6 +1206,9 @@ public sealed class Paginator
             public bool IsFirstOfSection { get; } = isFirstOfSection;
 
             public List<BlockFragment> Fragments { get; } = [];
+
+            /// <summary>Floating pictures anchored in body paragraphs placed on this page.</summary>
+            public List<FloatingImage> Floats { get; } = [];
 
             public double Y { get; set; } = bodyArea.Top;
 

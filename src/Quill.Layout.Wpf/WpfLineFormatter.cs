@@ -29,12 +29,15 @@ public sealed class WpfLineFormatter : ILineFormatter
         var lines = new List<IFormattedLine>();
         int position = 0;
         bool first = true;
+        double top = 0;
         TextLineBreak? previousBreak = null;
         TextFormatter formatter = Formatter;
         while (true)
         {
-            double width = input.LineWidth(first);
-            TextLine line = formatter.FormatLine(source, position, width, first ? firstLineProps : otherLineProps, previousBreak);
+            // Lines beside a floating picture are narrower; ParagraphLayout repeats the same placement to find their tops.
+            LineSlot slot = input.PlaceLine(first, top);
+            TextLine line = formatter.FormatLine(source, position, slot.Width, first ? firstLineProps : otherLineProps, previousBreak);
+            top = slot.Top + ParagraphLayout.SlotHeight(input.Properties.LineSpacing, line.Height, line.Baseline);
             int end = position + line.Length;
             RunSpan? breakRun = null;
             if (end <= expansion.LayoutLength && line.Length > 0)

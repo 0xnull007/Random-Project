@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Quill.Core.Model;
 using Quill.Core.Styles;
+using Quill.Core.Text;
 using Quill.Core.Units;
 
 namespace Quill.Layout;
@@ -32,6 +33,27 @@ public readonly record struct RunSpan(int Start, int Length, ResolvedRunProperti
 
 /// <summary>Where an inline picture landed on a line, relative to the line origin.</summary>
 public readonly record struct ImagePlacement(InlineImage Image, ImageData? Data, RectD Bounds);
+
+/// <summary>
+/// A rectangle text must flow around (a floating picture plus its distance from text), relative to the column's
+/// left edge and the paragraph's content top. <paramref name="PushBelow"/> moves lines under it instead of beside it.
+/// </summary>
+public readonly record struct FlowObstacle(RectD Bounds, bool PushBelow)
+{
+    public string Signature => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{Bounds.X:0.#},{Bounds.Y:0.#},{Bounds.Width:0.#},{Bounds.Height:0.#},{(PushBelow ? 1 : 0)}");
+}
+
+/// <summary>Where one line goes: its top (relative to the paragraph's content top) and its horizontal extent (relative to the column's left edge).</summary>
+public readonly record struct LineSlot(double Top, double Start, double Width);
+
+/// <summary>A floating picture placed on a page: its anchor character and its page rectangle.</summary>
+/// <param name="Reference">The page point its anchor offsets are measured from, so a drag can be turned back into offsets.</param>
+public sealed record FloatingImage(StoryId Story, BlockPath Path, int Offset, InlineImage Image, ImageData? Data, RectD Bounds, PointD Reference)
+{
+    public ImageAnchor Anchor => Image.Anchor ?? ImageAnchor.Default;
+
+    public TextPosition Position => new(Story, Path, Offset);
+}
 
 /// <summary>Values substituted for fields while laying out one page.</summary>
 public sealed record FieldValues(string Page, string NumPages, string SectionPages)
@@ -102,12 +124,77 @@ public sealed record ParagraphLayoutInput(
     /// <summary>The list marker drawn in front of the paragraph, if any.</summary>
     public ListMarker? Marker { get; init; }
 
+    /// <summary>Floating pictures the lines must flow around, relative to the column's left edge and the content top.</summary>
+    public ImmutableArray<FlowObstacle> Obstacles { get; init; } = ImmutableArray<FlowObstacle>.Empty;
+
     /// <summary>Width available to a given line after indents; never below one DIP.</summary>
     public double LineWidth(bool firstLine) => Math.Max(1, ColumnWidth - LineStart(firstLine) - RightIndent);
 
     /// <summary>Horizontal start of a line relative to the column's left edge.</summary>
     public double LineStart(bool firstLine) =>
         firstLine && FirstLineStart is { } start ? start : LeftIndent + (firstLine ? FirstLineIndent : 0);
+
+    /// <summary>Leftover room beside a picture narrower than this pushes the line below the picture instead.</summary>
+    public const double MinimumRoomBesideObstacle = 36;
+
+    /// <summary>
+    /// Where a line whose top would be at <paramref name="top"/> actually goes: beside a square-wrapped picture
+    /// (on the side with more room), or below a picture that leaves no room or wraps top-and-bottom. Both the
+    /// formatter and <see cref="ParagraphLayout"/> call this, so a line's height is judged by the paragraph
+    /// mark's font rather than by the line itself, which is not known until it has been formatted.
+    /// </summary>
+    public LineSlot PlaceLine(bool firstLine, double top)
+    {
+        double start = LineStart(firstLine);
+        double right = ColumnWidth - RightIndent;
+        if (Obstacles.IsDefaultOrEmpty)
+        {
+            return new LineSlot(top, start, Math.Max(1, right - start));
+        }
+
+        double probe = Math.Max(1, MarkProperties.FontSize.ToDips() * 1.2);
+        for (int attempt = 0; attempt < 16; attempt++)
+        {
+            double lineLeft = start;
+            double lineRight = right;
+            bool pushed = false;
+            foreach (FlowObstacle obstacle in Obstacles)
+            {
+                RectD box = obstacle.Bounds;
+                if (box.Bottom <= top || box.Top >= top + probe || box.Right <= lineLeft || box.Left >= lineRight)
+                {
+                    continue;
+                }
+
+                double roomLeft = box.Left - lineLeft;
+                double roomRight = lineRight - box.Right;
+                if (!obstacle.PushBelow && Math.Max(roomLeft, roomRight) >= MinimumRoomBesideObstacle)
+                {
+                    if (roomLeft >= roomRight)
+                    {
+                        lineRight = box.Left;
+                    }
+                    else
+                    {
+                        lineLeft = box.Right;
+                    }
+                }
+                else
+                {
+                    top = box.Bottom;
+                    pushed = true;
+                    break;
+                }
+            }
+
+            if (!pushed)
+            {
+                return new LineSlot(top, lineLeft, Math.Max(1, lineRight - lineLeft));
+            }
+        }
+
+        return new LineSlot(top, start, Math.Max(1, right - start));
+    }
 
     /// <summary>Builds the input for a paragraph by resolving every inline against the style sheet.</summary>
     public static ParagraphLayoutInput Create(
@@ -118,7 +205,8 @@ public sealed record ParagraphLayoutInput(
         Twips defaultTabStop,
         double pixelsPerDip,
         FlowDirection flowDirection = FlowDirection.LeftToRight,
-        ImageStore? images = null)
+        ImageStore? images = null,
+        bool floatsInline = false)
     {
         ArgumentNullException.ThrowIfNull(paragraph);
         ArgumentNullException.ThrowIfNull(resolver);
@@ -146,6 +234,11 @@ public sealed record ParagraphLayoutInput(
                 _ => null,
             };
             InlineImage? image = span.Inline as InlineImage;
+            if (floatsInline && image is { IsFloating: true })
+            {
+                image = image.WithAnchor(null); // table cells do not place floats; the picture shows in the line instead
+            }
+
             runs.Add(new RunSpan(span.Start, span.Length, properties, kind, fieldText, image, image is null ? null : images?.Get(image.ImageId)));
 
         }

@@ -120,13 +120,14 @@ public sealed class Field : Inline
 /// <summary>An inline picture, displayed at <see cref="Width"/> by <see cref="Height"/>. Occupies one character; the bytes live in the document's <see cref="ImageStore"/>.</summary>
 public sealed class InlineImage : Inline
 {
-    public InlineImage(string imageId, Units.Twips width, Units.Twips height, RunProperties? properties = null, string? styleId = null)
+    public InlineImage(string imageId, Units.Twips width, Units.Twips height, RunProperties? properties = null, string? styleId = null, ImageAnchor? anchor = null)
         : base(styleId, properties)
     {
         ArgumentNullException.ThrowIfNull(imageId);
         ImageId = imageId;
         Width = width;
         Height = height;
+        Anchor = anchor;
     }
 
     public string ImageId { get; }
@@ -135,17 +136,24 @@ public sealed class InlineImage : Inline
 
     public Units.Twips Height { get; }
 
+    /// <summary>Floating placement, or null for a picture that sits in the line like a character.</summary>
+    public ImageAnchor? Anchor { get; }
+
+    public bool IsFloating => Anchor is not null;
+
     public override int Length => 1;
 
-    public InlineImage WithSize(Units.Twips width, Units.Twips height) => new(ImageId, width, height, Properties, StyleId);
+    public InlineImage WithSize(Units.Twips width, Units.Twips height) => new(ImageId, width, height, Properties, StyleId, Anchor);
 
-    public override InlineImage WithProperties(RunProperties properties) => new(ImageId, Width, Height, properties, StyleId);
+    public InlineImage WithAnchor(ImageAnchor? anchor) => new(ImageId, Width, Height, Properties, StyleId, anchor);
 
-    public override InlineImage WithStyle(string? styleId) => new(ImageId, Width, Height, Properties, styleId);
+    public override InlineImage WithProperties(RunProperties properties) => new(ImageId, Width, Height, properties, StyleId, Anchor);
+
+    public override InlineImage WithStyle(string? styleId) => new(ImageId, Width, Height, Properties, styleId, Anchor);
 
     internal override void AppendFlatText(System.Text.StringBuilder builder) => builder.Append(Paragraph.ObjectReplacementChar);
 
-    public override string ToString() => $"Image({ImageId} {Width}x{Height})";
+    public override string ToString() => $"Image({ImageId} {Width}x{Height}{(Anchor is null ? string.Empty : " floating")})";
 }
 
 /// <summary>
