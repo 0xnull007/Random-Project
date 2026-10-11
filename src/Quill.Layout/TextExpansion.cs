@@ -6,11 +6,15 @@ namespace Quill.Layout;
 
 /// <summary>
 /// The text a platform formatter actually shapes, derived from a paragraph's flat text: fields are replaced by
-/// their result text and all-caps runs are upper-cased. Keeps a two-way map between flat offsets (the model)
-/// and layout offsets (the formatter). Only fields change lengths; every other run maps 1:1.
+/// their result text, all-caps runs are upper-cased and, when the paragraph hyphenates, soft hyphens (U+00AD)
+/// mark the syllable breaks the formatter may use (it draws the hyphen only where it breaks). Keeps a two-way
+/// map between flat offsets (the model) and layout offsets (the formatter): fields change lengths, soft hyphens
+/// add zero-flat-length segments, every other run maps 1:1.
 /// </summary>
 public sealed class TextExpansion
 {
+    public const char SoftHyphen = '­';
+
     private readonly ImmutableArray<Segment> _segments;
 
     private TextExpansion(string layoutText, ImmutableArray<Segment> segments, int flatLength)
@@ -42,24 +46,48 @@ public sealed class TextExpansion
                 continue;
             }
 
-            ReadOnlySpan<char> slice = input.Text.AsSpan(run.Start, run.Length);
-            if (run.Kind == RunKind.Text && run.Properties.AllCaps)
+            CultureInfo? upper = run.Kind == RunKind.Text && run.Properties.AllCaps ? SafeCulture(run.Properties.Language) : null;
+            IReadOnlyList<int> breaks = run.Kind == RunKind.Text && input.Hyphenate && Hyphenation.Hyphenator.English.IsCultureSupported(SafeCulture(run.Properties.Language))
+                ? Hyphenation.Hyphenator.English.TextBreaks(input.Text.AsSpan(run.Start, run.Length))
+                : [];
+            int from = 0;
+            foreach (int at in breaks)
             {
-                CultureInfo culture = SafeCulture(run.Properties.Language);
-                foreach (char c in slice)
-                {
-                    builder.Append(char.ToUpper(c, culture));
-                }
-            }
-            else
-            {
-                builder.Append(slice);
+                AppendPiece(builder, segments, input.Text, run, from, at, upper);
+                segments.Add(new Segment(run.Start + at, builder.Length, 0, 1, run));
+                builder.Append(SoftHyphen);
+                from = at;
             }
 
-            segments.Add(new Segment(run.Start, layoutStart, run.Length, run.Length, run));
+            AppendPiece(builder, segments, input.Text, run, from, run.Length, upper);
         }
 
         return new TextExpansion(builder.ToString(), segments.ToImmutable(), input.Text.Length);
+    }
+
+    /// <summary>Appends run characters [start, end) (run-relative) as one 1:1 segment, upper-casing them for all-caps runs.</summary>
+    private static void AppendPiece(StringBuilder builder, ImmutableArray<Segment>.Builder segments, string text, RunSpan run, int start, int end, CultureInfo? upper)
+    {
+        if (end <= start)
+        {
+            return;
+        }
+
+        int pieceStart = builder.Length;
+        ReadOnlySpan<char> piece = text.AsSpan(run.Start + start, end - start);
+        if (upper is { } culture)
+        {
+            foreach (char c in piece)
+            {
+                builder.Append(char.ToUpper(c, culture));
+            }
+        }
+        else
+        {
+            builder.Append(piece);
+        }
+
+        segments.Add(new Segment(run.Start + start, pieceStart, end - start, end - start, run));
     }
 
     /// <summary>The run covering a layout offset, and the layout offset where that run ends.</summary>

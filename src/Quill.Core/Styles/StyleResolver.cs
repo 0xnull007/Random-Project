@@ -154,7 +154,8 @@ public sealed class StyleResolver
             list is { IsNone: false } ? list : null,
             merged.Shading is { IsAuto: false } shading ? shading : null,
             merged.Borders is { IsNone: false } borders ? borders : null,
-            merged.SuppressLineNumbers ?? false);
+            merged.SuppressLineNumbers ?? false,
+            merged.SuppressAutoHyphens ?? false);
     }
 
     private ResolvedRunProperties BuildRun(RunKey key)

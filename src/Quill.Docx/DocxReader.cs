@@ -1021,6 +1021,7 @@ public sealed class DocxReader
             WidowControl = OnOff(pPr.GetFirstChild<W.WidowControl>()),
             ContextualSpacing = OnOff(pPr.GetFirstChild<W.ContextualSpacing>()),
             SuppressLineNumbers = OnOff(pPr.GetFirstChild<W.SuppressLineNumbers>()),
+            SuppressAutoHyphens = OnOff(pPr.GetFirstChild<W.SuppressAutoHyphens>()),
             OutlineLevel = pPr.GetFirstChild<W.OutlineLevel>()?.Val?.Value,
             List = ReadListFormat(pPr.GetFirstChild<W.NumberingProperties>()),
         };
@@ -1339,6 +1340,16 @@ public sealed class DocxReader
         if (OnOff(settings.GetFirstChild<W.TrackRevisions>()) == true)
         {
             result = result with { TrackChanges = true };
+        }
+
+        if (OnOff(settings.GetFirstChild<W.AutoHyphenation>()) == true)
+        {
+            result = result with { AutoHyphenation = true };
+        }
+
+        if (int.TryParse(settings.GetFirstChild<W.HyphenationZone>()?.Val?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int zone) && zone > 0)
+        {
+            result = result with { HyphenationZone = new Twips(zone) };
         }
 
         return result;

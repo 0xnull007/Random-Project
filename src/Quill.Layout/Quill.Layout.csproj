@@ -10,6 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- American English hyphenation patterns (hyph-utf8's hyph-en-us, see the file header for its notice). -->
+    <EmbeddedResource Include="Hyphenation/hyph-en-us.txt" LogicalName="Quill.Layout.Hyphenation.hyph-en-us.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Quill.Layout.Tests" />
     <InternalsVisibleTo Include="Quill.Layout.Wpf.Tests" />
   </ItemGroup>

@@ -196,7 +196,15 @@ public sealed class WpfFormattedLine : IFormattedLine
                     double right = _line.GetDistanceFromCharacterHit(new CharacterHit(reach, 0));
                     IList<TextBounds> bounds = _line.GetTextBounds(start, reach - start);
                     Rect box = bounds.Count > 0 ? bounds[0].Rectangle : new Rect(x, 0, Math.Max(0, right - x), _line.Height);
-                    yield return new TextSegment(text.Substring(start, textEnd - start), props.Properties, x, _line.Baseline, Math.Max(0, right - x), box.Y, box.Height);
+                    string word = text.Substring(start, textEnd - start);
+                    if (word.Contains(TextExpansion.SoftHyphen))
+                    {
+                        // Soft hyphens are invisible except the one the line broke at, which WPF drew as a hyphen.
+                        bool brokeHere = textEnd == _layoutEnd && word[^1] == TextExpansion.SoftHyphen;
+                        word = word.Replace(TextExpansion.SoftHyphen.ToString(), string.Empty, StringComparison.Ordinal) + (brokeHere ? "-" : string.Empty);
+                    }
+
+                    yield return new TextSegment(word, props.Properties, x, _line.Baseline, Math.Max(0, right - x), box.Y, box.Height);
                 }
             }
 

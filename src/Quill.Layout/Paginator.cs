@@ -1158,12 +1158,18 @@ public sealed class Paginator
                 + (marker is { } m ? "|" + m.Text : string.Empty)
                 + (obstacles.IsDefaultOrEmpty ? string.Empty : "|flt:" + string.Join(";", obstacles.Select(o => o.Signature)))
                 + (inCell ? "|cell" : string.Empty);
+            bool hyphenate = _document.Settings.AutoHyphenation && !_resolver.ResolveParagraph(paragraph).SuppressAutoHyphens;
+            if (hyphenate)
+            {
+                signature += "|hy";
+            }
+
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {
                 ParagraphLayoutInput input = ParagraphLayoutInput.Create(paragraph, _resolver, fields, width, _document.Settings.DefaultTabStop, _options.PixelsPerDip, images: _document.Images, floatsInline: inCell);
-                if (!obstacles.IsDefaultOrEmpty)
+                if (!obstacles.IsDefaultOrEmpty || hyphenate)
                 {
-                    input = input with { Obstacles = obstacles };
+                    input = input with { Obstacles = obstacles.IsDefault ? ImmutableArray<FlowObstacle>.Empty : obstacles, Hyphenate = hyphenate };
                 }
 
                 IFormattedLine? markerLine = null;

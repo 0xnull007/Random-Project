@@ -127,6 +127,9 @@ public sealed record ParagraphLayoutInput(
     /// <summary>Floating pictures the lines must flow around, relative to the column's left edge and the content top.</summary>
     public ImmutableArray<FlowObstacle> Obstacles { get; init; } = ImmutableArray<FlowObstacle>.Empty;
 
+    /// <summary>Break words at syllables when a line is full (the document's automatic hyphenation, unless the paragraph opts out).</summary>
+    public bool Hyphenate { get; init; }
+
     /// <summary>Width available to a given line after indents; never below one DIP.</summary>
     public double LineWidth(bool firstLine) => Math.Max(1, ColumnWidth - LineStart(firstLine) - RightIndent);
 

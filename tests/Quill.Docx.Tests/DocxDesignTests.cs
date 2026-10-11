@@ -88,7 +88,7 @@ public class DocxDesignTests
     public void Line_numbering_round_trips()
     {
         var numbering = new LineNumbering { CountBy = 5, Start = 1, Distance = Twips.FromInches(0.3), Restart = LineNumberRestart.EachPage };
-        var paragraph = Paragraph.FromText("skip").WithProperties(new ParagraphProperties { SuppressLineNumbers = true });
+        var paragraph = Paragraph.FromText("skip").WithProperties(new ParagraphProperties { SuppressLineNumbers = true, SuppressAutoHyphens = true });
         var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter with { LineNumbers = numbering }, ImmutableList.Create<Block>(paragraph, Paragraph.FromText("count")))), DefaultStyleSheet.Create());
         byte[] bytes = DocxWriter.ToBytes(document);
         using (var stream = new MemoryStream(bytes))
@@ -101,7 +101,9 @@ public class DocxDesignTests
         LoadResult reread = DocxReader.Read(new MemoryStream(bytes));
         Assert.Equal(numbering, reread.Document.Sections[0].Properties.LineNumbers);
         Assert.True(((Paragraph)reread.Document.Sections[0].Body[0]).Properties.SuppressLineNumbers);
+        Assert.True(((Paragraph)reread.Document.Sections[0].Body[0]).Properties.SuppressAutoHyphens);
         Assert.Null(((Paragraph)reread.Document.Sections[0].Body[1]).Properties.SuppressLineNumbers);
+        Assert.Null(((Paragraph)reread.Document.Sections[0].Body[1]).Properties.SuppressAutoHyphens);
     }
 
     [Fact]

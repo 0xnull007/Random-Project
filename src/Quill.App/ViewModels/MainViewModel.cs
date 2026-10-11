@@ -340,6 +340,29 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SetWatermark(string text) => Session.SetWatermark(string.IsNullOrWhiteSpace(text) ? null : new Watermark(text));
 
+    /// <summary>Layout > Hyphenation menu: document-wide automatic hyphenation, or the current paragraph's opt-out.</summary>
+    [RelayCommand]
+    private void SetHyphenation(string mode)
+    {
+        switch (mode)
+        {
+            case "Automatic":
+                Session.SetAutoHyphenation(true);
+                StatusMessage = "Automatic hyphenation on: words break at syllables when a line is full";
+                break;
+            case "Suppress":
+                Session.SuppressHyphenation(true);
+                break;
+            case "Allow":
+                Session.SuppressHyphenation(false);
+                break;
+            default:
+                Session.SetAutoHyphenation(false);
+                StatusMessage = "Hyphenation off";
+                break;
+        }
+    }
+
     /// <summary>Layout > Line Numbers: None, Continuous, EachPage, EachSection, or Suppress / Resume for the selected paragraphs.</summary>
     [RelayCommand]
     private void SetLineNumbers(string mode)

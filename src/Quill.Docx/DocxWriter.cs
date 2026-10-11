@@ -45,6 +45,12 @@ public static class DocxWriter
 
         DocumentSettingsPart settingsPart = main.AddNewPart<DocumentSettingsPart>();
         var settings = new W.Settings(new W.DefaultTabStop { Val = (short)Math.Clamp(document.Settings.DefaultTabStop.Value, 1, short.MaxValue) });
+        if (document.Settings.AutoHyphenation)
+        {
+            settings.Append(new W.AutoHyphenation());
+            settings.Append(new W.HyphenationZone { Val = Math.Clamp(document.Settings.HyphenationZone.Value, 1, short.MaxValue).ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        }
+
         if (document.Settings.TrackChanges)
         {
             settings.PrependChild(new W.TrackRevisions());
@@ -675,6 +681,11 @@ public static class DocxWriter
             }
 
             pPr.Append(element);
+        }
+
+        if (p.SuppressAutoHyphens is { } noHyphens)
+        {
+            pPr.Append(new W.SuppressAutoHyphens { Val = OnOffValue.FromBoolean(noHyphens) });
         }
 
         if (p.SpaceBefore is not null || p.SpaceAfter is not null || p.LineSpacing is not null)

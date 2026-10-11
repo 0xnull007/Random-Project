@@ -178,6 +178,16 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Keep-with-next: a heading at the bottom of a page moves to the next page with its paragraph.
 - [ ] Widow/orphan control: a paragraph never leaves a single line alone at the top or bottom of a page.
 
+## 8a. Hyphenation (new)
+
+- [ ] Layout > Hyphenation > Automatic: in a narrow column (or justified text) long words now break at syllables
+      with a hyphen at the line end ("hy-" / "phenation"), the way Word's automatic hyphenation does; None turns
+      it off again and the lines re-wrap. Each switch is one Ctrl+Z step and the document counts as modified.
+- [ ] "Don't Hyphenate Current Paragraph" keeps that paragraph whole while the rest still hyphenates; "Hyphenate
+      Current Paragraph Again" reverts. Save, reopen and open in Word: hyphenation stays on and the paragraph
+      keeps its "Don't hyphenate" setting (Paragraph > Line and Page Breaks in Word).
+- [ ] Only English text is hyphenated (American English rules); text marked as another language is left alone.
+
 ## 8b. Design tab: page colour and page borders (new)
 
 - [ ] Design > Page Color: pick a colour and every page is tinted on screen (dark mode too); "Automatic" clears it;

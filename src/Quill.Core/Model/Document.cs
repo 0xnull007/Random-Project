@@ -24,6 +24,12 @@ public sealed record DocumentSettings
 
     /// <summary>Diagonal text behind every page, or null.</summary>
     public Watermark? Watermark { get; init; }
+
+    /// <summary>Break words at syllables when lines are full (<c>w:autoHyphenation</c>); paragraphs can opt out.</summary>
+    public bool AutoHyphenation { get; init; }
+
+    /// <summary>Word's hyphenation zone (<c>w:hyphenationZone</c>), kept for round trips; the layout engine hyphenates whenever a word does not fit.</summary>
+    public Twips HyphenationZone { get; init; } = Twips.FromInches(0.25);
 }
 
 public sealed record DocumentMetadata

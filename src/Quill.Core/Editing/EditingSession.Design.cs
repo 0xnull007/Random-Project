@@ -13,6 +13,23 @@ public sealed partial class EditingSession
     /// <summary>Page borders of the caret's section, or null.</summary>
     public PageBorders? PageBordersAtCaret => Document.Sections[Selection.Story.SectionIndex].Properties.PageBorders;
 
+    /// <summary>True when the document hyphenates words automatically (Layout > Hyphenation > Automatic).</summary>
+    public bool AutoHyphenation => Document.Settings.AutoHyphenation;
+
+    /// <summary>Switches automatic hyphenation for the whole document; one undo step.</summary>
+    public void SetAutoHyphenation(bool on)
+    {
+        if (on == Document.Settings.AutoHyphenation)
+        {
+            return;
+        }
+
+        Commit(new EditResult(Document.WithSettings(Document.Settings with { AutoHyphenation = on }), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
+    /// <summary>Word's "Don't hyphenate" for the selected paragraphs (or the reverse).</summary>
+    public void SuppressHyphenation(bool suppress) => ApplyParagraphFormat(new ParagraphProperties { SuppressAutoHyphens = suppress });
+
     /// <summary>Colours every page (null or automatic clears it); one undo step.</summary>
     public void SetPageColor(DocColor? color)
     {

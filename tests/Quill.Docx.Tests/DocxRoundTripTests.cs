@@ -75,7 +75,7 @@ public class DocxRoundTripTests
         return new Document(
             ImmutableList.Create(section1, section2),
             DefaultStyleSheet.Create(),
-            new DocumentSettings { DefaultTabStop = Twips.FromInches(0.25), EvenAndOddHeaders = true },
+            new DocumentSettings { DefaultTabStop = Twips.FromInches(0.25), EvenAndOddHeaders = true, AutoHyphenation = true, HyphenationZone = new Twips(500) },
             new DocumentMetadata { Title = "Round trip", Author = "Quill tests", Subject = "docx", Created = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero) });
     }
 
@@ -162,6 +162,8 @@ public class DocxRoundTripTests
         Assert.True(doc.Styles.Get(DefaultStyleSheet.Heading1Id)!.QuickFormat);
         Assert.Equal(Twips.FromInches(0.25), doc.Settings.DefaultTabStop);
         Assert.True(doc.Settings.EvenAndOddHeaders);
+        Assert.True(doc.Settings.AutoHyphenation);
+        Assert.Equal(new Twips(500), doc.Settings.HyphenationZone);
         Assert.Equal("Round trip", doc.Metadata.Title);
         Assert.Equal("Quill tests", doc.Metadata.Author);
         Assert.Equal(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero), doc.Metadata.Created);

@@ -53,6 +53,9 @@ public sealed record ParagraphProperties
     /// <summary>Leave this paragraph out of the section's line numbering.</summary>
     public bool? SuppressLineNumbers { get; init; }
 
+    /// <summary>Never hyphenate this paragraph even when the document hyphenates automatically (Word's "Don't hyphenate").</summary>
+    public bool? SuppressAutoHyphens { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -88,6 +91,7 @@ public sealed record ParagraphProperties
             Shading = overrides.Shading ?? Shading,
             Borders = overrides.Borders ?? Borders,
             SuppressLineNumbers = overrides.SuppressLineNumbers ?? SuppressLineNumbers,
+            SuppressAutoHyphens = overrides.SuppressAutoHyphens ?? SuppressAutoHyphens,
         };
     }
 }

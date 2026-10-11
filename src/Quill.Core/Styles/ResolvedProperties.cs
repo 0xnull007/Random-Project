@@ -42,7 +42,8 @@ public sealed record ResolvedParagraphProperties(
     ListFormat? List = null,
     DocColor? Shading = null,
     ParagraphBorders? Borders = null,
-    bool SuppressLineNumbers = false)
+    bool SuppressLineNumbers = false,
+    bool SuppressAutoHyphens = false)
 {
     public bool IsListItem => List is { IsNone: false };
 }

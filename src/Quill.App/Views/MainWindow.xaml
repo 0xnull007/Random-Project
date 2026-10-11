@@ -505,6 +505,17 @@
                   </ContextMenu>
                 </Button.ContextMenu>
               </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8C1;" Content="Hyphenation" Click="OnCaseMenu" ToolTip="Break words at syllables when a line is full (American English rules), like Word's automatic hyphenation">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="None" Command="{Binding SetHyphenationCommand}" CommandParameter="None" />
+                    <MenuItem Header="Automatic" Command="{Binding SetHyphenationCommand}" CommandParameter="Automatic" />
+                    <Separator />
+                    <MenuItem Header="Don't Hyphenate Current Paragraph" Command="{Binding SetHyphenationCommand}" CommandParameter="Suppress" />
+                    <MenuItem Header="Hyphenate Current Paragraph Again" Command="{Binding SetHyphenationCommand}" CommandParameter="Allow" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE713;" Content="Page Setup" Click="OnPageSetup" ToolTip="Paper size, orientation, margins, headers and footers" />
 
             </StackPanel>
