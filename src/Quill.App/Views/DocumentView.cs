@@ -1963,7 +1963,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         _desiredCaretX = null;
         if (e.ClickCount == 1 && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && LinkUnder(viewPoint) is { } link)
         {
-            OpenLink(link.Url);
+            FollowLink(link.Url);
             e.Handled = true;
             return;
         }
@@ -2036,8 +2036,26 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         return link.Range.Contains(hit.Position) || hit.Position == link.Range.End && hit.Affinity == CaretAffinity.Upstream ? link : null;
     }
 
+    /// <summary>Ctrl+Click or "Open Link": web and mail links open outside, "#bookmark" links select the bookmark in the document.</summary>
+    public void FollowLink(string url)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        if (url.StartsWith('#'))
+        {
+            if (Session is { } session && url.Length > 1 && session.GoToBookmark(url[1..]))
+            {
+                EnsureCaretVisible();
+            }
+
+            return;
+        }
+
+        OpenLink(url);
+    }
+
     /// <summary>Opens a web or mail link in the default handler; other schemes and internal anchors are ignored.</summary>
     public static void OpenLink(string url)
+
     {
         ArgumentNullException.ThrowIfNull(url);
         if (url.StartsWith('#'))

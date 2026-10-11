@@ -261,6 +261,12 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 11. Link, Symbol and Date & Time (new)
 
+- [ ] Insert > Bookmark: select text, type a name (letters, digits, underscores), Add; the dialog lists bookmarks,
+      Go To selects one, Delete removes it; Ctrl+Click a link to "#name" jumps to the bookmark **(new)**.
+- [ ] Insert > Cross-reference: pick a heading, bookmark, figure or table caption and insert its text or page
+      number, as a link or plain; edit the heading or move it to another page and press F9 (References > Update
+      Fields): the reference text and page number follow; saved files keep bookmarks and REF/PAGEREF fields and Word
+      shows the same **(new)**.
 - [ ] Insert > Symbol...: clicking a symbol inserts it; the window stays open for more; typing a hex code
       (e.g. `2192` or `U+1F600`) previews it and Insert inserts it; Close closes.
 - [ ] Insert > Link... (Ctrl+K) with text selected makes it a blue underlined link; with nothing selected it inserts

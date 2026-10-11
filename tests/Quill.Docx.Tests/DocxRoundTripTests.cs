@@ -294,7 +294,9 @@ public class DocxRoundTripTests
         Assert.False(OoxmlValues.OnOff(new W.Bold { Val = false }));
         Assert.Null(OoxmlValues.OnOff(null));
         Assert.Equal(FieldKind.NumPages, OoxmlValues.FieldKindFrom("  NUMPAGES  \\* MERGEFORMAT"));
-        Assert.Equal(FieldKind.Unknown, OoxmlValues.FieldKindFrom("PAGEREF _Toc1"));
+        Assert.Equal(FieldKind.PageRef, OoxmlValues.FieldKindFrom("PAGEREF _Toc1 \\h"));
+        Assert.Equal(FieldKind.Ref, OoxmlValues.FieldKindFrom("REF _Ref12 \\h"));
+        Assert.Equal(FieldKind.Unknown, OoxmlValues.FieldKindFrom("AUTHOR"));
     }
 
     [Fact]

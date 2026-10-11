@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand GoToPageCommand = new("GoToPage", typeof(MainWindow));
     public static readonly RoutedCommand WordCountCommand = new("WordCount", typeof(MainWindow));
     public static readonly RoutedCommand ToggleRibbonCommand = new("ToggleRibbon", typeof(MainWindow));
+    public static readonly RoutedCommand UpdateFieldsCommand = new("UpdateFields", typeof(MainWindow));
     public static readonly RoutedCommand ShortcutsCommand = new("Shortcuts", typeof(MainWindow));
     public static readonly RoutedCommand PastePlainCommand = new("PastePlain", typeof(MainWindow));
     public static readonly RoutedCommand InsertLinkCommand = new("InsertLink", typeof(MainWindow));
@@ -373,7 +374,7 @@ public partial class MainWindow : Window
     {
         if (ViewModel.Session.LinkAtCaret() is { } link)
         {
-            DocumentView.OpenLink(link.Url);
+            Editor.FollowLink(link.Url);
         }
 
         Editor.Focus();
@@ -545,7 +546,46 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnBookmark(object sender, RoutedEventArgs e)
+    {
+        var dialog = new BookmarkWindow(ViewModel.Session) { Owner = this };
+        dialog.ShowDialog();
+        Editor.Focus();
+    }
+
+    private void OnCrossReference(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        var dialog = new CrossReferenceWindow(session) { Owner = this };
+        if (dialog.ShowDialog() == true && dialog.BookmarkName is { } bookmark)
+        {
+            string? page = dialog.TargetPosition is { } target ? Editor.PageNumberTextOf(target) : null;
+            session.InsertCrossReference(bookmark, dialog.PageNumber, dialog.AsLink, page);
+        }
+
+        Editor.Focus();
+    }
+
+    /// <summary>F9: cross-references take the current text and page numbers of their bookmarks.</summary>
+    private void OnUpdateFields(object sender, ExecutedRoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        var pages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string name in BookmarkSupport.Names(session.Document))
+        {
+            if (BookmarkSupport.Find(session.Document, name) is { } range && Editor.PageNumberTextOf(range.Start) is { } page)
+            {
+                pages[name] = page;
+            }
+        }
+
+        session.UpdateReferenceFields(pages);
+        ViewModel.StatusMessage = "Fields updated";
+        Editor.Focus();
+    }
+
     private void OnInsertCaption(object sender, RoutedEventArgs e)
+
 
     {
         EditingSession session = ViewModel.Session;

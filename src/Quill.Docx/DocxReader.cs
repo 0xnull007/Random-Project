@@ -179,7 +179,13 @@ public sealed class DocxReader
             case W.CommentRangeEnd commentEnd:
                 CloseComment(commentEnd.Id?.Value);
                 break;
-            case W.BookmarkStart or W.BookmarkEnd or W.ProofError or W.SectionProperties:
+            case W.BookmarkStart bookmarkStart:
+                OpenBookmark(bookmarkStart);
+                break;
+            case W.BookmarkEnd bookmarkEnd:
+                CloseBookmark(bookmarkEnd.Id?.Value);
+                break;
+            case W.ProofError or W.SectionProperties:
                 break;
 
             default:
@@ -334,7 +340,13 @@ public sealed class DocxReader
                 case W.CommentRangeEnd commentEnd:
                     CloseComment(commentEnd.Id?.Value);
                     break;
-                case W.ParagraphProperties or W.BookmarkStart or W.BookmarkEnd or W.ProofError
+                case W.BookmarkStart inlineBookmarkStart:
+                    OpenBookmark(inlineBookmarkStart);
+                    break;
+                case W.BookmarkEnd inlineBookmarkEnd:
+                    CloseBookmark(inlineBookmarkEnd.Id?.Value);
+                    break;
+                case W.ParagraphProperties or W.ProofError
                     or W.PermStart or W.PermEnd or W.MoveFromRangeStart
 
                     or W.MoveFromRangeEnd or W.MoveToRangeStart or W.MoveToRangeEnd or W.SdtProperties or W.SdtEndCharProperties
@@ -606,7 +618,39 @@ public sealed class DocxReader
         builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId));
     }
 
+    // ------------------------------------------------------------------ bookmarks
+
+    private readonly List<string> _openBookmarks = [];
+    private readonly Dictionary<string, string> _bookmarkNames = new(StringComparer.Ordinal);
+
+    private void OpenBookmark(W.BookmarkStart start)
+    {
+        if (start.Name?.Value is not { Length: > 0 } name || string.Equals(name, "_GoBack", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (start.Id?.Value is { } id)
+        {
+            _bookmarkNames[id] = name;
+        }
+
+        if (!_openBookmarks.Contains(name))
+        {
+            _openBookmarks.Add(name);
+        }
+    }
+
+    private void CloseBookmark(string? id)
+    {
+        if (id is not null && _bookmarkNames.Remove(id, out string? name))
+        {
+            _openBookmarks.Remove(name);
+        }
+    }
+
     // ------------------------------------------------------------------ comments
+
 
     private void OpenComment(string? id)
     {
@@ -1258,6 +1302,28 @@ public sealed class DocxReader
                 return;
             }
 
+            _inlines.Add(new Run(text, Decorate(properties), styleId));
+        }
+
+        public void AddInline(Inline inline)
+        {
+            if (_depth == 0)
+            {
+                _inlines.Add(inline.WithProperties(Decorate(inline.Properties)));
+            }
+        }
+
+        public void AddField(Field field)
+        {
+            if (_depth == 0)
+            {
+                _inlines.Add(field.WithProperties(Decorate(field.Properties)));
+            }
+        }
+
+        /// <summary>The hyperlink, comment, tracked change and bookmark the inline sits inside, as run marks.</summary>
+        private RunProperties Decorate(RunProperties properties)
+        {
             RunProperties withMarks = CurrentLink is null ? properties : properties with { Link = CurrentLink };
             if (CurrentRevision is not null)
             {
@@ -1269,24 +1335,14 @@ public sealed class DocxReader
                 withMarks = withMarks with { CommentId = reader._openComments[^1] };
             }
 
-            _inlines.Add(new Run(text, withMarks, styleId));
+            if (reader._openBookmarks.Count > 0)
+            {
+                withMarks = withMarks with { Bookmark = reader._openBookmarks[^1] };
+            }
+
+            return withMarks;
         }
 
-        public void AddInline(Inline inline)
-        {
-            if (_depth == 0)
-            {
-                _inlines.Add(inline);
-            }
-        }
-
-        public void AddField(Field field)
-        {
-            if (_depth == 0)
-            {
-                _inlines.Add(field);
-            }
-        }
 
         public void FieldChar(string? type, RunProperties properties, string? styleId)
         {

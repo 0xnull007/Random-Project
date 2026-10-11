@@ -266,6 +266,8 @@ internal static class OoxmlValues
             "NUMPAGES" => FieldKind.NumPages,
             "SECTIONPAGES" => FieldKind.SectionPages,
             "SEQ" => FieldKind.Seq,
+            "REF" => FieldKind.Ref,
+            "PAGEREF" => FieldKind.PageRef,
             _ => FieldKind.Unknown,
         };
     }

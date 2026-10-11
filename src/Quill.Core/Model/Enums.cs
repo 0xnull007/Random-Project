@@ -81,6 +81,12 @@ public enum FieldKind
 
     /// <summary>A SEQ field: the running number of a caption series such as "Figure" or "Table".</summary>
     Seq,
+
+    /// <summary>A REF field: the text of a bookmark (cross-reference).</summary>
+    Ref,
+
+    /// <summary>A PAGEREF field: the page a bookmark is on.</summary>
+    PageRef,
     Unknown,
 }
 

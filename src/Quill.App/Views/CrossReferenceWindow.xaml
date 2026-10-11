@@ -1,0 +1,41 @@
+<Window x:Class="Quill.App.Views.CrossReferenceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cross-reference"
+        Width="420" SizeToContent="Height"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="20,16,20,16">
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="12" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0">
+        <TextBlock Text="Reference type:" Margin="0,0,0,4" />
+        <ComboBox x:Name="TypeBox" SelectionChanged="OnTypeChanged">
+          <ComboBoxItem Content="Heading" />
+          <ComboBoxItem Content="Bookmark" />
+          <ComboBoxItem Content="Figure" />
+          <ComboBoxItem Content="Table" />
+        </ComboBox>
+      </StackPanel>
+      <StackPanel Grid.Column="2">
+        <TextBlock Text="Insert reference to:" Margin="0,0,0,4" />
+        <ComboBox x:Name="KindBox">
+          <ComboBoxItem Content="Text" />
+          <ComboBoxItem Content="Page number" />
+        </ComboBox>
+      </StackPanel>
+    </Grid>
+    <CheckBox x:Name="LinkBox" Content="Insert as hyperlink" IsChecked="True" Margin="0,10,0,0" />
+    <TextBlock Text="For which:" Margin="0,10,0,4" />
+    <ListBox x:Name="TargetList" Height="180" />
+    <TextBlock x:Name="HintText" Margin="0,6,0,0" Opacity="0.75" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Content="Insert" Width="90" IsDefault="True" Click="OnInsert" Margin="0,0,8,0" />
+      <Button Content="Cancel" Width="90" IsCancel="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

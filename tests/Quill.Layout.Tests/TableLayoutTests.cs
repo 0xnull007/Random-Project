@@ -323,3 +323,31 @@ public class TableAlignmentLayoutTests
         }
     }
 }
+
+public class PageRefLayoutTests
+{
+    [Fact]
+    public void Pageref_fields_show_the_page_their_bookmark_lands_on()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(240),
+            PageHeight = Twips.FromDips(80),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        var reference = new Paragraph([new Run("See page "), new Field(FieldKind.PageRef, "PAGEREF Target \\h", "1")]);
+        var target = new Paragraph([new Run("Target text", new RunProperties { Bookmark = "Target" })]);
+        var blocks = ImmutableList.Create<Block>(reference, Paragraph.FromText("filler"), Paragraph.FromText("filler"), target);
+        var document = new Document(ImmutableList.Create(new Section(page, blocks)), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+
+        Assert.True(layout.PageCount >= 2);
+        var first = (ParagraphFragment)layout.Pages[0].Body[0];
+        string pageOfTarget = layout.Find(new TextPosition(StoryId.Body(0), BlockPath.Of(3), 0))!.Value.Page.PageNumberText;
+        Assert.NotEqual("1", pageOfTarget);
+        Assert.Equal(pageOfTarget, first.Layout.Input.Runs.Single(r => r.Kind == RunKind.Field).FieldText);
+    }
+}

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Globalization;
+using Quill.Core.Editing;
 using Quill.Core.Model;
 using Quill.Core.Styles;
 using Quill.Core.Text;
@@ -40,21 +41,46 @@ public sealed class Paginator
         _cache.BeginSweep();
         try
         {
-            // Pass 1 with a page-count hint; pass 2 only if a header/footer field depends on the total.
-            var run = new Run(document, resolver, _formatter, _cache, _options, totalPagesHint: 1, sectionPagesHint: null);
+            // Pass 1 with a page-count hint; pass 2 when a header/footer field depends on the total or a PAGEREF needs a page.
+            var run = new Run(document, resolver, _formatter, _cache, _options, totalPagesHint: 1, sectionPagesHint: null, pageRefsHint: null);
             LayoutDocument first = run.Execute();
-            if (!run.UsedTotalDependentField || first.PageCount == 1)
+            IReadOnlyDictionary<string, string>? pageRefs = PageReferences(document, first);
+            if ((!run.UsedTotalDependentField || first.PageCount == 1) && pageRefs is null)
             {
                 return first;
             }
 
-            var second = new Run(document, resolver, _formatter, _cache, _options, first.PageCount, run.SectionPageCounts);
+            var second = new Run(document, resolver, _formatter, _cache, _options, first.PageCount, run.SectionPageCounts, pageRefs);
             return second.Execute();
         }
         finally
         {
             _cache.EndSweep();
         }
+    }
+
+    /// <summary>The page each PAGEREF target sits on in <paramref name="layout"/>; null when the document has no PAGEREF fields.</summary>
+    private static IReadOnlyDictionary<string, string>? PageReferences(Document document, LayoutDocument layout)
+    {
+        Dictionary<string, string>? pages = null;
+        foreach ((StoryId _, BlockPath _, Paragraph paragraph) in DocumentEditor.AllParagraphs(document))
+        {
+            foreach (Inline inline in paragraph.Inlines)
+            {
+                if (inline is not Field { Kind: FieldKind.PageRef } field || BookmarkSupport.Target(field) is not { } target)
+                {
+                    continue;
+                }
+
+                pages ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (!pages.ContainsKey(target) && BookmarkSupport.Find(document, target) is { } range && layout.Find(range.Start) is { } found)
+                {
+                    pages[target] = found.Page.PageNumberText;
+                }
+            }
+        }
+
+        return pages;
     }
 
     private sealed class Run
@@ -66,6 +92,7 @@ public sealed class Paginator
         private readonly LayoutOptions _options;
         private readonly int _totalPagesHint;
         private readonly IReadOnlyList<int>? _sectionPagesHint;
+        private readonly IReadOnlyDictionary<string, string>? _pageRefsHint;
         private readonly List<PageLayout> _pages = [];
         private readonly List<int> _sectionPageCounts = [];
         private readonly FieldValues _bodyFields;
@@ -73,7 +100,7 @@ public sealed class Paginator
         private const double FootnoteSeparatorHeight = 12;
 
 
-        public Run(Document document, StyleResolver resolver, ILineFormatter formatter, LayoutCache cache, LayoutOptions options, int totalPagesHint, IReadOnlyList<int>? sectionPagesHint)
+        public Run(Document document, StyleResolver resolver, ILineFormatter formatter, LayoutCache cache, LayoutOptions options, int totalPagesHint, IReadOnlyList<int>? sectionPagesHint, IReadOnlyDictionary<string, string>? pageRefsHint)
         {
             _document = document;
             _resolver = resolver;
@@ -82,7 +109,8 @@ public sealed class Paginator
             _options = options;
             _totalPagesHint = totalPagesHint;
             _sectionPagesHint = sectionPagesHint;
-            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document), EndnoteNumbers = FootnoteSupport.EndnoteNumbers(document), SequenceNumbers = SequenceFields.Numbers(document) };
+            _pageRefsHint = pageRefsHint;
+            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document), EndnoteNumbers = FootnoteSupport.EndnoteNumbers(document), SequenceNumbers = SequenceFields.Numbers(document), PageRefs = pageRefsHint };
         }
 
         public bool UsedTotalDependentField { get; private set; }
@@ -680,7 +708,7 @@ public sealed class Paginator
             var fields = new FieldValues(
                 FormatPageNumber(pageNumber, props.PageNumberFormat),
                 _totalPagesHint.ToString(CultureInfo.InvariantCulture),
-                sectionPages.ToString(CultureInfo.InvariantCulture));
+                sectionPages.ToString(CultureInfo.InvariantCulture)) with { PageRefs = _pageRefsHint };
 
             double left = (props.MarginLeft + props.Gutter).ToDips();
             double width = Math.Max(1, pageSize.Width - left - props.MarginRight.ToDips());
@@ -915,6 +943,7 @@ public sealed class Paginator
             string signature = (paragraph.Inlines.Any(i => i is Field or FootnoteReference) ? fields.Signature : string.Empty)
                 + (paragraph.Inlines.OfType<FootnoteReference>().Any() ? "|fn:" + string.Join(",", paragraph.Inlines.OfType<FootnoteReference>().Select(n => fields.NoteNumber(n))) : string.Empty)
                 + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Seq }) ? "|seq:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind == FieldKind.Seq).Select(fields.Resolve)) : string.Empty)
+                + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.PageRef }) ? "|ref:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind == FieldKind.PageRef).Select(fields.Resolve)) : string.Empty)
                 + (marker is { } m ? "|" + m.Text : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {

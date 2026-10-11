@@ -79,9 +79,16 @@ public sealed partial class EditingSession
 
     // ----- used by the editing commands -----
 
-    /// <summary>Typing never inherits a neighbour's mark; while tracking it carries ours.</summary>
+    /// <summary>
+    /// Typing never inherits a neighbour's revision mark (while tracking it carries ours) and stays outside a user's
+    /// bookmark, but the hidden paragraph bookmarks behind cross-references grow with their paragraph, like Word's.
+    /// </summary>
     private RunProperties WithTypingMarks(RunProperties properties) =>
-        properties with { Revision = TrackChanges ? Revision.Insertion(Author, Now()) : null };
+        properties with
+        {
+            Revision = TrackChanges ? Revision.Insertion(Author, Now()) : null,
+            Bookmark = properties.Bookmark is { } bookmark && BookmarkSupport.IsHidden(bookmark) ? bookmark : null,
+        };
 
     /// <summary>A pasted fragment while tracking: its deleted text is left out and the rest is marked inserted.</summary>
     private DocumentFragment WithInsertionMarks(DocumentFragment fragment)

@@ -48,6 +48,9 @@ public sealed record RunProperties
     /// <summary>Tracked insertion or deletion this run belongs to; set directly on runs, never by styles.</summary>
     public Revision? Revision { get; init; }
 
+    /// <summary>Name of the bookmark this run is inside (Word's bookmarkStart/End range); set directly on runs, never by styles.</summary>
+    public string? Bookmark { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -82,6 +85,7 @@ public sealed record RunProperties
             Link = overrides.Link ?? Link,
             CommentId = overrides.CommentId ?? CommentId,
             Revision = overrides.Revision ?? Revision,
+            Bookmark = overrides.Bookmark ?? Bookmark,
         };
     }
 }

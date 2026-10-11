@@ -45,12 +45,12 @@ public static class DocumentEditor
     }
 
     /// <summary>Inserts a non-text inline (break or field) at <paramref name="at"/>, taking the typing format there unless the inline already carries formatting.</summary>
-    public static EditResult InsertInline(Document document, TextPosition at, Inline inline)
+    public static EditResult InsertInline(Document document, TextPosition at, Inline inline, bool inheritFormat = true)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(inline);
         Paragraph paragraph = RequireParagraph(document, at);
-        if (inline.Properties.IsEmpty && inline.StyleId is null)
+        if (inheritFormat && inline.Properties.IsEmpty && inline.StyleId is null)
         {
             (string? styleId, RunProperties properties) = paragraph.GetTypingFormatAt(at.Offset);
             inline = inline.WithProperties(properties).WithStyle(styleId);
@@ -327,7 +327,7 @@ public static class DocumentEditor
 
         return TransformParagraphs(document, range, (paragraph, start, end, includesMark) =>
         {
-            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(new RunProperties { Link = inline.Properties.Link, CommentId = inline.Properties.CommentId, Revision = inline.Properties.Revision }).WithStyle(null)));
+            Paragraph updated = paragraph.WithInlines(InlineOps.Transform(paragraph, start, end, inline => inline.WithProperties(new RunProperties { Link = inline.Properties.Link, CommentId = inline.Properties.CommentId, Revision = inline.Properties.Revision, Bookmark = inline.Properties.Bookmark }).WithStyle(null)));
             return includesMark ? updated.WithMarkProperties(RunProperties.Empty) : updated;
         });
     }

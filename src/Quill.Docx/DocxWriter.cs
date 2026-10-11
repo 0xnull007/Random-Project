@@ -352,7 +352,9 @@ public static class DocxWriter
             {
                 case Run run:
                     AppendCommentStart(runContainer, context, run);
+                    AppendBookmarkStart(runContainer, context, run);
                     runContainer.Append(BuildRun(run, deleted: revision is { IsDeletion: true }));
+                    AppendBookmarkEnd(runContainer, context, run, inlineIndex);
                     AppendCommentEnd(runContainer, context, run, inlineIndex);
                     break;
 
@@ -918,7 +920,30 @@ public static class DocxWriter
     }
 
     /// <summary>Range markers around the runs of a comment: start before its first run, end and reference after its last.</summary>
+    private static void AppendBookmarkStart(OpenXmlElement container, PartContext context, Inline inline)
+    {
+        if (inline.Properties.Bookmark is { } name && context.State.OpenBookmarks.Add(name))
+        {
+            container.Append(new W.BookmarkStart { Id = context.State.BookmarkId(name), Name = name });
+        }
+    }
+
+    private static void AppendBookmarkEnd(OpenXmlElement container, PartContext context, Inline inline, int inlineIndex)
+    {
+        if (inline.Properties.Bookmark is not { } name || !context.State.OpenBookmarks.Contains(name) || context.CurrentStory is not { } story)
+        {
+            return;
+        }
+
+        if (context.State.BookmarkLastRun.TryGetValue(name, out (StoryId Story, BlockPath Block, int Inline) last) && last.Story == story && context.CurrentBlock is { } current && last.Block == current && last.Inline == inlineIndex)
+        {
+            context.State.OpenBookmarks.Remove(name);
+            container.Append(new W.BookmarkEnd { Id = context.State.BookmarkId(name) });
+        }
+    }
+
     private static void AppendCommentStart(OpenXmlElement container, PartContext context, Inline inline)
+
     {
         if (inline.Properties.CommentId is { } id && context.State.Comments.ContainsKey(id) && context.State.OpenComments.Add(id))
         {
@@ -1078,6 +1103,11 @@ public static class DocxWriter
                     {
                         CommentLastRun[id] = (story, path, i);
                     }
+
+                    if (paragraph.Inlines[i].Properties.Bookmark is { } bookmark)
+                    {
+                        BookmarkLastRun[bookmark] = (story, path, i);
+                    }
                 }
             }
         }
@@ -1103,6 +1133,24 @@ public static class DocxWriter
         public Dictionary<int, (StoryId Story, BlockPath Block, int Inline)> CommentLastRun { get; } = [];
 
         public HashSet<int> OpenComments { get; } = [];
+
+        public Dictionary<string, (StoryId Story, BlockPath Block, int Inline)> BookmarkLastRun { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public HashSet<string> OpenBookmarks { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        private readonly Dictionary<string, string> _bookmarkIds = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>A stable w:id per bookmark name within this document.</summary>
+        public string BookmarkId(string name)
+        {
+            if (!_bookmarkIds.TryGetValue(name, out string? id))
+            {
+                id = (_bookmarkIds.Count + 100).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                _bookmarkIds[name] = id;
+            }
+
+            return id;
+        }
 
         public HashSet<int> WrittenComments { get; } = [];
 
