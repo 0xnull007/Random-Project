@@ -29,6 +29,7 @@ public partial class ShortcutsWindow : Window
         new("Ctrl+Shift+G", "Word count"),
         new("F1", "This list"),
         new("Ctrl+F1", "Collapse or expand the ribbon"),
+        new("Insert", "Overtype on / off (typing replaces the next character)"),
         new("Ctrl+B / Ctrl+I / Ctrl+U", "Bold / Italic / Underline"),
         new("Ctrl+Shift+Plus", "Superscript"),
         new("Ctrl+Shift+> / Ctrl+Shift+<", "Grow / shrink font"),

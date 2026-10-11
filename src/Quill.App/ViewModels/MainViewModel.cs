@@ -139,6 +139,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsInHeaderFooter { get; set; }
 
+    /// <summary>Overtype mode (Insert key): shown in the status bar.</summary>
+    [ObservableProperty]
+    public partial bool IsOvertype { get; set; }
+
+
     [ObservableProperty]
     public partial bool DifferentFirstPage { get; set; }
 

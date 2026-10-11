@@ -671,6 +671,11 @@
       <StatusBarItem Padding="4,0" Visibility="{Binding TrackChanges, Converter={StaticResource BoolToVis}}">
         <TextBlock Text="Track Changes" ToolTip="Edits are being recorded as tracked changes (Review tab, Ctrl+Shift+E)" />
       </StatusBarItem>
+      <Separator Visibility="{Binding IsOvertype, Converter={StaticResource BoolToVis}}" />
+      <StatusBarItem Padding="4,0" Visibility="{Binding IsOvertype, Converter={StaticResource BoolToVis}}">
+        <TextBlock Text="Overtype" ToolTip="Typing replaces the characters after the caret; press Insert to return to inserting" />
+      </StatusBarItem>
+
 
       <Separator />
       <StatusBarItem Padding="4,0">
@@ -720,7 +725,7 @@
                   VerticalScrollBarVisibility="Visible"
                   PanningMode="Both"
                   Focusable="False">
-      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" CheckSpelling="{Binding CheckSpelling}" />
+      <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" Overtype="{Binding IsOvertype, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" CheckSpelling="{Binding CheckSpelling}" />
     </ScrollViewer>
       </DockPanel>
       <!-- Comments pane: one card per comment; the text is edited in place. -->

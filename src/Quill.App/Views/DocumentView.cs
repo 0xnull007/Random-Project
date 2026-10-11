@@ -327,6 +327,17 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         nameof(ShowFormattingMarks), typeof(bool), typeof(DocumentView),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (d, _) => ((DocumentView)d).RedrawContent()));
 
+    /// <summary>Word's overtype mode (Insert key): typed characters replace the ones after the caret.</summary>
+    public static readonly DependencyProperty OvertypeProperty =
+        DependencyProperty.Register(nameof(Overtype), typeof(bool), typeof(DocumentView), new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+    public bool Overtype
+    {
+        get => (bool)GetValue(OvertypeProperty);
+        set => SetValue(OvertypeProperty, value);
+    }
+
+
     private readonly VisualCollection _children;
     private readonly ContainerVisual _host = new();
     private readonly ContainerVisual _pagesLayer = new();
@@ -2313,7 +2324,19 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         _desiredCaretX = null;
+        if (Overtype && session.Selection.IsCollapsed)
+        {
+            // Replace the character after the caret unless the paragraph ends there (then the text is appended).
+            TextPosition at = session.Selection.Active;
+            Core.Model.Paragraph paragraph = session.Document.GetParagraph(at);
+            if (at.Offset < paragraph.Length && TextNavigation.NextCharacter(session.Document, at) is { } next && next.Block == at.Block)
+            {
+                session.MoveCaret(next, extend: true);
+            }
+        }
+
         session.TypeText(text.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal));
+
         e.Handled = true;
     }
 
@@ -2468,6 +2491,9 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                     session.InsertText("\t");
                 }
 
+                break;
+            case Key.Insert when !ctrl && !shift:
+                Overtype = !Overtype;
                 break;
             case Key.Insert when shift:
                 PasteFromClipboard();

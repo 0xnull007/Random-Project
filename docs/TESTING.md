@@ -34,6 +34,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 2. Typing, navigation, selection
 
+- [ ] Press Insert: "Overtype" appears in the status bar and typing replaces the characters after the caret (at a
+      paragraph end it appends); Insert again returns to inserting; Shift+Insert and Ctrl+Insert still paste and copy **(new)**.
 - [ ] Type text; it wraps at the right margin and flows onto page 2 when the page is full ("Page 2 of 2").
 - [ ] Enter = new paragraph, Shift+Enter = line break, Ctrl+Enter = page break, Tab = tab stop.
 - [ ] Backspace/Delete, Ctrl+Backspace / Ctrl+Delete (whole word), delete across a paragraph boundary.
