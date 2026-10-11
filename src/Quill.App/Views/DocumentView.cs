@@ -1422,7 +1422,25 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         double DefaultTabStop,
         bool CanEdit);
 
+    /// <summary>What the vertical ruler needs: the page's top in view coordinates, its height and the top and bottom margins (DIPs).</summary>
+    public sealed record VerticalRulerInfo(double PageTopInView, double Zoom, double PageHeight, double MarginTop, double MarginBottom);
+
+    public VerticalRulerInfo? GetVerticalRulerInfo()
+    {
+        if (Session is not { } session || _layout.PageCount == 0)
+        {
+            return null;
+        }
+
+        int pageIndex = _layout.Find(session.Selection.Active)?.Page.Index ?? Math.Clamp(PageIndexAt(VisibleDocumentRect().Top + 1), 0, _layout.PageCount - 1);
+        PageLayout page = _layout.Pages[pageIndex];
+        Core.Model.SectionProperties props = session.Document.Sections[page.SectionIndex].Properties;
+        double zoom = Zoom;
+        return new VerticalRulerInfo(_host.Offset.Y + PageRect(pageIndex).Y * zoom, zoom, page.Size.Height, props.MarginTop.ToDips(), props.MarginBottom.ToDips());
+    }
+
     public RulerInfo? GetRulerInfo()
+
     {
         if (Session is not { } session || _layout.PageCount == 0 || session.Document.TryGetParagraph(session.Selection.Active) is not { } paragraph)
         {
@@ -2127,6 +2145,10 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     /// <summary>Raised when Esc cancels the Format Painter.</summary>
     public event EventHandler? FormatPainterCancelled;
 
+    /// <summary>Raised when a mouse gesture (drag, double-click, Shift+click) leaves a selection; the window shows the mini toolbar there.</summary>
+    public event EventHandler<SelectionGestureEventArgs>? SelectionGestureCompleted;
+
+
     private void UpdateCursor() => Cursor = IsReadOnly ? Cursors.Arrow
         : _pendingFormatSample is not null ? Cursors.Pen
         : _hoverLink is not null && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? Cursors.Hand
@@ -2295,7 +2317,13 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
                 FormatPainted?.Invoke(this, EventArgs.Empty);
             }
         }
+
+        if (Session is { Selection.IsCollapsed: false } selected && !IsReadOnly && _pendingFormatSample is null)
+        {
+            SelectionGestureCompleted?.Invoke(this, new SelectionGestureEventArgs(e.GetPosition(this)));
+        }
     }
+
 
 
     protected override void OnPreviewMouseWheel(MouseWheelEventArgs e)

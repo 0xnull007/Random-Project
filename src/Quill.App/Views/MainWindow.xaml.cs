@@ -52,6 +52,17 @@ public partial class MainWindow : Window
     {
         Editor.Session = ViewModel.Session;
         Ruler.Editor = Editor;
+        VerticalRuler.Editor = Editor;
+        Editor.SelectionGestureCompleted += OnSelectionGesture;
+        Editor.PreviewKeyDown += (_, _) => HideMiniToolbar();
+        Editor.PreviewMouseLeftButtonDown += (_, _) => HideMiniToolbar();
+        ViewModel.Session.SelectionChanged += (_, _) =>
+        {
+            if (ViewModel.Session.Selection.IsCollapsed)
+            {
+                HideMiniToolbar();
+            }
+        };
         ViewModel.Session.SelectionChanged += (_, _) => Ruler.Refresh();
         ViewModel.Session.DocumentChanged += (_, _) => Ruler.Refresh();
 
@@ -491,7 +502,35 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnSelectionGesture(object? sender, SelectionGestureEventArgs e)
+    {
+        if (!ViewModel.Session.Selection.IsCollapsed && Editor.IsKeyboardFocusWithin)
+        {
+            MiniToolbar.HorizontalOffset = Math.Max(0, e.ViewPoint.X - 40);
+            MiniToolbar.VerticalOffset = Math.Max(0, e.ViewPoint.Y - 56);
+            MiniToolbar.IsOpen = true;
+            Dispatcher.BeginInvoke(() => PopupThemeFix.AttachAll(this), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
+
+    private void HideMiniToolbar()
+    {
+        if (MiniToolbar.IsOpen && !MiniToolbar.IsMouseOver && !MiniToolbar.IsKeyboardFocusWithin)
+        {
+            MiniToolbar.IsOpen = false;
+        }
+    }
+
+    private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (e.VerticalChange != 0 || e.HorizontalChange != 0)
+        {
+            MiniToolbar.IsOpen = false;
+        }
+    }
+
     private void OnInsertCaption(object sender, RoutedEventArgs e)
+
     {
         EditingSession session = ViewModel.Session;
         var dialog = new CaptionWindow(session.DefaultCaptionLabel, session.NextCaptionNumber) { Owner = this };

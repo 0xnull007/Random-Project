@@ -757,17 +757,56 @@
           </ListBox>
         </DockPanel>
       </Border>
-      <DockPanel Grid.Column="1">
-        <views:RulerView x:Name="Ruler" DockPanel.Dock="Top" Visibility="{Binding ShowRuler, Converter={StaticResource BoolToVis}}" />
-      <ScrollViewer x:Name="Scroller"
+      <Grid Grid.Column="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <views:RulerView x:Name="Ruler" Grid.Row="0" Grid.Column="1" Visibility="{Binding ShowRuler, Converter={StaticResource BoolToVis}}" />
+        <views:VerticalRulerView x:Name="VerticalRuler" Grid.Row="1" Grid.Column="0" Visibility="{Binding ShowRuler, Converter={StaticResource BoolToVis}}" />
+      <ScrollViewer x:Name="Scroller" Grid.Row="1" Grid.Column="1"
                   CanContentScroll="True"
                   HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Visible"
                   PanningMode="Both"
-                  Focusable="False">
+                  Focusable="False"
+                  ScrollChanged="OnScrollChanged">
       <views:DocumentView x:Name="Editor" Zoom="{Binding Zoom, Mode=TwoWay}" ShowFormattingMarks="{Binding ShowFormattingMarks, Mode=TwoWay}" Overtype="{Binding IsOvertype, Mode=TwoWay}" ContextMenu="{StaticResource EditorMenu}" CheckSpelling="{Binding CheckSpelling}" />
     </ScrollViewer>
-      </DockPanel>
+        <!-- Word's mini toolbar: appears beside a fresh mouse selection with the most used formatting. -->
+        <Popup x:Name="MiniToolbar" PlacementTarget="{Binding ElementName=Editor}" Placement="Relative" StaysOpen="True" AllowsTransparency="True" Focusable="False">
+          <Border Background="{DynamicResource Quill.FlyoutBackground}" BorderBrush="{DynamicResource Quill.FlyoutBorder}" BorderThickness="1" CornerRadius="6" Padding="4" Margin="4,2,8,10"
+                  TextElement.Foreground="{DynamicResource Quill.FlyoutForeground}">
+            <Border.Effect>
+              <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3" />
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal">
+              <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="130" IsEditable="True" ItemsSource="{Binding FontFamilies}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}" ToolTip="Font" />
+              <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="56" ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}" ToolTip="Font size" />
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E8;" Command="{Binding GrowFontCommand}" ToolTip="Increase font size" />
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E7;" Command="{Binding ShrinkFontCommand}" ToolTip="Decrease font size" />
+              <Border Style="{StaticResource Quill.CommandDivider}" />
+              <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsBold}" Content="&#xE8DD;" ToolTip="Bold (Ctrl+B)" />
+              <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsItalic}" Content="&#xE8DB;" ToolTip="Italic (Ctrl+I)" />
+              <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsUnderline}" Content="&#xE8DC;" ToolTip="Underline (Ctrl+U)" />
+              <views:ColorPickerButton IsHighlight="True" GlyphText="ab" ToggleToolTip="Text highlight color" CurrentColor="{Binding HighlightSwatch}" ColorSelected="OnHighlightSelected" />
+              <views:ColorPickerButton GlyphText="A" ToggleToolTip="Font color" CurrentColor="{Binding FontColor}" ColorSelected="OnFontColorSelected" />
+              <Border Style="{StaticResource Quill.CommandDivider}" />
+              <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsBulleted}" Content="&#xE8FD;" ToolTip="Bullets" />
+              <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsNumbered}" Content="1." Width="30" Padding="0" ToolTip="Numbering" />
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E3;" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Center (Ctrl+E)" />
+              <ToggleButton Style="{StaticResource Quill.StackToggle}" Height="28" IsChecked="{Binding IsFormatPainterActive}" ToolTip="Format Painter">
+                <TextBlock Text="&#xE790;" FontFamily="{StaticResource Quill.IconFont}" FontSize="13" />
+              </ToggleButton>
+            </StackPanel>
+          </Border>
+        </Popup>
+      </Grid>
+
       <!-- Comments pane: one card per comment; the text is edited in place. -->
       <Border Grid.Column="2" Width="260" BorderThickness="1,0,0,0" BorderBrush="{StaticResource Quill.DividerBrush}"
               Visibility="{Binding ShowComments, Converter={StaticResource BoolToVis}}">

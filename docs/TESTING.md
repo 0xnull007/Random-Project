@@ -28,6 +28,11 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Narrow the window: groups wrap to a second row instead of being cut off; widen it again and they return.
 - [ ] Selecting a picture shows the **Picture Format** tab and switches to it; placing the caret in a table shows the
       **Table Layout** tab (not switched to automatically); leaving either hides the tab again.
+- [ ] Select text with the mouse (drag, double-click or Shift+click): Word's mini toolbar pops up just above the
+      selection with font, size, grow/shrink, B/I/U, highlight, font colour, bullets, numbering, centre and Format
+      Painter, readable in dark mode; it closes when you type, click elsewhere, scroll or collapse the selection **(new)**.
+- [ ] View > Ruler shows a vertical ruler down the left edge as well: top and bottom margins shaded, the text area
+      white, inch or centimetre ticks counted from the top margin; it follows scrolling and zoom **(new)**.
 - [ ] The chevron at the right end of the tab strip (or Ctrl+F1) collapses the ribbon to its tabs, like Word's
       "Show tabs only": clicking a tab opens it, clicking back into the text hides it again; the choice is remembered
       across restarts **(new)**.
