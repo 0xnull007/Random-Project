@@ -50,7 +50,7 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). Done so far: editing with undo,
 character and paragraph formatting (toolbar, Font and Paragraph dialogs, Format Painter, Modify Style), styles,
 bulleted and numbered lists with numbering styles, change case, AutoCorrect, page and section breaks, multi-column
-sections, headers and footers with page-number fields, Page Setup, a ruler with draggable indents and tab stops,
+sections, page colour and page borders, headers and footers with page-number fields, Page Setup, a ruler with draggable indents and tab stops,
 inline pictures, hyperlinks, tables (editable cells, rows and columns, draggable column borders, shading, merged cells, repeating header rows), a table of contents, captions (Figure 1, Table 2), footnotes and endnotes,
 comments, track changes (Review tab), heading numbering, symbols and date/time, .docx
 open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop (tables included, HTML tables from Excel and browsers), find and replace, spell
