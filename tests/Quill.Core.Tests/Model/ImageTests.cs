@@ -84,7 +84,7 @@ public class ImageTests
 
         session.PreviewImageAnchor(Pos(0, 1), ImageAnchor.Default with { OffsetX = new Twips(100) });
         session.PreviewImageAnchor(Pos(0, 1), ImageAnchor.Default with { OffsetX = new Twips(200), OffsetY = new Twips(50) });
-        session.EndImageMove();
+        session.EndImageDrag();
         ImageAnchor moved = ((InlineImage)session.Document.Para(0).Inlines[1]).Anchor!;
         Assert.Equal(new Twips(200), moved.OffsetX);
         Assert.Equal(new Twips(50), moved.OffsetY);
@@ -96,6 +96,40 @@ public class ImageTests
 
         session.Undo();
         Assert.False(((InlineImage)session.Document.Para(0).Inlines[1]).IsFloating);
+    }
+
+    [Fact]
+    public void Dragging_a_picture_handle_is_one_undo_step_and_can_move_a_floating_picture()
+    {
+        var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));
+        session.MoveCaret(Pos(0, 1), extend: false);
+        session.InsertImage(new ImageData(Png, "image/png"), new Twips(1440), new Twips(720));
+
+        session.PreviewImageSize(Pos(0, 1), new Twips(1000), new Twips(500));
+        session.PreviewImageSize(Pos(0, 1), new Twips(720), new Twips(360));
+        session.EndImageDrag();
+        var image = Assert.IsType<InlineImage>(session.Document.Para(0).Inlines[1]);
+        Assert.Equal(new Twips(720), image.Width);
+        Assert.Equal(new Twips(360), image.Height);
+        Assert.Equal(new Selection(Pos(0, 1), Pos(0, 2)), session.Selection);
+
+        session.Undo();
+        Assert.Equal(new Twips(1440), ((InlineImage)session.Document.Para(0).Inlines[1]).Width);
+
+        // A floating picture resized from its left handle keeps its right edge: the offset moves with the width.
+        session.SetImageAnchor(ImageAnchor.Default with { OffsetX = new Twips(500) });
+        session.PreviewImageSize(Pos(0, 1), new Twips(1000), new Twips(500), ImageAnchor.Default with { OffsetX = new Twips(940) });
+        session.EndImageDrag();
+        image = (InlineImage)session.Document.Para(0).Inlines[1];
+        Assert.Equal(new Twips(1000), image.Width);
+        Assert.Equal(new Twips(940), image.Anchor!.OffsetX);
+
+        // Sizes never collapse below a point.
+        session.PreviewImageSize(Pos(0, 1), Twips.Zero, new Twips(-50));
+        session.EndImageDrag();
+        image = (InlineImage)session.Document.Para(0).Inlines[1];
+        Assert.Equal(new Twips(20), image.Width);
+        Assert.Equal(new Twips(20), image.Height);
     }
 
     [Fact]

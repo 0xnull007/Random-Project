@@ -362,6 +362,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private ColumnDrag? _columnDrag;
     private FloatDrag? _floatDrag;
     private bool _hoverFloat;
+    private ResizeDrag? _resizeDrag;
+    private ResizeHandle? _hoverHandle;
     private bool _hoverColumnBorder;
 
     private double? _desiredCaretX;
@@ -1398,29 +1400,18 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         Brush brush = TryFindResource("Quill.SelectionBrush") as Brush ?? new SolidColorBrush(Color.FromArgb(0x55, 0, 0x78, 0xD4));
         Rect pageRect = PageRect(index);
         TextRange range = session.Selection.Range;
-        if (session.SelectedImage() is ({ } selectedStart, { IsFloating: true }) && range.End.Offset - range.Start.Offset == 1)
+        if (SelectedPictureFrame() is ({ } picturePage, { } pictureFrame, _, _) && picturePage == index)
         {
-            // A selected floating picture shows a frame with handles around the picture itself rather than its (zero-width) anchor.
-            foreach (FloatingImage image in _layout.Pages[index].Floats)
+            // A selected picture shows a frame with resize handles around the picture itself (a floating picture's anchor has no width).
+            var frame = new Rect(pageRect.X + pictureFrame.X, pageRect.Y + pictureFrame.Y, pictureFrame.Width, pictureFrame.Height);
+            var pen = new Pen(TryFindResource("Quill.GuideBrush") as Brush ?? Brushes.DodgerBlue, 1.5);
+            dc.DrawRectangle(brush, pen, frame);
+            foreach (Point handle in HandlePoints(frame))
             {
-                if (image.Position == selectedStart)
-                {
-                    var frame = new Rect(pageRect.X + image.Bounds.X, pageRect.Y + image.Bounds.Y, image.Bounds.Width, image.Bounds.Height);
-                    var pen = new Pen(TryFindResource("Quill.GuideBrush") as Brush ?? Brushes.DodgerBlue, 1.5);
-                    dc.DrawRectangle(brush, pen, frame);
-                    foreach (Point handle in new[]
-                    {
-                        frame.TopLeft, new Point(frame.Left + frame.Width / 2, frame.Top), frame.TopRight,
-                        new Point(frame.Left, frame.Top + frame.Height / 2), new Point(frame.Right, frame.Top + frame.Height / 2),
-                        frame.BottomLeft, new Point(frame.Left + frame.Width / 2, frame.Bottom), frame.BottomRight,
-                    })
-                    {
-                        dc.DrawRectangle(Brushes.White, pen, new Rect(handle.X - 3, handle.Y - 3, 6, 6));
-                    }
-
-                    return;
-                }
+                dc.DrawRectangle(Brushes.White, pen, new Rect(handle.X - HandleSize / 2, handle.Y - HandleSize / 2, HandleSize, HandleSize));
             }
+
+            return;
         }
 
         foreach (BlockFragment fragment in _layout.Pages[index].AllFragments())
@@ -1749,6 +1740,168 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     /// <summary>A press on a floating picture: it moves once the pointer travels past the drag threshold.</summary>
     private sealed record FloatDrag(FloatingImage Image, Point StartView, bool Moved = false);
 
+    private enum ResizeHandle
+    {
+        TopLeft,
+        Top,
+        TopRight,
+        Left,
+        Right,
+        BottomLeft,
+        Bottom,
+        BottomRight,
+    }
+
+    /// <summary>A press on one of the selected picture's handles: <paramref name="Frame"/> is the picture's page rectangle when the drag began.</summary>
+    private sealed record ResizeDrag(ResizeHandle Handle, Point StartDocument, Rect Frame, TextPosition Start, Core.Model.InlineImage Image);
+
+    private const double HandleSize = 6;
+
+    /// <summary>The selected picture (inline or floating), its page and its page-relative rectangle, or null.</summary>
+    private (int PageIndex, Rect Frame, TextPosition Start, Core.Model.InlineImage Image)? SelectedPictureFrame()
+    {
+        if (Session is not { } session || session.Selection.IsCollapsed || session.SelectedImage() is not ({ } start, { } image))
+        {
+            return null;
+        }
+
+        if (image.IsFloating)
+        {
+            for (int p = 0; p < _layout.PageCount; p++)
+            {
+                foreach (FloatingImage floating in _layout.Pages[p].Floats)
+                {
+                    if (floating.Position == start)
+                    {
+                        return (p, new Rect(floating.Bounds.X, floating.Bounds.Y, floating.Bounds.Width, floating.Bounds.Height), start, image);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        if (_layout.Find(start) is not ({ } page, { } fragment))
+        {
+            return null;
+        }
+
+        int lineIndex = fragment.Layout.LineIndexOf(start.Offset);
+        if (lineIndex < fragment.FirstLine || lineIndex > fragment.LastLine)
+        {
+            return null;
+        }
+
+        PointD origin = fragment.LineOrigin(lineIndex);
+        IFormattedLine line = fragment.Layout.Lines[lineIndex];
+        foreach (ImagePlacement placement in line.GetImages())
+        {
+            if (ReferenceEquals(placement.Image, image))
+            {
+                return (page.Index, new Rect(origin.X + placement.Bounds.X, origin.Y + placement.Bounds.Y, placement.Bounds.Width, placement.Bounds.Height), start, image);
+            }
+        }
+
+        foreach (RectD box in line.GetTextBounds(start.Offset, 1))
+        {
+            return (page.Index, new Rect(origin.X + box.X, origin.Y + box.Y, box.Width, box.Height), start, image);
+        }
+
+        return null;
+    }
+
+    /// <summary>The eight handle positions around a frame, in the order of <see cref="ResizeHandle"/>.</summary>
+    private static Point[] HandlePoints(Rect frame) =>
+    [
+        frame.TopLeft, new Point(frame.Left + frame.Width / 2, frame.Top), frame.TopRight,
+        new Point(frame.Left, frame.Top + frame.Height / 2), new Point(frame.Right, frame.Top + frame.Height / 2),
+        frame.BottomLeft, new Point(frame.Left + frame.Width / 2, frame.Bottom), frame.BottomRight,
+    ];
+
+    /// <summary>The resize handle of the selected picture under a view point, if any.</summary>
+    private (ResizeHandle Handle, Rect Frame, TextPosition Start, Core.Model.InlineImage Image, Point Document)? HandleAt(Point viewPoint)
+    {
+        if (IsReadOnly || SelectedPictureFrame() is not ({ } pageIndex, { } frame, { } start, { } image))
+        {
+            return null;
+        }
+
+        Point doc = ToDocument(viewPoint);
+        Rect pageRect = PageRect(pageIndex);
+        var pagePoint = new Point(doc.X - pageRect.X, doc.Y - pageRect.Y);
+        double radius = (HandleSize / 2 + 2) / Math.Max(0.1, Zoom);
+        Point[] handles = HandlePoints(frame);
+        for (int i = 0; i < handles.Length; i++)
+        {
+            if (Math.Abs(pagePoint.X - handles[i].X) <= radius && Math.Abs(pagePoint.Y - handles[i].Y) <= radius)
+            {
+                return ((ResizeHandle)i, frame, start, image, doc);
+            }
+        }
+
+        return null;
+    }
+
+    private static Cursor CursorFor(ResizeHandle handle) => handle switch
+    {
+        ResizeHandle.TopLeft or ResizeHandle.BottomRight => Cursors.SizeNWSE,
+        ResizeHandle.TopRight or ResizeHandle.BottomLeft => Cursors.SizeNESW,
+        ResizeHandle.Left or ResizeHandle.Right => Cursors.SizeWE,
+        _ => Cursors.SizeNS,
+    };
+
+    /// <summary>Applies a handle drag: corners scale proportionally like Word, sides stretch one dimension; a floating picture keeps its far edge still.</summary>
+    private void PreviewResize(ResizeDrag drag, Point document)
+    {
+        if (Session is not { } session)
+        {
+            return;
+        }
+
+        Vector delta = document - drag.StartDocument;
+        bool left = drag.Handle is ResizeHandle.TopLeft or ResizeHandle.Left or ResizeHandle.BottomLeft;
+        bool right = drag.Handle is ResizeHandle.TopRight or ResizeHandle.Right or ResizeHandle.BottomRight;
+        bool top = drag.Handle is ResizeHandle.TopLeft or ResizeHandle.Top or ResizeHandle.TopRight;
+        bool bottom = drag.Handle is ResizeHandle.BottomLeft or ResizeHandle.Bottom or ResizeHandle.BottomRight;
+        double width = drag.Frame.Width;
+        double height = drag.Frame.Height;
+        double newWidth = width + (right ? delta.X : left ? -delta.X : 0);
+        double newHeight = height + (bottom ? delta.Y : top ? -delta.Y : 0);
+        if ((left || right) && (top || bottom) && width > 0 && height > 0)
+        {
+            // Corner handles keep the aspect ratio, following whichever axis the pointer moved further along.
+            double scale = Math.Abs(newWidth / width - 1) >= Math.Abs(newHeight / height - 1) ? newWidth / width : newHeight / height;
+            newWidth = width * scale;
+            newHeight = height * scale;
+        }
+
+        newWidth = Math.Max(1, newWidth);
+        newHeight = Math.Max(1, newHeight);
+        Core.Model.ImageAnchor? anchor = null;
+        if (drag.Image.Anchor is { HorizontalAlignment: null } floating)
+        {
+            anchor = floating with
+            {
+                OffsetX = left ? Twips.FromDips(floating.OffsetX.ToDips() - (newWidth - width)) : floating.OffsetX,
+                OffsetY = top ? Twips.FromDips(floating.OffsetY.ToDips() - (newHeight - height)) : floating.OffsetY,
+            };
+        }
+        else if (drag.Image.Anchor is { } aligned)
+        {
+            anchor = top ? aligned with { OffsetY = Twips.FromDips(aligned.OffsetY.ToDips() - (newHeight - height)) } : aligned;
+        }
+
+        session.PreviewImageSize(drag.Start, Twips.FromDips(newWidth), Twips.FromDips(newHeight), anchor);
+    }
+
+    private void FinishResizeDrag()
+    {
+        _resizeDrag = null;
+        ReleaseMouseCapture();
+        Session?.EndImageDrag();
+        UpdateCursor();
+    }
+
     /// <summary>A vertical cell border within a few pixels of the pointer: the table and the grid line (1..columns) it belongs to.</summary>
     private (TableFragment Fragment, int GridLine)? TableBorderAt(Point viewPoint)
     {
@@ -1858,7 +2011,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     {
         _floatDrag = null;
         ReleaseMouseCapture();
-        Session?.EndImageMove();
+        Session?.EndImageDrag();
         UpdateCursor();
     }
 
@@ -2087,6 +2240,15 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
+        if (e.ClickCount == 1 && Keyboard.Modifiers == ModifierKeys.None && HandleAt(viewPoint) is { } grabbed)
+        {
+            // Dragging a handle of the selected picture resizes it (one undo step for the whole drag).
+            _resizeDrag = new ResizeDrag(grabbed.Handle, grabbed.Document, grabbed.Frame, grabbed.Start, grabbed.Image);
+            CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
         if (e.ClickCount == 1 && Keyboard.Modifiers == ModifierKeys.None && FloatAt(viewPoint) is { } floating)
         {
             // A press on a floating picture selects it; moving the pointer drags it (one undo step for the whole drag).
@@ -2213,6 +2375,18 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
+        if (_resizeDrag is { } resizeDrag)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                FinishResizeDrag();
+                return;
+            }
+
+            PreviewResize(resizeDrag, ToDocument(e.GetPosition(this)));
+            return;
+        }
+
         if (_floatDrag is { } floatDrag)
         {
             if (e.LeftButton != MouseButtonState.Pressed)
@@ -2265,7 +2439,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             }
 
             _hoverColumnBorder = TableBorderAt(e.GetPosition(this)) is not null;
-            _hoverFloat = !_hoverColumnBorder && FloatAt(e.GetPosition(this)) is not null;
+            _hoverHandle = HandleAt(e.GetPosition(this))?.Handle;
+            _hoverFloat = !_hoverColumnBorder && _hoverHandle is null && FloatAt(e.GetPosition(this)) is not null;
             UpdateCursor();
         }
 
@@ -2307,6 +2482,8 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     private void UpdateCursor() => Cursor = IsReadOnly ? Cursors.Arrow
         : _pendingFormatSample is not null ? Cursors.Pen
         : _hoverLink is not null && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ? Cursors.Hand
+        : _resizeDrag is { } resizing ? CursorFor(resizing.Handle)
+        : _hoverHandle is { } handle ? CursorFor(handle)
         : _hoverColumnBorder ? Cursors.SizeWE
         : _hoverFloat || _floatDrag is not null ? Cursors.SizeAll
         : Cursors.IBeam;
@@ -2448,6 +2625,13 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         if (_columnDrag is not null)
         {
             FinishColumnDrag();
+            e.Handled = true;
+            return;
+        }
+
+        if (_resizeDrag is not null)
+        {
+            FinishResizeDrag();
             e.Handled = true;
             return;
         }

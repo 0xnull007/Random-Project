@@ -217,8 +217,11 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       it as one character; Backspace/Delete remove it; Ctrl+Z brings it back.
 - [ ] Clicking a picture switches the ribbon to a **Picture Format** tab (Size, Original Size, Fit Width, 50%, 200%,
       alignment, Replace, Delete); clicking text switches back to the tab you were on.
-- [ ] Click on the picture: it becomes selected (highlighted). Insert > Picture Size...: width/height in inches
+- [ ] Click on the picture: it becomes selected (frame with eight handles). Insert > Picture Size...: width/height in inches
       or cm, "Lock aspect ratio" keeps proportions while typing, "Original Size" resets. OK resizes, Ctrl+Z undoes.
+- [ ] (new) Drag a corner handle: the picture resizes keeping its proportions and the text reflows live; a side handle
+      stretches one dimension; the pointer shows the matching resize arrows. Releasing ends one Ctrl+Z step. The same
+      works for a floating picture, whose far edge stays put when you drag its left or top handle.
 - [ ] Paste a screenshot (Win+Shift+S, then Ctrl+V in Quill): it is inserted as a PNG.
 - [ ] Drag a picture file from Explorer onto the window: it is inserted at the caret (a .docx still opens).
 - [ ] Copy a picture with text (Ctrl+C), paste elsewhere in the document and into a *new* document (Ctrl+N then

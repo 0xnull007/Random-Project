@@ -262,7 +262,7 @@ public sealed partial class EditingSession
         }
     }
 
-    /// <summary>Moves the floating picture at <paramref name="at"/> during a drag without recording undo; <see cref="EndImageMove"/> commits the whole drag.</summary>
+    /// <summary>Moves the floating picture at <paramref name="at"/> during a drag without recording undo; <see cref="EndImageDrag"/> commits the whole drag.</summary>
     public void PreviewImageAnchor(TextPosition at, ImageAnchor anchor)
     {
         ArgumentNullException.ThrowIfNull(anchor);
@@ -276,8 +276,29 @@ public sealed partial class EditingSession
         ApplyState(result.Document, result.Selection, result.Change);
     }
 
-    /// <summary>Ends a picture drag: the whole move becomes one undo step.</summary>
-    public void EndImageMove() => EndColumnResize();
+    /// <summary>Resizes the picture at <paramref name="at"/> during a handle drag without recording undo (optionally moving a floating picture so the opposite edge stays put); <see cref="EndImageDrag"/> commits the whole drag.</summary>
+    public void PreviewImageSize(TextPosition at, Twips width, Twips height, ImageAnchor? anchor = null)
+    {
+        if (ImageAt(Document.GetParagraph(at), at) is not (_, { } image))
+        {
+            return;
+        }
+
+        width = Twips.Max(width, new Twips(Twips.PerPoint));
+        height = Twips.Max(height, new Twips(Twips.PerPoint));
+        InlineImage replacement = image.WithSize(width, height);
+        if (anchor is not null && image.IsFloating)
+        {
+            replacement = replacement.WithAnchor(anchor);
+        }
+
+        _resizeBase ??= Document;
+        EditResult result = ReplaceImage(Document, at, replacement);
+        ApplyState(result.Document, result.Selection, result.Change);
+    }
+
+    /// <summary>Ends a picture move or resize drag: the whole drag becomes one undo step.</summary>
+    public void EndImageDrag() => EndColumnResize();
 
     private static EditResult ReplaceImage(Document document, TextPosition at, InlineImage replacement)
     {
