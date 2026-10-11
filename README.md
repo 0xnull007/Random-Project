@@ -31,7 +31,7 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 | `src/Quill.Layout` | no | Pagination engine over `ILineFormatter`/`IFormattedLine` abstractions; keep rules, widow/orphan, sections, headers/footers, fields |
 | `src/Quill.Layout.Wpf` | yes | `TextFormatter` adapter (line breaking, hit testing), `DrawingContext` render target, page renderer |
 | `src/Quill.Docx` | no | `.docx` import/export with the Open XML SDK; unknown blocks are preserved opaquely |
-| `src/Quill.App` | yes | The desktop app: document view (virtualized pages, zoom, caret, selection, keyboard/mouse editing), command bar, status bar |
+| `src/Quill.App` | yes | The desktop app: document view (virtualized pages, zoom, caret, selection, keyboard/mouse editing), ribbon, status bar |
 | `tests/*` | | xunit.v3 suites; `Quill.Layout.Tests` drives the paginator with a fake monospace formatter |
 
 ## Key design decisions
@@ -41,7 +41,7 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 - **Twips everywhere in the model** (1/1440 in, the `.docx` unit); DIPs only at the layout boundary.
 - **Own layout engine.** Paragraph lines come from WPF's `TextFormatter`; page filling, keep-with-next, widow/orphan
   control, page breaks, section starts and page-number fields are ours and are tested without WPF.
-- **Fluent theme via `ThemeMode="System"`**, a custom command bar built from stock controls (no ribbon library), all
+- **Fluent theme via `ThemeMode="System"`**, a Word-style ribbon (tabs, named groups, Segoe Fluent Icons) built from stock controls (no ribbon library), all
   theme keys in one `Theme.xaml`.
 
 

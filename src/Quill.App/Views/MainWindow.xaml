@@ -126,237 +126,403 @@
   </Window.CommandBindings>
 
   <DockPanel>
-    <!-- One compact command bar (Word's "simplified ribbon"): tabs on top, a single row of controls below. -->
-    <TabControl x:Name="Tabs" DockPanel.Dock="Top" SelectedIndex="1" Margin="0" Padding="6,3" BorderThickness="0,0,0,1" SelectionChanged="OnTabChanged">
+    <!--
+      The command bar follows Word's classic ribbon: tabs on top (File, Home, Insert, Layout, References, Review, View,
+      plus the contextual Picture Format and Table Layout tabs); each tab shows groups named underneath, with large
+      icon-and-label buttons for the main commands and rows of small ones for the rest.
+    -->
+    <TabControl x:Name="Tabs" DockPanel.Dock="Top" SelectedIndex="1" Margin="0" Padding="4,2" BorderThickness="0,0,0,1" SelectionChanged="OnTabChanged">
       <TabItem Header="File">
-        <StackPanel Orientation="Horizontal">
-          <Button Style="{StaticResource Quill.CommandButton}" Content="New" Command="{Binding NewDocumentCommand}" ToolTip="New document (Ctrl+N)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="New Window" Click="OnNewWindow" ToolTip="Open another Quill window (for a second document)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Open..." Command="{Binding OpenCommand}" ToolTip="Open a .docx (Ctrl+O)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Save" Command="{Binding SaveCommand}" ToolTip="Save (Ctrl+S)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Save As..." Command="{Binding SaveAsCommand}" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <TextBlock Text="Recent:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="220" ItemsSource="{Binding RecentFiles}" SelectedItem="{Binding SelectedRecent}" DisplayMemberPath="Name" ToolTip="Recently opened files" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Print..." Command="{Binding PrintCommand}" ToolTip="Print (Ctrl+P)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Print Preview" Click="OnPrintPreview" ToolTip="See the pages exactly as they will print" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Export PDF..." Command="{Binding ExportPdfCommand}" ToolTip="Save the document as a PDF file" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Properties..." Click="OnProperties" ToolTip="Title, author, subject and comments stored in the file" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Options..." Click="OnOptions" ToolTip="Autosave, AutoCorrect and measurement units" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Shortcuts" Click="OnShortcuts" ToolTip="Keyboard shortcuts (F1)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="About" Click="OnAbout" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Exit" Click="OnExit" />
-        </StackPanel>
+        <WrapPanel Orientation="Horizontal">
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Document">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="New" Command="{Binding NewDocumentCommand}" ToolTip="New document (Ctrl+N)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8E5;" Content="Open" Command="{Binding OpenCommand}" ToolTip="Open a .docx (Ctrl+O)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE74E;" Content="Save" Command="{Binding SaveCommand}" ToolTip="Save (Ctrl+S)" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Save As..." Command="{Binding SaveAsCommand}" ToolTip="Save under a new name (F12)" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="New Window" Click="OnNewWindow" ToolTip="Open another Quill window (for a second document)" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Properties..." Click="OnProperties" ToolTip="Title, author, subject and comments stored in the file" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Recent">
+            <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="220" ItemsSource="{Binding RecentFiles}" SelectedItem="{Binding SelectedRecent}" DisplayMemberPath="Name" ToolTip="Recently opened files" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Print and export">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE749;" Content="Print" Command="{Binding PrintCommand}" ToolTip="Print (Ctrl+P)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56D;" Content="Print Preview" Click="OnPrintPreview" ToolTip="See the pages exactly as they will print" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xEE71;" Content="Export PDF" Command="{Binding ExportPdfCommand}" ToolTip="Save the document as a PDF file" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Quill">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE713;" Content="Options" Click="OnOptions" ToolTip="Autosave, AutoCorrect, author name and measurement units" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Shortcuts" Click="OnShortcuts" ToolTip="Keyboard shortcuts (F1)" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="About" Click="OnAbout" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Exit" Click="OnExit" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+        </WrapPanel>
       </TabItem>
 
       <TabItem Header="Home">
         <WrapPanel Orientation="Horizontal">
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Cut" Click="OnCut" ToolTip="Cut (Ctrl+X)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Copy" Click="OnCopy" ToolTip="Copy (Ctrl+C)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Paste" Click="OnPaste" ToolTip="Paste (Ctrl+V)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Clear" Command="{Binding ClearFormattingCommand}" ToolTip="Clear character formatting (Ctrl+Space)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" x:Name="PainterButton" Content="Format Painter" IsChecked="{Binding IsFormatPainterActive}" MouseDoubleClick="OnPainterDoubleClick" ToolTip="Copy the formatting here to the text you click or drag over next; double-click to keep it on (Ctrl+Shift+C / Ctrl+Shift+V)" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150" IsEditable="True"
-                    ItemsSource="{Binding FontFamilies}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
-                    ToolTip="Font" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="64"
-                    ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}"
-                    ToolTip="Font size" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2191;" Command="{Binding GrowFontCommand}" ToolTip="Grow font (Ctrl+Shift+&gt;)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2193;" Command="{Binding ShrinkFontCommand}" ToolTip="Shrink font (Ctrl+Shift+&lt;)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Aa" Click="OnCaseMenu" ToolTip="Change case (Shift+F3 cycles lowercase, UPPERCASE, Capitalize Each Word)">
-            <Button.ContextMenu>
-              <ContextMenu Closed="OnMenuClosed">
-                <MenuItem Header="Sentence case." Command="{Binding ChangeCaseCommand}" CommandParameter="Sentence" />
-                <MenuItem Header="lowercase" Command="{Binding ChangeCaseCommand}" CommandParameter="Lower" />
-                <MenuItem Header="UPPERCASE" Command="{Binding ChangeCaseCommand}" CommandParameter="Upper" />
-                <MenuItem Header="Capitalize Each Word" Command="{Binding ChangeCaseCommand}" CommandParameter="TitleCase" />
-                <MenuItem Header="tOGGLE cASE" Command="{Binding ChangeCaseCommand}" CommandParameter="Toggle" />
-              </ContextMenu>
-            </Button.ContextMenu>
-          </Button>
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsBold}" FontWeight="Bold" Content="B" ToolTip="Bold (Ctrl+B)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsItalic}" FontStyle="Italic" Content="I" ToolTip="Italic (Ctrl+I)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsUnderline}" ToolTip="Underline (Ctrl+U)">
-            <TextBlock Text="U" TextDecorations="Underline" />
-          </ToggleButton>
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsStrikethrough}" ToolTip="Strikethrough">
-            <TextBlock Text="S" TextDecorations="Strikethrough" />
-          </ToggleButton>
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsSuperscript}" Content="x&#xB2;" ToolTip="Superscript (Ctrl+Shift+Plus)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsSubscript}" Content="x&#x2082;" ToolTip="Subscript" />
-          <views:ColorPickerButton x:Name="FontColorPicker" GlyphText="A" ToggleToolTip="Font color" CurrentColor="{Binding FontColor}" ColorSelected="OnFontColorSelected" />
-          <views:ColorPickerButton x:Name="HighlightPicker" IsHighlight="True" GlyphText="ab" ToggleToolTip="Text highlight color" CurrentColor="{Binding HighlightSwatch}" ColorSelected="OnHighlightSelected" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignLeft}" Content="&#x2630;" ToolTip="Align left (Ctrl+L)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignCenter}" Content="&#x2261;" ToolTip="Center (Ctrl+E)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignRight}" Content="&#x2630;" ToolTip="Align right (Ctrl+R)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignJustify}" Content="&#x2261;" ToolTip="Justify (Ctrl+J)" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsBulleted}" Content="&#x2022; List" ToolTip="Bulleted list" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsNumbered}" Content="1. List" ToolTip="Numbered list" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E4;" Command="{Binding DecreaseIndentCommand}" ToolTip="Decrease indent (Shift+Tab at the start of a list item)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E5;" Command="{Binding IncreaseIndentCommand}" ToolTip="Increase indent (Tab at the start of a list item)" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <TextBlock Text="&#x2195;" VerticalAlignment="Center" Margin="2,0" ToolTip="Line spacing" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="62" ItemsSource="{Binding LineSpacingChoices}" SelectedItem="{Binding LineSpacingValue}" ToolTip="Line spacing (Ctrl+1, Ctrl+2, Ctrl+5)" />
-          <TextBlock Text="Before" VerticalAlignment="Center" Margin="6,0,2,0" FontSize="11" Opacity="0.8" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="54" ItemsSource="{Binding ParagraphSpacingChoices}" SelectedItem="{Binding SpaceBeforePoints}" ToolTip="Space before paragraph (pt)" />
-          <TextBlock Text="After" VerticalAlignment="Center" Margin="6,0,2,0" FontSize="11" Opacity="0.8" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="54" ItemsSource="{Binding ParagraphSpacingChoices}" SelectedItem="{Binding SpaceAfterPoints}" ToolTip="Space after paragraph (pt)" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150"
-                    ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
-                    ToolTip="Paragraph style (Ctrl+Alt+1/2/3 headings, Ctrl+Shift+N normal)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Number Headings" Command="{Binding ToggleHeadingNumbersCommand}" ToolTip="Number Heading 1-3 as 1, 1.1, 1.1.1 (click again to remove)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Modify Style..." Click="OnModifyStyle" ToolTip="Change the formatting of the current paragraph style for the whole document" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Font..." Click="OnFontDialog" ToolTip="All character formatting in one dialog (Ctrl+D)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Paragraph..." Click="OnParagraphDialog" ToolTip="Indents, spacing, line spacing and page-break options" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21B6;" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21B7;" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Find" Command="ApplicationCommands.Find" ToolTip="Find (Ctrl+F)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Replace" Command="ApplicationCommands.Replace" ToolTip="Find and replace (Ctrl+H)" />
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Undo">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7A7;" Content="Undo" Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}" ToolTip="Undo (Ctrl+Z)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7A6;" Content="Redo" Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}" ToolTip="Redo (Ctrl+Y)" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Clipboard">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE77F;" Content="Paste" Click="OnPaste" ToolTip="Paste (Ctrl+V)" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Click="OnCut" ToolTip="Cut (Ctrl+X)">
+                  <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C6;" FontFamily="{StaticResource Quill.IconFont}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" /><TextBlock Text="Cut" /></StackPanel>
+                </Button>
+                <Button Style="{StaticResource Quill.StackButton}" Click="OnCopy" ToolTip="Copy (Ctrl+C)">
+                  <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8C8;" FontFamily="{StaticResource Quill.IconFont}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" /><TextBlock Text="Copy" /></StackPanel>
+                </Button>
+                <ToggleButton Style="{StaticResource Quill.StackToggle}" x:Name="PainterButton" IsChecked="{Binding IsFormatPainterActive}" MouseDoubleClick="OnPainterDoubleClick" ToolTip="Format Painter: copy the formatting here to the text you click or drag over next; double-click to keep it on (Ctrl+Shift+C / Ctrl+Shift+V)">
+                  <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE790;" FontFamily="{StaticResource Quill.IconFont}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center" /><TextBlock Text="Format Painter" /></StackPanel>
+                </ToggleButton>
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Font">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="150" IsEditable="True"
+                          ItemsSource="{Binding FontFamilies}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}"
+                          ToolTip="Font" />
+                <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="60"
+                          ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}"
+                          ToolTip="Font size" />
+                <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E8;" Command="{Binding GrowFontCommand}" ToolTip="Increase font size (Ctrl+Shift+&gt;)" />
+                <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E7;" Command="{Binding ShrinkFontCommand}" ToolTip="Decrease font size (Ctrl+Shift+&lt;)" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="Aa" Width="30" Padding="0" Click="OnCaseMenu" ToolTip="Change case (Shift+F3 cycles lowercase, UPPERCASE, Capitalize Each Word)">
+                  <Button.ContextMenu>
+                    <ContextMenu Closed="OnMenuClosed">
+                      <MenuItem Header="Sentence case." Command="{Binding ChangeCaseCommand}" CommandParameter="Sentence" />
+                      <MenuItem Header="lowercase" Command="{Binding ChangeCaseCommand}" CommandParameter="Lower" />
+                      <MenuItem Header="UPPERCASE" Command="{Binding ChangeCaseCommand}" CommandParameter="Upper" />
+                      <MenuItem Header="Capitalize Each Word" Command="{Binding ChangeCaseCommand}" CommandParameter="TitleCase" />
+                      <MenuItem Header="tOGGLE cASE" Command="{Binding ChangeCaseCommand}" CommandParameter="Toggle" />
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                </Button>
+                <Button Style="{StaticResource Quill.IconButton}" Content="&#xE75C;" Command="{Binding ClearFormattingCommand}" ToolTip="Clear all formatting (Ctrl+Space)" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsBold}" Content="&#xE8DD;" ToolTip="Bold (Ctrl+B)" />
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsItalic}" Content="&#xE8DB;" ToolTip="Italic (Ctrl+I)" />
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsUnderline}" Content="&#xE8DC;" ToolTip="Underline (Ctrl+U)" />
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsStrikethrough}" Content="&#xEDE0;" ToolTip="Strikethrough" />
+                <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsSubscript}" Content="x&#x2082;" Width="30" Padding="0" ToolTip="Subscript" />
+                <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsSuperscript}" Content="x&#xB2;" Width="30" Padding="0" ToolTip="Superscript (Ctrl+Shift+Plus)" />
+                <Border Style="{StaticResource Quill.CommandDivider}" />
+                <views:ColorPickerButton x:Name="HighlightPicker" IsHighlight="True" GlyphText="ab" ToggleToolTip="Text highlight color" CurrentColor="{Binding HighlightSwatch}" ColorSelected="OnHighlightSelected" />
+                <views:ColorPickerButton x:Name="FontColorPicker" GlyphText="A" ToggleToolTip="Font color" CurrentColor="{Binding FontColor}" ColorSelected="OnFontColorSelected" />
+                <Border Style="{StaticResource Quill.CommandDivider}" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="Font..." Click="OnFontDialog" ToolTip="All character formatting in one dialog (Ctrl+D)" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Paragraph">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsBulleted}" Content="&#xE8FD;" ToolTip="Bullets" />
+                <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsNumbered}" Content="1." Width="30" Padding="0" ToolTip="Numbering" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E4;" Width="30" Padding="0" Command="{Binding DecreaseIndentCommand}" ToolTip="Decrease indent (Shift+Tab at the start of a list item)" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E5;" Width="30" Padding="0" Command="{Binding IncreaseIndentCommand}" ToolTip="Increase indent (Tab at the start of a list item)" />
+                <Border Style="{StaticResource Quill.CommandDivider}" />
+                <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" Width="30" Padding="0" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
+                <Border Style="{StaticResource Quill.CommandDivider}" />
+                <TextBlock Text="Before" VerticalAlignment="Center" Margin="2,0,2,0" FontSize="11" Opacity="0.8" />
+                <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="54" ItemsSource="{Binding ParagraphSpacingChoices}" SelectedItem="{Binding SpaceBeforePoints}" ToolTip="Space before paragraph (pt)" />
+                <TextBlock Text="After" VerticalAlignment="Center" Margin="6,0,2,0" FontSize="11" Opacity="0.8" />
+                <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="54" ItemsSource="{Binding ParagraphSpacingChoices}" SelectedItem="{Binding SpaceAfterPoints}" ToolTip="Space after paragraph (pt)" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsAlignLeft}" Content="&#xE8E4;" ToolTip="Align left (Ctrl+L)" />
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsAlignCenter}" Content="&#xE8E3;" ToolTip="Center (Ctrl+E)" />
+                <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsAlignRight}" Content="&#xE8E2;" ToolTip="Align right (Ctrl+R)" />
+                <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignJustify}" Content="&#x2261;" Width="30" Padding="0" ToolTip="Justify (Ctrl+J)" />
+                <Border Style="{StaticResource Quill.CommandDivider}" />
+                <TextBlock Text="&#x2195;" VerticalAlignment="Center" Margin="2,0" ToolTip="Line spacing" />
+                <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="62" ItemsSource="{Binding LineSpacingChoices}" SelectedItem="{Binding LineSpacingValue}" ToolTip="Line spacing (Ctrl+1, Ctrl+2, Ctrl+5)" />
+                <Border Style="{StaticResource Quill.CommandDivider}" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="Paragraph..." Click="OnParagraphDialog" ToolTip="Indents, spacing, line spacing and page-break options" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Styles">
+            <StackPanel>
+              <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="170" Margin="1,0,1,4"
+                        ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
+                        ToolTip="Paragraph style (Ctrl+Alt+1/2/3 headings, Ctrl+Shift+N normal)" />
+              <Button Style="{StaticResource Quill.CommandButton}" Content="Modify Style..." HorizontalAlignment="Stretch" Click="OnModifyStyle" ToolTip="Change the formatting of the current paragraph style for the whole document" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Editing">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE721;" Content="Find" Command="ApplicationCommands.Find" ToolTip="Find (Ctrl+F)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8AC;" Content="Replace" Command="ApplicationCommands.Replace" ToolTip="Find and replace (Ctrl+H)" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Select All" Click="OnSelectAll" ToolTip="Select all (Ctrl+A)" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Go To Page..." Click="OnGoToPage" ToolTip="Jump to a page (Ctrl+G)" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
         </WrapPanel>
       </TabItem>
 
       <TabItem Header="Insert">
-        <StackPanel Orientation="Horizontal">
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Break" Command="{Binding InsertPageBreakCommand}" ToolTip="Insert a page break (Ctrl+Enter)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Column Break" Command="{Binding InsertColumnBreakCommand}" ToolTip="Continue in the next column (Ctrl+Shift+Enter)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Section Break" Command="{Binding InsertSectionBreakCommand}" ToolTip="Start a new section on the next page" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Header" Click="OnEditHeader" ToolTip="Edit the header of the current page (or double-click the top margin)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Footer" Click="OnEditFooter" ToolTip="Edit the footer of the current page (or double-click the bottom margin)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Endnote" Command="{Binding InsertEndnoteCommand}" ToolTip="Insert an endnote (Ctrl+Alt+D); the notes collect at the end of the document" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Footnote" Command="{Binding InsertFootnoteCommand}" ToolTip="Insert a footnote at the caret (Ctrl+Alt+F); Esc returns from the note to the text" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Table..." Click="OnInsertTable" ToolTip="Insert a table with the given number of rows and columns" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Table of Contents" Click="OnInsertToc" ToolTip="Insert (or refresh) a table of contents built from the Heading 1-3 paragraphs" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Link..." Click="OnInsertLink" ToolTip="Insert, edit or remove a hyperlink (Ctrl+K); Ctrl+Click a link to open it" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Symbol..." Click="OnInsertSymbol" ToolTip="Insert a special character" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Date &amp; Time..." Click="OnInsertDateTime" ToolTip="Insert the current date or time" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Picture..." Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Picture Size..." Click="OnPictureSize" ToolTip="Change the size of the selected picture" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Close Header/Footer" Click="OnCloseHeaderFooter" ToolTip="Return to the document body (Esc)" />
-        </StackPanel>
+        <WrapPanel Orientation="Horizontal">
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Pages">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Page Break" Command="{Binding InsertPageBreakCommand}" ToolTip="Insert a page break (Ctrl+Enter)" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Tables">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Table" Click="OnInsertTable" ToolTip="Insert a table with the given number of rows and columns" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Illustrations">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8B9;" Content="Pictures" Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Links">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE71B;" Content="Link" Click="OnInsertLink" ToolTip="Insert, edit or remove a hyperlink (Ctrl+K); Ctrl+Click a link to open it" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Comments">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE90A;" Content="Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Header &amp; Footer">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56E;" Content="Header" Click="OnEditHeader" ToolTip="Edit the header of the current page (or double-click the top margin)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Footer" Click="OnEditFooter" ToolTip="Edit the footer of the current page (or double-click the bottom margin)" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert a page number field; from the body it goes into the footer" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Close Header/Footer" Click="OnCloseHeaderFooter" ToolTip="Return to the document body (Esc)" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Text">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE787;" Content="Date &amp; Time" Click="OnInsertDateTime" ToolTip="Insert the current date or time" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Symbols">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF6BA;" Content="Symbol" Click="OnInsertSymbol" ToolTip="Insert a special character" />
+          </HeaderedContentControl>
+        </WrapPanel>
       </TabItem>
 
       <TabItem Header="Layout">
-        <StackPanel Orientation="Horizontal">
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Page Setup..." Click="OnPageSetup" ToolTip="Paper size, orientation, margins, headers and footers" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Orientation" Command="{Binding ToggleOrientationCommand}" ToolTip="Switch between portrait and landscape" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <TextBlock Text="Margins:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Normal" Command="{Binding SetMarginsCommand}" CommandParameter="Normal" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Narrow" Command="{Binding SetMarginsCommand}" CommandParameter="Narrow" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Moderate" Command="{Binding SetMarginsCommand}" CommandParameter="Moderate" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <TextBlock Text="Columns:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="One" Command="{Binding SetColumnsCommand}" CommandParameter="1" ToolTip="Single column (this section)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Two" Command="{Binding SetColumnsCommand}" CommandParameter="2" ToolTip="Two columns (this section)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Three" Command="{Binding SetColumnsCommand}" CommandParameter="3" ToolTip="Three columns (this section)" />
-        </StackPanel>
+        <WrapPanel Orientation="Horizontal">
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Page Setup">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF574;" Content="Margins" Click="OnCaseMenu" ToolTip="Margin presets for this section">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Normal (1 inch all round)" Command="{Binding SetMarginsCommand}" CommandParameter="Normal" />
+                    <MenuItem Header="Narrow (0.5 inch)" Command="{Binding SetMarginsCommand}" CommandParameter="Narrow" />
+                    <MenuItem Header="Moderate (1 inch top and bottom, 0.75 inch sides)" Command="{Binding SetMarginsCommand}" CommandParameter="Moderate" />
+                    <Separator />
+                    <MenuItem Header="Custom Margins..." Click="OnPageSetup" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8B4;" Content="Orientation" Command="{Binding ToggleOrientationCommand}" ToolTip="Switch between portrait and landscape" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF740;" Content="Columns" Click="OnCaseMenu" ToolTip="Text columns for this section">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="One" Command="{Binding SetColumnsCommand}" CommandParameter="1" />
+                    <MenuItem Header="Two" Command="{Binding SetColumnsCommand}" CommandParameter="2" />
+                    <MenuItem Header="Three" Command="{Binding SetColumnsCommand}" CommandParameter="3" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56E;" Content="Breaks" Click="OnCaseMenu" ToolTip="Page, column and section breaks">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Page Break" Command="{Binding InsertPageBreakCommand}" InputGestureText="Ctrl+Enter" />
+                    <MenuItem Header="Column Break" Command="{Binding InsertColumnBreakCommand}" InputGestureText="Ctrl+Shift+Enter" />
+                    <Separator />
+                    <MenuItem Header="Section Break (Next Page)" Command="{Binding InsertSectionBreakCommand}" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE713;" Content="Page Setup" Click="OnPageSetup" ToolTip="Paper size, orientation, margins, headers and footers" />
+            </StackPanel>
+          </HeaderedContentControl>
+        </WrapPanel>
       </TabItem>
 
-      <TabItem Header="View">
+      <TabItem Header="References">
         <WrapPanel Orientation="Horizontal">
-          <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="50%" Command="{Binding SetZoomCommand}" CommandParameter="50" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="75%" Command="{Binding SetZoomCommand}" CommandParameter="75" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="100%" Command="{Binding SetZoomCommand}" CommandParameter="100" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="150%" Command="{Binding SetZoomCommand}" CommandParameter="150" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="200%" Command="{Binding SetZoomCommand}" CommandParameter="200" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Page" Click="OnFitPage" ToolTip="Zoom so a whole page fits" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Width" Click="OnFitWidth" ToolTip="Zoom so the page fills the width" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowRuler}" Content="Ruler" ToolTip="Show the ruler: drag the markers for indents, click to add a tab stop, drag a tab stop off to remove it" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowNavigation}" Content="Navigation" ToolTip="Show the headings of the document in a side pane; click one to jump there" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowComments}" Content="Comments" ToolTip="Show the comments pane" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding CheckSpelling}" Content="Spelling" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <TextBlock Text="Theme:" VerticalAlignment="Center" Margin="2,0,4,0" FontSize="13" />
-          <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="90" ItemsSource="{Binding ThemeChoices}" SelectedItem="{Binding Theme}" ToolTip="Light, dark, or follow the Windows setting" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Word Count" Click="OnWordCount" ToolTip="Words, characters, paragraphs, lines, pages (Ctrl+Shift+G)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Go To Page..." Click="OnGoToPage" ToolTip="Jump to a page (Ctrl+G)" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Select All" Click="OnSelectAll" ToolTip="Select all (Ctrl+A)" />
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Table of Contents">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E3;" Content="Table of Contents" Click="OnInsertToc" ToolTip="Insert (or refresh) a table of contents built from the Heading 1-3 paragraphs" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Footnotes">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xB9;" Content="Insert Footnote" Command="{Binding InsertFootnoteCommand}" ToolTip="Insert a footnote at the caret (Ctrl+Alt+F); Esc returns from the note to the text" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x2071;" Content="Insert Endnote" Command="{Binding InsertEndnoteCommand}" ToolTip="Insert an endnote (Ctrl+Alt+D); the notes collect at the end of the document" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Headings">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="1.1" Content="Number Headings" Command="{Binding ToggleHeadingNumbersCommand}" ToolTip="Number Heading 1-3 as 1, 1.1, 1.1.1 (click again to remove)" />
+          </HeaderedContentControl>
         </WrapPanel>
       </TabItem>
 
       <TabItem Header="Review">
         <WrapPanel Orientation="Horizontal">
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding TrackChanges}" Content="Track Changes" ToolTip="Record insertions and deletions as tracked changes (Ctrl+Shift+E); insertions are underlined and deletions struck through in the author's colour" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Previous" Command="{Binding PreviousChangeCommand}" ToolTip="Select the previous tracked change" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Next" Command="{Binding NextChangeCommand}" ToolTip="Select the next tracked change" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Accept" Command="{Binding AcceptChangeCommand}" ToolTip="Accept the selected change (or the one at the caret) and move to the next" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Reject" Command="{Binding RejectChangeCommand}" ToolTip="Reject the selected change (or the one at the caret) and move to the next" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Accept All" Command="{Binding AcceptAllChangesCommand}" ToolTip="Keep every insertion and remove every deletion" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Reject All" Command="{Binding RejectAllChangesCommand}" ToolTip="Remove every insertion and restore every deletion" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowComments}" Content="Comments Pane" ToolTip="Show the comments pane" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding CheckSpelling}" Content="Spelling" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Word Count" Command="{x:Static views:MainWindow.WordCountCommand}" ToolTip="Pages, words, characters, paragraphs (Ctrl+Shift+G)" />
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Proofing">
+            <StackPanel Orientation="Horizontal">
+              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xE82D;" Content="Spelling" IsChecked="{Binding CheckSpelling}" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8C1;" Content="Word Count" Command="{x:Static views:MainWindow.WordCountCommand}" ToolTip="Pages, words, characters, paragraphs (Ctrl+Shift+G)" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Comments">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE90A;" Content="New Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />
+              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xF0E3;" Content="Show Comments" IsChecked="{Binding ShowComments}" ToolTip="Show the comments pane" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Tracking">
+            <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xEF60;" Content="Track Changes" IsChecked="{Binding TrackChanges}" ToolTip="Record insertions and deletions as tracked changes (Ctrl+Shift+E); insertions are underlined and deletions struck through in the author's colour" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Changes">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8FB;" Content="Accept" Command="{Binding AcceptChangeCommand}" ToolTip="Accept the selected change (or the one at the caret) and move to the next" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE711;" Content="Reject" Command="{Binding RejectChangeCommand}" ToolTip="Reject the selected change (or the one at the caret) and move to the next" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Previous Change" Command="{Binding PreviousChangeCommand}" ToolTip="Select the previous tracked change" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Next Change" Command="{Binding NextChangeCommand}" ToolTip="Select the next tracked change" />
+              </StackPanel>
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Accept All" Command="{Binding AcceptAllChangesCommand}" ToolTip="Keep every insertion and remove every deletion" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Reject All" Command="{Binding RejectAllChangesCommand}" ToolTip="Remove every insertion and restore every deletion" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+        </WrapPanel>
+      </TabItem>
+
+      <TabItem Header="View">
+        <WrapPanel Orientation="Horizontal">
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Show">
+            <StackPanel Orientation="Horizontal">
+              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xED5E;" Content="Ruler" IsChecked="{Binding ShowRuler}" ToolTip="Show the ruler: drag the markers for indents, click to add a tab stop, drag a tab stop off to remove it" />
+              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xE700;" Content="Navigation Pane" IsChecked="{Binding ShowNavigation}" ToolTip="Show the headings of the document in a side pane; click one to jump there" />
+              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xE90A;" Content="Comments Pane" IsChecked="{Binding ShowComments}" ToolTip="Show the comments pane" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Zoom">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE71E;" Content="100%" Command="{Binding SetZoomCommand}" CommandParameter="100" ToolTip="Zoom to 100%" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="One Page" Click="OnFitPage" ToolTip="Zoom so a whole page fits" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56E;" Content="Page Width" Click="OnFitWidth" ToolTip="Zoom so the page fills the width" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="50%" Command="{Binding SetZoomCommand}" CommandParameter="50" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="75%" Command="{Binding SetZoomCommand}" CommandParameter="75" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="150%" Command="{Binding SetZoomCommand}" CommandParameter="150" />
+              </StackPanel>
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="200%" Command="{Binding SetZoomCommand}" CommandParameter="200" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Go To Page..." Click="OnGoToPage" ToolTip="Jump to a page (Ctrl+G)" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Window">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE710;" Content="New Window" Click="OnNewWindow" ToolTip="Open another Quill window (for a second document)" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Appearance">
+            <StackPanel>
+              <TextBlock Text="Theme" FontSize="11" Opacity="0.8" Margin="2,0,0,2" />
+              <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="110" ItemsSource="{Binding ThemeChoices}" SelectedItem="{Binding Theme}" ToolTip="Light, dark, or follow the Windows setting" />
+            </StackPanel>
+          </HeaderedContentControl>
         </WrapPanel>
       </TabItem>
 
       <!-- Contextual tab: appears while a picture is selected, like Word's Picture Format. -->
-      <TabItem x:Name="PictureTab" Header="Picture" Visibility="{Binding IsPictureSelected, Converter={StaticResource BoolToVis}}">
+      <TabItem x:Name="PictureTab" Header="Picture Format" Visibility="{Binding IsPictureSelected, Converter={StaticResource BoolToVis}}">
         <WrapPanel Orientation="Horizontal">
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Size..." Click="OnPictureSize" ToolTip="Exact width and height" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Original Size" Click="OnPictureOriginalSize" ToolTip="Back to the picture's own size" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Fit Width" Click="OnPictureFitWidth" ToolTip="As wide as the text column" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="50%" Click="OnPictureScale" Tag="0.5" ToolTip="Half the current size" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="200%" Click="OnPictureScale" Tag="2" ToolTip="Double the current size" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Left" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Paragraph alignment" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Center" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Paragraph alignment" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Right" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Paragraph alignment" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Replace..." Click="OnReplacePicture" ToolTip="Swap in another picture file at the same width" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete" Click="OnDeletePicture" />
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Adjust">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8B9;" Content="Replace" Click="OnReplacePicture" ToolTip="Swap in another picture file at the same width" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE74D;" Content="Delete" Click="OnDeletePicture" ToolTip="Remove the picture" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Arrange">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E4;" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Align left" />
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E3;" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Center" />
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E2;" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Align right" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Size">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE740;" Content="Size" Click="OnPictureSize" ToolTip="Exact width and height" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Original Size" Click="OnPictureOriginalSize" ToolTip="Back to the picture's own size" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Fit Width" Click="OnPictureFitWidth" ToolTip="As wide as the text column" />
+              </StackPanel>
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="50%" Click="OnPictureScale" Tag="0.5" ToolTip="Half the current size" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="200%" Click="OnPictureScale" Tag="2" ToolTip="Double the current size" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
         </WrapPanel>
       </TabItem>
+
       <!-- Contextual tab: appears while the caret is inside a table, like Word's Table Layout. -->
-      <TabItem x:Name="TableTab" Header="Table" Visibility="{Binding IsInTable, Converter={StaticResource BoolToVis}}">
+      <TabItem x:Name="TableTab" Header="Table Layout" Visibility="{Binding IsInTable, Converter={StaticResource BoolToVis}}">
         <WrapPanel Orientation="Horizontal">
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Row Above" Command="{Binding InsertRowAboveCommand}" ToolTip="Insert a row above the current one" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Row Below" Command="{Binding InsertRowBelowCommand}" ToolTip="Insert a row below the current one (Tab in the last cell does the same)" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Column Left" Command="{Binding InsertColumnLeftCommand}" ToolTip="Insert a column to the left of the current cell" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Column Right" Command="{Binding InsertColumnRightCommand}" ToolTip="Insert a column to the right of the current cell" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Row" Command="{Binding DeleteRowCommand}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Column" Command="{Binding DeleteColumnCommand}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Delete Table" Command="{Binding DeleteTableCommand}" />
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Merge Right" Command="{Binding MergeCellRightCommand}" ToolTip="Join this cell with the one to its right" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Merge Down" Command="{Binding MergeCellDownCommand}" ToolTip="Join this cell with the one beneath it" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Split Cell" Command="{Binding SplitCellCommand}" ToolTip="Undo a merge: one cell per column, or one per row" />
-
-          <Border Style="{StaticResource Quill.CommandDivider}" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Borders" Command="{Binding ToggleTableBordersCommand}" ToolTip="Show or hide the grid lines" />
-          <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsHeaderRow}" Content="Header Row" ToolTip="Repeat this row at the top of every page the table continues on" />
-          <views:ColorPickerButton x:Name="ShadingPicker" GlyphText="&#x25A4;" ToggleToolTip="Cell shading" CurrentColor="{Binding CellShadingSwatch}" ColorSelected="OnCellShadingSelected" />
-
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Left" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Cell paragraph alignment" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Center" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Cell paragraph alignment" />
-          <Button Style="{StaticResource Quill.CommandButton}" Content="Align Right" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Cell paragraph alignment" />
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Rows &amp; Columns">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE74D;" Content="Delete" Click="OnCaseMenu" ToolTip="Delete the row, column or table at the caret">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Delete Row" Command="{Binding DeleteRowCommand}" />
+                    <MenuItem Header="Delete Column" Command="{Binding DeleteColumnCommand}" />
+                    <MenuItem Header="Delete Table" Command="{Binding DeleteTableCommand}" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x2191;" Content="Insert Above" Command="{Binding InsertRowAboveCommand}" ToolTip="Insert a row above the current one" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x2193;" Content="Insert Below" Command="{Binding InsertRowBelowCommand}" ToolTip="Insert a row below the current one (Tab in the last cell does the same)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x2190;" Content="Insert Left" Command="{Binding InsertColumnLeftCommand}" ToolTip="Insert a column to the left of the current cell" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x2192;" Content="Insert Right" Command="{Binding InsertColumnRightCommand}" ToolTip="Insert a column to the right of the current cell" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Merge">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x21E5;" Content="Merge Right" Command="{Binding MergeCellRightCommand}" ToolTip="Join this cell with the one to its right" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x21E9;" Content="Merge Down" Command="{Binding MergeCellDownCommand}" ToolTip="Join this cell with the one beneath it" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF740;" Content="Split Cell" Command="{Binding SplitCellCommand}" ToolTip="Undo a merge: one cell per column, or one per row" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Table Style">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Borders" Command="{Binding ToggleTableBordersCommand}" ToolTip="Show or hide the grid lines" />
+              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xE8E9;" Content="Header Row" IsChecked="{Binding IsHeaderRow}" ToolTip="Repeat this row at the top of every page the table continues on" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <TextBlock Text="Shading" FontSize="11" Opacity="0.8" Margin="2,0,0,2" />
+                <views:ColorPickerButton x:Name="ShadingPicker" GlyphText="&#x25A4;" ToggleToolTip="Cell shading" CurrentColor="{Binding CellShadingSwatch}" ColorSelected="OnCellShadingSelected" />
+              </StackPanel>
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Alignment">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E4;" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Align cell text left" />
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E3;" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Center cell text" />
+              <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E2;" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Align cell text right" />
+            </StackPanel>
+          </HeaderedContentControl>
         </WrapPanel>
       </TabItem>
     </TabControl>

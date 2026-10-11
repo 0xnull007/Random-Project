@@ -14,6 +14,21 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Title bar shows `Document1 - Quill`, then `Document1* - Quill` after the first edit.
 - [ ] Run `dotnet run --project src/Quill.App -- "C:\path\file.docx"`: the file opens at startup.
 
+## 1b. Ribbon (new)
+
+- [ ] The command bar looks like Word's classic ribbon: tabs File, Home, Insert, Layout, References, Review, View;
+      each tab shows groups with their names underneath (Home: Undo, Clipboard, Font, Paragraph, Styles, Editing),
+      large icon-and-label buttons for the main commands and rows of small icon buttons for the rest.
+- [ ] Icons render as Fluent glyphs (not boxes) in light and dark mode: Bold/Italic/Underline/Strikethrough, the
+      alignments, bullets, grow/shrink font, clear formatting, cut/copy/paste, find/replace, undo/redo.
+- [ ] Margins, Columns, Breaks (Layout) and Delete (Table Layout) open drop-down menus under the button.
+- [ ] Hovering any button shows a tooltip with its shortcut; everything that was on the old single-row bar is still
+      reachable (Format Painter and Cut/Copy sit beside Paste; Font... and Paragraph... at the end of their groups;
+      Go To Page and Select All under Editing; Word Count and Spelling under Review > Proofing).
+- [ ] Narrow the window: groups wrap to a second row instead of being cut off; widen it again and they return.
+- [ ] Selecting a picture shows the **Picture Format** tab and switches to it; placing the caret in a table shows the
+      **Table Layout** tab (not switched to automatically); leaving either hides the tab again.
+
 ## 2. Typing, navigation, selection
 
 - [ ] Type text; it wraps at the right margin and flows onto page 2 when the page is full ("Page 2 of 2").
@@ -146,7 +161,7 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       than the text column is shrunk to fit. WebP/ICO are converted to PNG.
 - [ ] Text wraps around the line with the picture; the line grows to the picture's height; the caret moves across
       it as one character; Backspace/Delete remove it; Ctrl+Z brings it back.
-- [ ] Clicking a picture switches the command bar to a **Picture** tab (Size, Original Size, Fit Width, 50%, 200%,
+- [ ] Clicking a picture switches the ribbon to a **Picture Format** tab (Size, Original Size, Fit Width, 50%, 200%,
       alignment, Replace, Delete); clicking text switches back to the tab you were on.
 - [ ] Click on the picture: it becomes selected (highlighted). Insert > Picture Size...: width/height in inches
       or cm, "Lock aspect ratio" keeps proportions while typing, "Original Size" resets. OK resizes, Ctrl+Z undoes.
