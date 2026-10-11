@@ -44,6 +44,12 @@ public sealed record ParagraphProperties
     /// <summary>List membership; <see cref="ListFormat.None"/> switches an inherited list off.</summary>
     public ListFormat? List { get; init; }
 
+    /// <summary>Background behind the paragraph text; <see cref="DocColor.Auto"/> switches an inherited shading off.</summary>
+    public DocColor? Shading { get; init; }
+
+    /// <summary>Lines around the paragraph; <see cref="ParagraphBorders.None"/> switches inherited borders off.</summary>
+    public ParagraphBorders? Borders { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -76,6 +82,8 @@ public sealed record ParagraphProperties
             Tabs = Tabs is null ? overrides.Tabs : Tabs.Merge(overrides.Tabs),
             OutlineLevel = overrides.OutlineLevel ?? OutlineLevel,
             List = overrides.List ?? List,
+            Shading = overrides.Shading ?? Shading,
+            Borders = overrides.Borders ?? Borders,
         };
     }
 }

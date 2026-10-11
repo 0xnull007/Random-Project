@@ -39,7 +39,9 @@ public sealed record ResolvedParagraphProperties(
     bool ContextualSpacing,
     TabStops Tabs,
     int? OutlineLevel,
-    ListFormat? List = null)
+    ListFormat? List = null,
+    DocColor? Shading = null,
+    ParagraphBorders? Borders = null)
 {
     public bool IsListItem => List is { IsNone: false };
 }

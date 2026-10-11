@@ -144,7 +144,9 @@ public sealed class StyleResolver
             merged.ContextualSpacing!.Value,
             (merged.Tabs ?? TabStops.Empty).WithoutCleared(),
             merged.OutlineLevel,
-            list is { IsNone: false } ? list : null);
+            list is { IsNone: false } ? list : null,
+            merged.Shading is { IsAuto: false } shading ? shading : null,
+            merged.Borders is { IsNone: false } borders ? borders : null);
     }
 
     private ResolvedRunProperties BuildRun(RunKey key)

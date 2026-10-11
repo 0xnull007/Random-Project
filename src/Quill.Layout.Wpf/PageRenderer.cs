@@ -1,4 +1,5 @@
 using Quill.Core.Model;
+using Quill.Core.Styles;
 using Quill.Core.Units;
 
 namespace Quill.Layout.Wpf;
@@ -169,6 +170,7 @@ public static class PageRenderer
     private static void DrawCellParagraph(ParagraphLayout layout, double left, double top, IRenderTarget target)
     {
         double contentTop = top + layout.SpaceBefore;
+        DrawParagraphDecorations(layout, left, contentTop, contentTop + layout.ContentHeight, isStart: true, isEnd: true, target);
         for (int i = 0; i < layout.LineCount; i++)
         {
             double naturalTop = contentTop + layout.LineTops[i] + (layout.LineBaselines[i] - layout.Lines[i].Baseline);
@@ -185,6 +187,7 @@ public static class PageRenderer
     {
         ArgumentNullException.ThrowIfNull(fragment);
         ArgumentNullException.ThrowIfNull(target);
+        DrawParagraphDecorations(fragment.Layout, fragment.Bounds.Left, fragment.ContentTop, fragment.LineBottom(fragment.LastLine), fragment.IsParagraphStart, fragment.IsParagraphEnd, target);
         if (fragment.IsParagraphStart && fragment.Layout.MarkerLine is { } marker)
         {
             PointD first = fragment.LineOrigin(fragment.FirstLine);
@@ -197,4 +200,87 @@ public static class PageRenderer
             fragment.Layout.Lines[i].Draw(target, fragment.LineOrigin(i));
         }
     }
+
+    /// <summary>Paragraph shading behind the text between the indents, then the borders just outside it (Word's Borders and Shading).</summary>
+    private static void DrawParagraphDecorations(ParagraphLayout layout, double left, double contentTop, double bottom, bool isStart, bool isEnd, IRenderTarget target)
+    {
+        ResolvedParagraphProperties props = layout.Properties;
+        if (props.Shading is null && props.Borders is null)
+        {
+            return;
+        }
+
+        double leftIndent = props.LeftIndent.ToDips();
+        double x0 = left + Math.Min(leftIndent, leftIndent + props.FirstLineIndent.ToDips());
+        double x1 = left + layout.Width - props.RightIndent.ToDips();
+        if (x1 <= x0 || bottom <= contentTop)
+        {
+            return;
+        }
+
+        if (props.Shading is { } shading)
+        {
+            target.FillRectangle(new RectD(x0, contentTop, x1 - x0, bottom - contentTop), shading);
+        }
+
+        if (props.Borders is not { } borders)
+        {
+            return;
+        }
+
+        double leftGap = borders.Left is { } l ? l.SpaceDips + l.ThicknessDips : 0;
+        double rightGap = borders.Right is { } r ? r.SpaceDips + r.ThicknessDips : 0;
+        double topGap = isStart && borders.Top is { } t ? t.SpaceDips + t.ThicknessDips : 0;
+        double bottomGap = isEnd && borders.Bottom is { } b ? b.SpaceDips + b.ThicknessDips : 0;
+        if (isStart && borders.Top is { } top)
+        {
+            double y = contentTop - top.SpaceDips - top.ThicknessDips / 2;
+            DrawBorderLine(new PointD(x0 - leftGap, y), new PointD(x1 + rightGap, y), top, target);
+        }
+
+        if (isEnd && borders.Bottom is { } bot)
+        {
+            double y = bottom + bot.SpaceDips + bot.ThicknessDips / 2;
+            DrawBorderLine(new PointD(x0 - leftGap, y), new PointD(x1 + rightGap, y), bot, target);
+        }
+
+        if (borders.Left is { } leftLine)
+        {
+            double x = x0 - leftLine.SpaceDips - leftLine.ThicknessDips / 2;
+            DrawBorderLine(new PointD(x, contentTop - topGap), new PointD(x, bottom + bottomGap), leftLine, target);
+        }
+
+        if (borders.Right is { } rightLine)
+        {
+            double x = x1 + rightLine.SpaceDips + rightLine.ThicknessDips / 2;
+            DrawBorderLine(new PointD(x, contentTop - topGap), new PointD(x, bottom + bottomGap), rightLine, target);
+        }
+    }
+
+    private static void DrawBorderLine(PointD from, PointD to, BorderLine line, IRenderTarget target)
+    {
+        double thickness = line.ThicknessDips;
+        switch (line.Style)
+        {
+            case PageBorderStyle.Dotted:
+                DrawDashedLine(from, to, line.EffectiveColor, thickness, thickness, thickness * 1.5, target);
+                break;
+            case PageBorderStyle.Dashed:
+                DrawDashedLine(from, to, line.EffectiveColor, thickness, thickness * 4, thickness * 2, target);
+                break;
+            case PageBorderStyle.Double:
+                bool horizontal = Math.Abs(from.Y - to.Y) < 0.001;
+                double offset = thickness * 1.5;
+                PointD shift = horizontal ? new PointD(0, offset) : new PointD(offset, 0);
+                DrawPlainLine(new PointD(from.X - shift.X, from.Y - shift.Y), new PointD(to.X - shift.X, to.Y - shift.Y), line, target);
+                DrawPlainLine(new PointD(from.X + shift.X, from.Y + shift.Y), new PointD(to.X + shift.X, to.Y + shift.Y), line, target);
+                break;
+            default:
+                DrawPlainLine(from, to, line, target);
+                break;
+        }
+    }
+
+    private static void DrawPlainLine(PointD from, PointD to, BorderLine line, IRenderTarget target) =>
+        target.DrawLine(from, to, line.EffectiveColor, line.ThicknessDips);
 }

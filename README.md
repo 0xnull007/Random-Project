@@ -50,11 +50,11 @@ WSL. The WPF projects *compile* there (thanks to `EnableWindowsTargeting`) but o
 Milestones M0–M8 and acceptance criteria are in [docs/PLAN.md](docs/PLAN.md). Done so far: editing with undo,
 character and paragraph formatting (toolbar, Font and Paragraph dialogs, Format Painter, Modify Style), styles,
 bulleted and numbered lists with numbering styles, change case, AutoCorrect, page and section breaks, multi-column
-sections, page colour and page borders, headers and footers with page-number fields and a Header & Footer tab (link to previous, first-page and odd/even variants), Page Setup, a ruler with draggable indents and tab stops,
+sections, page colour and page borders, paragraph shading and borders, headers and footers with page-number fields and a Header & Footer tab (link to previous, first-page and odd/even variants), Page Setup, a ruler with draggable indents and tab stops,
 inline pictures, hyperlinks, tables (editable cells, rows and columns, draggable column borders, shading, merged cells, repeating header rows), a table of contents, captions (Figure 1, Table 2) with a table of figures, footnotes and endnotes,
 comments, track changes (Review tab), heading numbering, symbols and date/time, .docx
 open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop (tables included, HTML tables from Excel and browsers), find and replace, spell
 checking (Windows Spell Checking API), IME input, print, print preview, PDF export, recent files, autosave
 recovery, formatting marks, navigation pane, word count, light/dark theme, document properties, and a UI
-Automation text pattern. Next: packaging as MSIX, table styles, and paragraph borders. The full manual
+Automation text pattern. Next: packaging as MSIX and table styles. The full manual
 checklist is in [docs/TESTING.md](docs/TESTING.md).

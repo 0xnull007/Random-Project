@@ -256,6 +256,22 @@
                 <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsAlignRight}" Content="&#xE8E2;" ToolTip="Align right (Ctrl+R)" />
                 <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsAlignJustify}" Content="&#x2261;" Width="30" Padding="0" ToolTip="Justify (Ctrl+J)" />
                 <Border Style="{StaticResource Quill.CommandDivider}" />
+                <views:ColorPickerButton x:Name="ParagraphShadingPicker" GlyphText="&#x25A6;" ToggleToolTip="Paragraph shading" CurrentColor="{Binding ParagraphShadingSwatch}" ColorSelected="OnParagraphShadingSelected" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="&#x229E;" Width="30" Padding="0" Click="OnCaseMenu" ToolTip="Paragraph borders">
+                  <Button.ContextMenu>
+                    <ContextMenu Closed="OnMenuClosed">
+                      <MenuItem Header="_Bottom Border" Command="{Binding SetParagraphBorderCommand}" CommandParameter="Bottom" />
+                      <MenuItem Header="To_p Border" Command="{Binding SetParagraphBorderCommand}" CommandParameter="Top" />
+                      <MenuItem Header="_Left Border" Command="{Binding SetParagraphBorderCommand}" CommandParameter="Left" />
+                      <MenuItem Header="_Right Border" Command="{Binding SetParagraphBorderCommand}" CommandParameter="Right" />
+                      <Separator />
+                      <MenuItem Header="_Outside Borders" Command="{Binding SetParagraphBorderCommand}" CommandParameter="Box" />
+                      <MenuItem Header="_No Border" Command="{Binding SetParagraphBorderCommand}" CommandParameter="None" />
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                </Button>
+
+                <Border Style="{StaticResource Quill.CommandDivider}" />
                 <TextBlock Text="&#x2195;" VerticalAlignment="Center" Margin="2,0" ToolTip="Line spacing" />
                 <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="62" ItemsSource="{Binding LineSpacingChoices}" SelectedItem="{Binding LineSpacingValue}" ToolTip="Line spacing (Ctrl+1, Ctrl+2, Ctrl+5)" />
                 <Border Style="{StaticResource Quill.CommandDivider}" />

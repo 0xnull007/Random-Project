@@ -107,6 +107,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 5. Paragraph formatting
 
+- [ ] Home > Paragraph > shading swatch colours the background of the selected paragraphs between their indents;
+      "Automatic" clears it. The borders button (⊞) toggles Bottom/Top/Left/Right lines, Outside Borders draws a box,
+      No Border removes them; borders sit just outside the text, double style shows two lines; print, PDF and Word
+      show the same **(new)**.
 - [ ] Align left/center/right/justify (Ctrl+L/E/R/J). Justified lines stretch; the last line does not.
 - [ ] Line spacing combo (Ctrl+1 / Ctrl+2 / Ctrl+5), space Before / After combos.
 - [ ] Styles combo: Normal, Heading 1-3, Title. Ctrl+Alt+1/2/3, Ctrl+Shift+N. Enter after a heading gives Normal.

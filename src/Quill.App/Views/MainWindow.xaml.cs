@@ -590,7 +590,14 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnParagraphShadingSelected(object? sender, string value)
+    {
+        ViewModel.SetParagraphShading(value);
+        Editor.Focus();
+    }
+
     private void OnPageColorSelected(object? sender, string value)
+
     {
         ViewModel.SetPageColor(value);
         Editor.Focus();

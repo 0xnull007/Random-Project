@@ -215,6 +215,25 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial Color PageColorSwatch { get; set; } = Colors.White;
 
+    /// <summary>Shading of the caret paragraph for the Home tab picker (white when none).</summary>
+    [ObservableProperty]
+    public partial Color ParagraphShadingSwatch { get; set; } = Colors.White;
+
+    /// <summary>Applies paragraph shading from the picker: "auto" clears it, otherwise an RRGGBB hex.</summary>
+    public void SetParagraphShading(string value)
+    {
+        Session.SetParagraphShading(value == "auto" ? null : DocColor.Parse(value));
+        RefreshFormatState();
+    }
+
+    [RelayCommand]
+    private void SetParagraphBorder(string side)
+    {
+        Session.ToggleParagraphBorder(side);
+        RefreshFormatState();
+    }
+
+
     /// <summary>Applies a page colour from the picker: "auto" clears it, otherwise an RRGGBB hex.</summary>
     public void SetPageColor(string value)
     {
@@ -1591,6 +1610,7 @@ public sealed partial class MainViewModel : ObservableObject
             FontSize = caret.FontSize.ToPoints();
             ResolvedParagraphProperties paragraph = Session.CaretParagraphFormat();
             Alignment = paragraph.Alignment;
+            ParagraphShadingSwatch = paragraph.Shading is { IsAuto: false } paragraphShading ? Color.FromRgb(paragraphShading.R, paragraphShading.G, paragraphShading.B) : Colors.White;
             LineSpacingValue = paragraph.LineSpacing.Rule == LineSpacingRule.Auto ? Math.Round(paragraph.LineSpacing.Factor, 2) : 0;
             SpaceBeforePoints = Math.Round(paragraph.SpaceBefore.ToPoints(), 1);
             SpaceAfterPoints = Math.Round(paragraph.SpaceAfter.ToPoints(), 1);

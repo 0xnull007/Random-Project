@@ -36,4 +36,29 @@ public class DocxDesignTests
         Assert.Equal(DocColor.Parse("FFF2CC"), reread.Document.Settings.PageColor);
         Assert.Equal(box, reread.Document.Sections[0].Properties.PageBorders);
     }
+
+    [Fact]
+    public void Paragraph_shading_and_borders_round_trip()
+    {
+        var borders = new ParagraphBorders(Top: new BorderLine(PageBorderStyle.Double, 6, DocColor.Parse("0070C0"), 2), Bottom: new BorderLine());
+        var paragraph = new Paragraph([new Run("boxed")], properties: new ParagraphProperties { Shading = DocColor.Parse("FFF2CC"), Borders = borders });
+        var cleared = new Paragraph([new Run("plain")], properties: new ParagraphProperties { Shading = DocColor.Auto, Borders = ParagraphBorders.None });
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(paragraph, cleared))), DefaultStyleSheet.Create());
+
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+        }
+
+        LoadResult reread = DocxReader.Read(new MemoryStream(bytes));
+        var first = (Paragraph)reread.Document.Sections[0].Body[0];
+        Assert.Equal(DocColor.Parse("FFF2CC"), first.Properties.Shading);
+        Assert.Equal(borders, first.Properties.Borders);
+        var second = (Paragraph)reread.Document.Sections[0].Body[1];
+        Assert.True(second.Properties.Shading!.Value.IsAuto);
+        Assert.True(second.Properties.Borders!.IsNone);
+    }
 }

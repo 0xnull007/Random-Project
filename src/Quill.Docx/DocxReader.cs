@@ -913,10 +913,42 @@ public sealed class DocxReader
             props = props with { Tabs = TabStops.Create(stops) };
         }
 
+        if (pPr.GetFirstChild<W.Shading>() is { } shd)
+        {
+            string? fill = shd.Fill?.Value;
+            props = props with { Shading = fill is { Length: 6 } && !fill.Equals("auto", StringComparison.OrdinalIgnoreCase) ? DocColor.Parse(fill) : DocColor.Auto };
+        }
+
+        if (pPr.GetFirstChild<W.ParagraphBorders>() is { } pBdr)
+        {
+            props = props with
+            {
+                Borders = new ParagraphBorders(ReadBorderLine(pBdr.TopBorder), ReadBorderLine(pBdr.BottomBorder), ReadBorderLine(pBdr.LeftBorder), ReadBorderLine(pBdr.RightBorder)),
+            };
+        }
+
         return props;
     }
 
+    private static BorderLine? ReadBorderLine(W.BorderType? border)
+    {
+        if (border?.Val?.Value is not { } value || value == W.BorderValues.Nil || value == W.BorderValues.None)
+        {
+            return null;
+        }
+
+        PageBorderStyle style = value == W.BorderValues.Double ? PageBorderStyle.Double
+            : value == W.BorderValues.Dotted ? PageBorderStyle.Dotted
+            : value == W.BorderValues.Dashed || value == W.BorderValues.DashSmallGap ? PageBorderStyle.Dashed
+            : value == W.BorderValues.Thick ? PageBorderStyle.Thick
+            : PageBorderStyle.Single;
+        string? hex = border.Color?.Value;
+        DocColor? color = hex is { Length: 6 } && !hex.Equals("auto", StringComparison.OrdinalIgnoreCase) ? DocColor.Parse(hex) : null;
+        return new BorderLine(style, (int)Math.Clamp(border.Size?.Value ?? 4, 2, 96), color, (int)Math.Clamp(border.Space?.Value ?? 1, 0, 31));
+    }
+
     private static ListFormat? ReadListFormat(W.NumberingProperties? numPr)
+
     {
         if (numPr is null)
         {

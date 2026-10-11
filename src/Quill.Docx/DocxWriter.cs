@@ -545,7 +545,24 @@ public static class DocxWriter
         return pPr.HasChildren ? pPr : null;
     }
 
+    private static T BorderElement<T>(BorderLine line)
+        where T : W.BorderType, new() => new()
+        {
+            Val = line.Style switch
+            {
+                PageBorderStyle.Double => W.BorderValues.Double,
+                PageBorderStyle.Dotted => W.BorderValues.Dotted,
+                PageBorderStyle.Dashed => W.BorderValues.Dashed,
+                PageBorderStyle.Thick => W.BorderValues.Thick,
+                _ => W.BorderValues.Single,
+            },
+            Size = (uint)line.Width,
+            Space = (uint)line.Space,
+            Color = line.Color is { IsAuto: false } color ? color.ToHex() : "auto",
+        };
+
     private static void FillParagraphProperties(OpenXmlCompositeElement pPr, ParagraphProperties p)
+
     {
         if (p.KeepWithNext is { } keepNext)
         {
@@ -574,7 +591,45 @@ public static class DocxWriter
                 new W.NumberingId { Val = list.IsNone ? 0 : list.NumberingId }));
         }
 
+        if (p.Borders is { } borders)
+        {
+            var pBdr = new W.ParagraphBorders();
+            if (borders.Top is { } top)
+            {
+                pBdr.Append(BorderElement<W.TopBorder>(top));
+            }
+
+            if (borders.Left is { } left)
+            {
+                pBdr.Append(BorderElement<W.LeftBorder>(left));
+            }
+
+            if (borders.Bottom is { } bottom)
+            {
+                pBdr.Append(BorderElement<W.BottomBorder>(bottom));
+            }
+
+            if (borders.Right is { } right)
+            {
+                pBdr.Append(BorderElement<W.RightBorder>(right));
+            }
+
+            if (borders.IsNone)
+            {
+                pBdr.Append(new W.TopBorder { Val = W.BorderValues.Nil });
+                pBdr.Append(new W.BottomBorder { Val = W.BorderValues.Nil });
+            }
+
+            pPr.Append(pBdr);
+        }
+
+        if (p.Shading is { } shading)
+        {
+            pPr.Append(new W.Shading { Val = W.ShadingPatternValues.Clear, Color = "auto", Fill = shading.IsAuto ? "auto" : shading.ToHex() });
+        }
+
         if (p.Tabs is { Count: > 0 } tabs)
+
         {
             var element = new W.Tabs();
             foreach (TabStop stop in tabs)
