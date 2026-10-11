@@ -233,6 +233,16 @@ public sealed partial class MainViewModel : ObservableObject
         RefreshFormatState();
     }
 
+    [RelayCommand]
+    private void SortParagraphs(string order) => Session.SortParagraphs(descending: string.Equals(order, "Desc", StringComparison.OrdinalIgnoreCase));
+
+    [RelayCommand]
+    private void InsertBlankPage() => Session.InsertBlankPage();
+
+    [RelayCommand]
+    private void InsertCoverPage() => Session.InsertCoverPage(AuthorName());
+
+
 
     /// <summary>Applies a page colour from the picker: "auto" clears it, otherwise an RRGGBB hex.</summary>
     public void SetPageColor(string value)

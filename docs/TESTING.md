@@ -141,6 +141,11 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 8. Pages, breaks, sections (Insert and Layout tabs)
 
+- [ ] Insert > Pages > Cover Page puts a title page in front (Title, Subtitle, author from Options, today's date,
+      then a page break) with the title selected so typing replaces it; the cover shows no header or footer
+      (Different First Page is switched on). Blank Page inserts an empty page at the caret **(new)**.
+- [ ] Home > Paragraph > A↓Z sorts the selected paragraphs (or all, when nothing is selected) A to Z or Z to A,
+      numerically when they all start with numbers; formatting travels with each paragraph; one undo step **(new)**.
 - [ ] Page Break (Ctrl+Enter) starts a new page; Section Break starts a new section on the next page.
 - [ ] Layout > Orientation toggles portrait/landscape for the current section; Margins Normal/Narrow/Moderate.
 - [ ] Layout > Columns One/Two/Three: the section's text flows down the first column and then the next; Column

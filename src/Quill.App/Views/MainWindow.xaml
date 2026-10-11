@@ -242,6 +242,15 @@
                 <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsNumbered}" Content="1." Width="30" Padding="0" ToolTip="Numbering" />
                 <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E4;" Width="30" Padding="0" Command="{Binding DecreaseIndentCommand}" ToolTip="Decrease indent (Shift+Tab at the start of a list item)" />
                 <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E5;" Width="30" Padding="0" Command="{Binding IncreaseIndentCommand}" ToolTip="Increase indent (Tab at the start of a list item)" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2193;Z" Width="34" Padding="0" Click="OnCaseMenu" ToolTip="Sort the selected paragraphs (or all of them) alphabetically or numerically">
+                  <Button.ContextMenu>
+                    <ContextMenu Closed="OnMenuClosed">
+                      <MenuItem Header="Ascending (A to Z, 0 to 9)" Command="{Binding SortParagraphsCommand}" CommandParameter="Asc" />
+                      <MenuItem Header="Descending (Z to A, 9 to 0)" Command="{Binding SortParagraphsCommand}" CommandParameter="Desc" />
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                </Button>
+
                 <Border Style="{StaticResource Quill.CommandDivider}" />
                 <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding ShowFormattingMarks}" Content="&#xB6;" Width="30" Padding="0" ToolTip="Show formatting marks (paragraphs, tabs, spaces, breaks)" />
                 <Border Style="{StaticResource Quill.CommandDivider}" />
@@ -303,8 +312,13 @@
       <TabItem Header="Insert">
         <WrapPanel Orientation="Horizontal">
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Pages">
-            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Page Break" Command="{Binding InsertPageBreakCommand}" ToolTip="Insert a page break (Ctrl+Enter)" />
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE729;" Content="Cover Page" Command="{Binding InsertCoverPageCommand}" ToolTip="Add a title page (title, subtitle, author, date) at the front; it has no header or footer" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Blank Page" Command="{Binding InsertBlankPageCommand}" ToolTip="Insert an empty page at the caret" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56E;" Content="Page Break" Command="{Binding InsertPageBreakCommand}" ToolTip="Insert a page break (Ctrl+Enter)" />
+            </StackPanel>
           </HeaderedContentControl>
+
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Tables">
             <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Table" Click="OnInsertTable" ToolTip="Insert a table with the given number of rows and columns" />
           </HeaderedContentControl>
