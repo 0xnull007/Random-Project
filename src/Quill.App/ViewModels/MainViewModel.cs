@@ -146,6 +146,10 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Matches of the navigation pane's search box, in document order.</summary>
     public ObservableCollection<SearchResultEntry> SearchResults { get; } = [];
 
+    /// <summary>Page thumbnails for the navigation pane's Pages tab (filled by the window from the layout).</summary>
+    public ObservableCollection<PageThumbnail> PageThumbnails { get; } = [];
+
+
     [ObservableProperty]
     public partial string ResultCountText { get; set; } = string.Empty;
 
@@ -1820,3 +1824,6 @@ public sealed record StyleEntry(Style Style, string FontFamily, double FontSize,
 
 /// <summary>One match in the navigation pane's Results list: where it is and the text around it.</summary>
 public sealed record SearchResultEntry(TextRange Range, string Context);
+
+/// <summary>One page in the navigation pane's Pages tab.</summary>
+public sealed record PageThumbnail(int Number, ImageSource Image, string Label);

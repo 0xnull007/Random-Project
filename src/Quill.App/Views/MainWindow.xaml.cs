@@ -34,6 +34,16 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ViewModel.CurrentSectionProvider = () => Editor.CurrentSectionIndex();
+        _thumbnailTimer.Tick += (_, _) => RefreshPageThumbnails();
+        Editor.ViewStateChanged += (_, _) =>
+        {
+            _thumbnailsStale = true;
+            if (PagesTabVisible)
+            {
+                _thumbnailTimer.Stop();
+                _thumbnailTimer.Start();
+            }
+        };
         ViewModel.Session.DocumentChanged += (_, _) =>
         {
             if (NavSearchBox.Text.Length > 0 && ViewModel.ShowNavigation)
@@ -948,7 +958,51 @@ public partial class MainWindow : Window
 
     private IReadOnlyList<TextRange> _navMatches = [];
 
+    private readonly System.Windows.Threading.DispatcherTimer _thumbnailTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
+    private bool _thumbnailsStale = true;
+
+    private bool PagesTabVisible => ViewModel.ShowNavigation && NavTabs.SelectedIndex == 1;
+
+    private void OnNavTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, NavTabs))
+        {
+            return;
+        }
+
+        if (PagesTabVisible && _thumbnailsStale)
+        {
+            RefreshPageThumbnails();
+        }
+    }
+
+    /// <summary>Rebuilds the Pages tab after the layout settles; cheap because thumbnails are small and rendered off the page visuals.</summary>
+    private void RefreshPageThumbnails()
+    {
+        _thumbnailTimer.Stop();
+        _thumbnailsStale = false;
+        ViewModel.PageThumbnails.Clear();
+        int count = Math.Min(Editor.PageCount, 300);
+        for (int i = 0; i < count; i++)
+        {
+            if (Editor.RenderPageThumbnail(i, 150) is { } image)
+            {
+                ViewModel.PageThumbnails.Add(new PageThumbnail(i + 1, image, (i + 1).ToString(System.Globalization.CultureInfo.CurrentCulture)));
+            }
+        }
+    }
+
+    private void OnPageThumbnailSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (PageList.SelectedItem is PageThumbnail page)
+        {
+            Editor.GoToPage(page.Number);
+            Editor.Focus();
+        }
+    }
+
     private void OnNavSearchChanged(object sender, TextChangedEventArgs e)
+
     {
         NavSearchHint.Visibility = NavSearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         RunNavSearch();

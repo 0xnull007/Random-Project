@@ -1222,7 +1222,36 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         dc.DrawRectangle(page, pen, rect);
     }
 
+    /// <summary>A small bitmap of one page (white page with its content, no selection or caret) for the navigation pane's Pages tab.</summary>
+    public BitmapSource? RenderPageThumbnail(int index, double width)
+    {
+        if (index < 0 || index >= _layout.PageCount || width <= 0)
+        {
+            return null;
+        }
+
+        PageLayout page = _layout.Pages[index];
+        double scale = width / page.Size.Width;
+        int pixelWidth = Math.Max(1, (int)Math.Round(width));
+        int pixelHeight = Math.Max(1, (int)Math.Round(page.Size.Height * scale));
+        var visual = new DrawingVisual();
+        using (DrawingContext dc = visual.RenderOpen())
+        {
+            dc.PushTransform(new ScaleTransform(scale, scale));
+            Brush paper = page.PageColor is { IsAuto: false } color ? new SolidColorBrush(Color.FromRgb(color.R, color.G, color.B)) : Brushes.White;
+            dc.DrawRectangle(paper, null, new Rect(0, 0, page.Size.Width, page.Size.Height));
+            PageRenderer.DrawContent(page, new WpfRenderTarget(dc));
+            dc.Pop();
+        }
+
+        var bitmap = new RenderTargetBitmap(pixelWidth, pixelHeight, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
     private void DrawContent(DrawingVisual visual, int index)
+
     {
         Rect rect = PageRect(index);
         using DrawingContext dc = visual.RenderOpen();

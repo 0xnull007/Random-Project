@@ -811,7 +811,7 @@
             <TextBlock Text="&#xE721;" FontFamily="{StaticResource Quill.IconFont}" FontSize="13" Margin="7,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" Opacity="0.7" IsHitTestVisible="False" />
             <TextBlock x:Name="NavSearchHint" Text="Search document" Margin="26,0,0,0" VerticalAlignment="Center" Opacity="0.5" IsHitTestVisible="False" />
           </Grid>
-          <TabControl x:Name="NavTabs" BorderThickness="0" Background="Transparent" Padding="0">
+          <TabControl x:Name="NavTabs" BorderThickness="0" Background="Transparent" Padding="0" SelectionChanged="OnNavTabChanged">
             <TabItem Header="Headings">
               <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Headings appear here as you use the Heading 1-3 styles." Margin="10,6,10,8" Opacity="0.7" TextWrapping="Wrap"
@@ -827,7 +827,23 @@
                 </ListBox>
               </DockPanel>
             </TabItem>
+            <TabItem Header="Pages">
+              <ListBox x:Name="PageList" ItemsSource="{Binding PageThumbnails}" BorderThickness="0" Background="Transparent"
+                       SelectionChanged="OnPageThumbnailSelected" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Center">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Margin="0,6">
+                      <Border BorderThickness="1" BorderBrush="{StaticResource Quill.PageBorderBrush}" Background="White" HorizontalAlignment="Center">
+                        <Image Source="{Binding Image}" Width="150" Stretch="Uniform" />
+                      </Border>
+                      <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" FontSize="11" Opacity="0.75" Margin="0,3,0,0" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </TabItem>
             <TabItem Header="Results">
+
               <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="{Binding ResultCountText}" Margin="10,6,10,4" Opacity="0.7" />
                 <ListBox x:Name="ResultList" ItemsSource="{Binding SearchResults}" BorderThickness="0" Background="Transparent"

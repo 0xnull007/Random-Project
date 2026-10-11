@@ -348,6 +348,8 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 14. View tab and status bar
 
+- [ ] Navigation pane > Pages: thumbnails of every page (page colour, borders, watermark included) refresh a moment
+      after you edit; clicking one scrolls to that page **(new)**.
 - [ ] Navigation pane: the search box at the top highlights every match in the document and lists them under a
       Results tab with their context; clicking a result or pressing Enter (Shift+Enter backwards) selects the match;
       Esc clears; the list refreshes as you edit; the Headings tab is still there **(new)**.
