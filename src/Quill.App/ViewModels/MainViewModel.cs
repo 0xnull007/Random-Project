@@ -340,6 +340,20 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SetWatermark(string text) => Session.SetWatermark(string.IsNullOrWhiteSpace(text) ? null : new Watermark(text));
 
+    /// <summary>Insert > Drop Cap: "None", or "Dropped:3" / "InMargin:3" (position and lines).</summary>
+    [RelayCommand]
+    private void SetDropCap(string choice)
+    {
+        string[] parts = choice.Split(':');
+        int lines = parts.Length > 1 && int.TryParse(parts[1], out int parsed) ? parsed : 3;
+        Session.SetDropCap(parts[0] switch
+        {
+            "Dropped" => DropCap.Dropped(lines),
+            "InMargin" => DropCap.InMargin(lines),
+            _ => null,
+        });
+    }
+
     /// <summary>Layout > Hyphenation menu: document-wide automatic hyphenation, or the current paragraph's opt-out.</summary>
     [RelayCommand]
     private void SetHyphenation(string mode)

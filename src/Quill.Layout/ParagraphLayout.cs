@@ -12,7 +12,7 @@ public sealed class ParagraphLayout : IDisposable
 {
     private bool _disposed;
 
-    internal ParagraphLayout(ParagraphLayoutInput input, IReadOnlyList<IFormattedLine> lines, string fieldSignature, IFormattedLine? marker = null, double markerX = 0)
+    internal ParagraphLayout(ParagraphLayoutInput input, IReadOnlyList<IFormattedLine> lines, string fieldSignature, IFormattedLine? marker = null, double markerX = 0, DropCapSource? dropCap = null)
     {
         Input = input;
         Lines = lines;
@@ -46,7 +46,16 @@ public sealed class ParagraphLayout : IDisposable
         LineBaselines = baselines;
         LineStarts = starts;
         ContentHeight = y;
+        if (dropCap is { } cap && lines.Count > 0)
+        {
+            // The letter's baseline sits on the baseline of the last line it spans.
+            int last = Math.Min(cap.Lines, lines.Count) - 1;
+            DropCap = new DropCapLayout(cap.Line, cap.X, tops[last] + baselines[last] - cap.Line.Baseline);
+        }
     }
+
+    /// <summary>The enlarged first letter of a drop-cap paragraph, or null: where to draw it relative to the column left and content top.</summary>
+    public DropCapLayout? DropCap { get; }
 
     public ParagraphLayoutInput Input { get; }
 
@@ -170,9 +179,16 @@ public sealed class ParagraphLayout : IDisposable
 
         _disposed = true;
         MarkerLine?.Dispose();
+        DropCap?.Line.Dispose();
         foreach (IFormattedLine line in Lines)
         {
             line.Dispose();
         }
     }
 }
+
+/// <summary>A formatted drop-cap letter before the lines are placed: the paginator formats it and the layout positions it.</summary>
+public sealed record DropCapSource(IFormattedLine Line, double X, int Lines);
+
+/// <summary>Where a drop-cap letter is drawn: x from the column's left edge and the top of its natural line box from the content top.</summary>
+public sealed record DropCapLayout(IFormattedLine Line, double X, double Top);

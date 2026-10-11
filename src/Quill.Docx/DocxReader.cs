@@ -95,15 +95,17 @@ public sealed class DocxReader
         {
             if (element is W.Paragraph paragraph)
             {
-                blocks.Add(ReadParagraph(paragraph));
+                ReadBlock(paragraph, blocks);
                 if (paragraph.ParagraphProperties?.SectionProperties is { } sectPr)
                 {
+                    FlushDropCap(blocks);
                     sections.Add(BuildSection(sectPr, EnsureParagraph(blocks.ToImmutable())));
                     blocks.Clear();
                 }
             }
             else if (element is W.SectionProperties finalSectPr)
             {
+                FlushDropCap(blocks);
                 sections.Add(BuildSection(finalSectPr, EnsureParagraph(blocks.ToImmutable())));
                 blocks.Clear();
             }
@@ -113,6 +115,7 @@ public sealed class DocxReader
             }
         }
 
+        FlushDropCap(blocks);
         if (blocks.Count > 0 || sections.Count == 0)
         {
             sections.Add(new Section(SectionProperties.Letter, EnsureParagraph(blocks.ToImmutable())));
@@ -137,6 +140,7 @@ public sealed class DocxReader
                 }
             }
 
+            FlushDropCap(blocks);
             return EnsureParagraph(blocks.ToImmutable());
         }
         finally
@@ -146,13 +150,57 @@ public sealed class DocxReader
     }
 
 
+    /// <summary>A framed first-letter paragraph (Word's drop cap) waiting for the paragraph it belongs to.</summary>
+    private (Paragraph Letter, DropCap Cap)? _pendingDropCap;
+
+    /// <summary>Adds a drop-cap letter paragraph that no paragraph followed as an ordinary paragraph.</summary>
+    private void FlushDropCap(ImmutableList<Block>.Builder blocks)
+    {
+        if (_pendingDropCap is { } pending)
+        {
+            blocks.Add(pending.Letter);
+            _pendingDropCap = null;
+        }
+    }
+
+    /// <summary>Puts the framed letter back at the front of its paragraph, in the paragraph's own font size, and records the drop cap.</summary>
+    private static Paragraph MergeDropCap(Paragraph letter, DropCap cap, Paragraph rest)
+    {
+        var inlines = ImmutableArray.CreateBuilder<Inline>(letter.Inlines.Length + rest.Inlines.Length);
+        foreach (Inline inline in letter.Inlines)
+        {
+            inlines.Add(inline.WithProperties(inline.Properties with { FontSize = null }));
+        }
+
+        inlines.AddRange(rest.Inlines);
+        return rest.WithInlines(inlines.ToImmutable()).WithProperties(rest.Properties with { DropCap = cap });
+    }
+
     private void ReadBlock(OpenXmlElement element, ImmutableList<Block>.Builder blocks)
     {
         switch (element)
         {
             case W.Paragraph paragraph:
-                blocks.Add(ReadParagraph(paragraph));
+            {
+                Paragraph read = ReadParagraph(paragraph);
+                if (paragraph.ParagraphProperties?.FrameProperties is { DropCap.Value: var location } frame && location != W.DropCapLocationValues.None && read.Inlines.Length > 0)
+                {
+                    FlushDropCap(blocks);
+                    int.TryParse(frame.HorizontalSpace?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int space);
+                    _pendingDropCap = (read, new DropCap(location == W.DropCapLocationValues.Margin ? DropCapPosition.InMargin : DropCapPosition.Dropped, Math.Clamp(frame.Lines?.Value ?? 3, 1, 10), new Twips(Math.Max(0, space))));
+                    break;
+                }
+
+                if (_pendingDropCap is { } pending)
+                {
+                    read = MergeDropCap(pending.Letter, pending.Cap, read);
+                    _pendingDropCap = null;
+                }
+
+                blocks.Add(read);
                 break;
+            }
+
             case W.Table table:
                 blocks.Add(ReadTable(table));
                 break;

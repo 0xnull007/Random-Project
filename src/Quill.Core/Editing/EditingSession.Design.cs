@@ -30,6 +30,12 @@ public sealed partial class EditingSession
     /// <summary>Word's "Don't hyphenate" for the selected paragraphs (or the reverse).</summary>
     public void SuppressHyphenation(bool suppress) => ApplyParagraphFormat(new ParagraphProperties { SuppressAutoHyphens = suppress });
 
+    /// <summary>Insert > Drop Cap for the selected paragraphs: null removes it.</summary>
+    public void SetDropCap(DropCap? dropCap) => ApplyParagraphFormat(new ParagraphProperties { DropCap = dropCap ?? DropCap.None });
+
+    /// <summary>The caret paragraph's drop cap, or null.</summary>
+    public DropCap? DropCapAtCaret => Resolver.ResolveParagraph(Document.GetParagraph(Selection.Active)).DropCap;
+
     /// <summary>Colours every page (null or automatic clears it); one undo step.</summary>
     public void SetPageColor(DocColor? color)
     {

@@ -188,6 +188,15 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       keeps its "Don't hyphenate" setting (Paragraph > Line and Page Breaks in Word).
 - [ ] Only English text is hyphenated (American English rules); text marked as another language is left alone.
 
+## 8a2. Drop caps (new)
+
+- [ ] Insert > Drop Cap > Dropped (3 lines): the paragraph's first letter grows to span three lines and the first
+      lines flow around it; 2 and 4 lines change its size; In Margin puts the letter in the left margin with the
+      text unchanged; None removes it. Typing before the letter makes the new first letter the drop cap; Backspace
+      over it works like any character. Each change is one Ctrl+Z step.
+- [ ] Save and open in Word: the drop cap shows as Word's drop cap (a framed first-letter paragraph) and stays
+      editable there; a Word document with drop caps opens here with them intact.
+
 ## 8b. Design tab: page colour and page borders (new)
 
 - [ ] Design > Page Color: pick a colour and every page is tinted on screen (dark mode too); "Automatic" clears it;

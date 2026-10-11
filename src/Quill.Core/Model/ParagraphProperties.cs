@@ -56,6 +56,9 @@ public sealed record ParagraphProperties
     /// <summary>Never hyphenate this paragraph even when the document hyphenates automatically (Word's "Don't hyphenate").</summary>
     public bool? SuppressAutoHyphens { get; init; }
 
+    /// <summary>Enlarged first letter; <see cref="Model.DropCap.None"/> switches an inherited one off.</summary>
+    public DropCap? DropCap { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -92,6 +95,7 @@ public sealed record ParagraphProperties
             Borders = overrides.Borders ?? Borders,
             SuppressLineNumbers = overrides.SuppressLineNumbers ?? SuppressLineNumbers,
             SuppressAutoHyphens = overrides.SuppressAutoHyphens ?? SuppressAutoHyphens,
+            DropCap = overrides.DropCap ?? DropCap,
         };
     }
 }

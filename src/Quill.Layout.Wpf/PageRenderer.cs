@@ -220,6 +220,11 @@ public static class PageRenderer
     {
         double contentTop = top + layout.SpaceBefore;
         DrawParagraphDecorations(layout, left, contentTop, contentTop + layout.ContentHeight, isStart: true, isEnd: true, target);
+        if (layout.DropCap is { } cellCap)
+        {
+            cellCap.Line.Draw(target, new PointD(left + cellCap.X, contentTop + cellCap.Top));
+        }
+
         for (int i = 0; i < layout.LineCount; i++)
         {
             double naturalTop = contentTop + layout.LineTops[i] + (layout.LineBaselines[i] - layout.Lines[i].Baseline);
@@ -242,6 +247,11 @@ public static class PageRenderer
             PointD first = fragment.LineOrigin(fragment.FirstLine);
             double y = first.Y + (fragment.Layout.Lines[fragment.FirstLine].Baseline - marker.Baseline);
             marker.Draw(target, new PointD(fragment.Bounds.Left + fragment.Layout.MarkerX, y));
+        }
+
+        if (fragment.IsParagraphStart && fragment.Layout.DropCap is { } dropCap)
+        {
+            dropCap.Line.Draw(target, new PointD(fragment.Bounds.Left + dropCap.X, fragment.ContentTop + dropCap.Top));
         }
 
         for (int i = fragment.FirstLine; i <= fragment.LastLine; i++)

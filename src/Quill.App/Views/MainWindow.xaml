@@ -404,6 +404,18 @@
                 </Button.ContextMenu>
               </Button>
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE787;" Content="Date &amp; Time" Click="OnInsertDateTime" ToolTip="Insert the current date or time, as text or as a field that updates itself" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8D2;" Content="Drop Cap" Click="OnCaseMenu" ToolTip="Enlarge the paragraph's first letter so it spans several lines, like Word's Drop Cap">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="None" Command="{Binding SetDropCapCommand}" CommandParameter="None" />
+                    <MenuItem Header="Dropped (3 lines)" Command="{Binding SetDropCapCommand}" CommandParameter="Dropped:3" />
+                    <MenuItem Header="Dropped (2 lines)" Command="{Binding SetDropCapCommand}" CommandParameter="Dropped:2" />
+                    <MenuItem Header="Dropped (4 lines)" Command="{Binding SetDropCapCommand}" CommandParameter="Dropped:4" />
+                    <Separator />
+                    <MenuItem Header="In Margin (3 lines)" Command="{Binding SetDropCapCommand}" CommandParameter="InMargin:3" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
             </StackPanel>
           </HeaderedContentControl>
 

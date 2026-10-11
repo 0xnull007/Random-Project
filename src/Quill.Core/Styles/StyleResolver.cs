@@ -155,7 +155,8 @@ public sealed class StyleResolver
             merged.Shading is { IsAuto: false } shading ? shading : null,
             merged.Borders is { IsNone: false } borders ? borders : null,
             merged.SuppressLineNumbers ?? false,
-            merged.SuppressAutoHyphens ?? false);
+            merged.SuppressAutoHyphens ?? false,
+            merged.DropCap is { IsNone: false } dropCap ? dropCap : null);
     }
 
     private ResolvedRunProperties BuildRun(RunKey key)

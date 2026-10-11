@@ -1180,9 +1180,75 @@ public sealed class Paginator
                     input = input with { FirstLineStart = textStart, Marker = listMarker };
                 }
 
+                DropCapSource? dropCap = null;
+                if (input.Properties.DropCap is { IsNone: false } cap)
+                {
+                    (input, dropCap) = ApplyDropCap(input, cap);
+                }
+
                 IReadOnlyList<IFormattedLine> lines = _formatter.FormatParagraph(input);
-                return new ParagraphLayout(input, lines, signature, markerLine, markerX);
+                return new ParagraphLayout(input, lines, signature, markerLine, markerX, dropCap);
             });
+        }
+
+        /// <summary>
+        /// Word's drop cap: the paragraph's first letter is formatted on its own, large enough to span the requested
+        /// lines, hidden from the text flow and (unless it sits in the margin) made an obstacle the first lines flow around.
+        /// </summary>
+        private (ParagraphLayoutInput Input, DropCapSource? Cap) ApplyDropCap(ParagraphLayoutInput input, DropCap cap)
+        {
+            string text = input.Text;
+            if (input.Runs.IsEmpty || input.Runs[0].Kind != RunKind.Text || text.Length == 0 || !char.IsLetterOrDigit(text[0]))
+            {
+                return (input, null);
+            }
+
+            int length = System.Globalization.StringInfo.GetNextTextElementLength(text);
+            RunSpan first = input.Runs[0];
+            if (length <= 0 || first.Length < length)
+            {
+                return (input, null);
+            }
+
+            int lines = Math.Clamp(cap.Lines, 1, 10);
+            double naturalHeight = input.MarkProperties.FontSize.ToDips() * 1.2;
+            double slot = ParagraphLayout.SlotHeight(input.Properties.LineSpacing, naturalHeight, naturalHeight * 0.8);
+            double emDips = ((lines - 1) * slot + naturalHeight * 0.8) / 0.7; // cap height is about 0.7 em
+            ResolvedRunProperties letterProps = first.Properties with { FontSize = HalfPoints.FromPoints(emDips * 0.75), Hidden = false };
+            string letter = text[..length];
+            var letterInput = new ParagraphLayoutInput(
+                new Paragraph([new Quill.Core.Model.Run(letter)]),
+                letter,
+                [new RunSpan(0, length, letterProps, RunKind.Text)],
+                letterProps,
+                input.Properties with { Alignment = Alignment.Left, LeftIndent = Twips.Zero, RightIndent = Twips.Zero, FirstLineIndent = Twips.Zero, Tabs = TabStops.Empty, List = null, DropCap = null },
+                Math.Max(1000, input.ColumnWidth * 4),
+                input.DefaultTabStop,
+                input.FlowDirection,
+                input.PixelsPerDip);
+            IReadOnlyList<IFormattedLine> formatted = _formatter.FormatParagraph(letterInput);
+            IFormattedLine line = formatted[0];
+            for (int i = 1; i < formatted.Count; i++)
+            {
+                formatted[i].Dispose();
+            }
+
+            double distance = Math.Max(0, cap.Distance.ToDips());
+            double x = cap.Position == DropCapPosition.InMargin ? input.LeftIndent - line.Width - distance : input.LeftIndent;
+            var runs = input.Runs.ToBuilder();
+            runs[0] = first with { Length = length, Kind = RunKind.Hidden, Properties = first.Properties with { Hidden = true } };
+            if (first.Length > length)
+            {
+                runs.Insert(1, first with { Start = first.Start + length, Length = first.Length - length });
+            }
+
+            ImmutableArray<FlowObstacle> obstacles = input.Obstacles.IsDefault ? ImmutableArray<FlowObstacle>.Empty : input.Obstacles;
+            if (cap.Position == DropCapPosition.Dropped)
+            {
+                obstacles = obstacles.Add(new FlowObstacle(new RectD(x, 0, line.Width + distance, lines * slot), PushBelow: false));
+            }
+
+            return (input with { Runs = runs.ToImmutable(), Obstacles = obstacles }, new DropCapSource(line, x, lines));
         }
 
         /// <summary>

@@ -94,7 +94,7 @@ public static class DocxWriter
             for (int b = 0; b < section.Body.Count; b++)
             {
                 bodyContext.CurrentBlock = BlockPath.Of(b);
-                blocks.Add(BuildBlock(bodyContext, section.Body[b]));
+                blocks.AddRange(BuildBlocks(bodyContext, section.Body[b]));
             }
 
             if (last)
@@ -160,13 +160,94 @@ public static class DocxWriter
 
     // ------------------------------------------------------------------ blocks
 
-    private static OpenXmlElement BuildBlock(PartContext context, Block block) => block switch
+    /// <summary>The elements for one block: a drop-cap paragraph becomes Word's pair of a framed first-letter paragraph and the rest.</summary>
+    private static IEnumerable<OpenXmlElement> BuildBlocks(PartContext context, Block block)
     {
-        Paragraph paragraph => BuildParagraph(context, paragraph),
-        OpaqueBlock opaque => BuildOpaque(context.Main, opaque),
-        Table table => BuildTable(context, table),
-        _ => throw new NotSupportedException($"Unknown block type {block.GetType().Name}."),
-    };
+        switch (block)
+        {
+            case Paragraph paragraph:
+                if (SplitDropCap(paragraph) is ({ } letter, { } rest, { } cap))
+                {
+                    W.Paragraph frame = BuildParagraph(context, letter);
+                    InsertFrameProperties(frame, cap);
+                    yield return frame;
+                    yield return BuildParagraph(context, rest);
+                }
+                else
+                {
+                    yield return BuildParagraph(context, paragraph);
+                }
+
+                break;
+            case OpaqueBlock opaque:
+                yield return BuildOpaque(context.Main, opaque);
+                break;
+            case Table table:
+                yield return BuildTable(context, table);
+                break;
+            default:
+                throw new NotSupportedException($"Unknown block type {block.GetType().Name}.");
+        }
+    }
+
+    /// <summary>Word stores a drop cap as a separate paragraph holding the enlarged first letter in a text frame, followed by the rest of the paragraph.</summary>
+    private static (Paragraph Letter, Paragraph Remainder, DropCap Cap)? SplitDropCap(Paragraph paragraph)
+    {
+        if (paragraph.Properties.DropCap is not { IsNone: false } cap || paragraph.Inlines.IsEmpty || paragraph.Inlines[0] is not Run first)
+        {
+            return null;
+        }
+
+        string text = paragraph.FlatText;
+        if (text.Length == 0 || !char.IsLetterOrDigit(text[0]))
+        {
+            return null;
+        }
+
+        int length = System.Globalization.StringInfo.GetNextTextElementLength(text);
+        if (length <= 0 || first.Text.Length < length)
+        {
+            return null;
+        }
+
+        // Large enough to span the lines, the way the layout engine sizes it (cap height about 0.7 em, lines about 1.2 em).
+        HalfPoints baseSize = first.Properties.FontSize ?? paragraph.MarkProperties.FontSize ?? HalfPoints.FromPoints(11);
+        var letterSize = new HalfPoints((int)Math.Round(baseSize.Value * (1.2 * (cap.Lines - 1) + 0.96) / 0.7));
+        var letterRun = new Run(text[..length], first.Properties with { FontSize = letterSize }, first.StyleId);
+        var letter = new Paragraph([letterRun], paragraph.StyleId, paragraph.Properties with { DropCap = null }, paragraph.MarkProperties);
+        ImmutableArray<Inline> restInlines = first.Text.Length > length
+            ? paragraph.Inlines.SetItem(0, first.WithText(first.Text[length..]))
+            : paragraph.Inlines.RemoveAt(0);
+        Paragraph rest = paragraph.WithInlines(restInlines).WithProperties(paragraph.Properties with { DropCap = null });
+        return (letter, rest, cap);
+    }
+
+    private static void InsertFrameProperties(W.Paragraph frame, DropCap cap)
+    {
+        W.ParagraphProperties pPr = frame.ParagraphProperties ?? frame.PrependChild(new W.ParagraphProperties());
+        var framePr = new W.FrameProperties
+        {
+            DropCap = cap.Position == DropCapPosition.InMargin ? W.DropCapLocationValues.Margin : W.DropCapLocationValues.Drop,
+            Lines = Math.Clamp(cap.Lines, 1, 10),
+            Wrap = W.TextWrappingValues.Around,
+            VerticalPosition = W.VerticalAnchorValues.Text,
+            HorizontalPosition = W.HorizontalAnchorValues.Text,
+        };
+        if (cap.Distance.Value > 0)
+        {
+            framePr.HorizontalSpace = cap.Distance.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        OpenXmlElement? after = pPr.Elements().LastOrDefault(e => e is W.ParagraphStyleId or W.KeepNext or W.KeepLines or W.PageBreakBefore);
+        if (after is null)
+        {
+            pPr.PrependChild(framePr);
+        }
+        else
+        {
+            pPr.InsertAfter(framePr, after);
+        }
+    }
 
     private static OpenXmlElement BuildOpaque(MainDocumentPart main, OpaqueBlock opaque)
     {
@@ -291,7 +372,7 @@ public static class DocxWriter
                 for (int k = 0; k < cell.Blocks.Count; k++)
                 {
                     context.CurrentBlock = tablePath?.Child(r, c, k);
-                    tc.Append(BuildBlock(context, cell.Blocks[k]));
+                    tc.Append(BuildBlocks(context, cell.Blocks[k]));
                 }
 
                 context.CurrentBlock = tablePath;
@@ -779,7 +860,7 @@ public static class DocxWriter
                 HeaderPart part = context.Main.AddNewPart<HeaderPart>();
                 var headerContext = new PartContext(context.State, context.Main, part);
                 var element = new W.Header();
-                element.Append(headerBlocks.Select(b => BuildBlock(headerContext, b)));
+                element.Append(headerBlocks.SelectMany(b => BuildBlocks(headerContext, b)));
                 if (context.State.Watermark is { } watermark)
                 {
                     W.Paragraph host = element.Elements<W.Paragraph>().FirstOrDefault() ?? element.AppendChild(new W.Paragraph());
@@ -800,7 +881,7 @@ public static class DocxWriter
                 FooterPart part = context.Main.AddNewPart<FooterPart>();
                 var footerContext = new PartContext(context.State, context.Main, part);
                 var element = new W.Footer();
-                element.Append(footer.Select(b => BuildBlock(footerContext, b)));
+                element.Append(footer.SelectMany(b => BuildBlocks(footerContext, b)));
                 part.Footer = element;
                 sectPr.Append(new W.FooterReference { Type = VariantTo(variant), Id = context.Main.GetIdOfPart(part) });
             }
@@ -923,9 +1004,8 @@ public static class DocxWriter
                 Date = comment.Date?.UtcDateTime,
             };
             bool first = true;
-            foreach (Block block in comment.Blocks)
+            foreach (OpenXmlElement built in comment.Blocks.SelectMany(block => BuildBlocks(context, block)))
             {
-                OpenXmlElement built = BuildBlock(context, block);
                 if (first && built is W.Paragraph paragraph)
                 {
                     var reference = new W.Run(new W.RunProperties(new W.RunStyle { Val = CommentSupport.ReferenceStyleId }), new W.AnnotationReferenceMark());
@@ -1019,7 +1099,7 @@ public static class DocxWriter
         foreach (int id in state.NoteIds)
         {
             var note = new W.Footnote { Id = id };
-            note.Append(document.Footnotes[id].Select(b => BuildBlock(context, b)));
+            note.Append(document.Footnotes[id].SelectMany(b => BuildBlocks(context, b)));
             footnotes.Append(note);
         }
 
@@ -1041,7 +1121,11 @@ public static class DocxWriter
         {
             var note = new W.Endnote { Id = id };
             context.CurrentStory = StoryId.Endnote(id);
-            note.Append(document.Endnotes[id].Select((b, i) => { context.CurrentBlock = BlockPath.Of(i); return BuildBlock(context, b); }));
+            note.Append(document.Endnotes[id].SelectMany((b, i) =>
+            {
+                context.CurrentBlock = BlockPath.Of(i);
+                return BuildBlocks(context, b).ToList();
+            }));
             endnotes.Append(note);
         }
 

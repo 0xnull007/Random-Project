@@ -85,6 +85,44 @@ public class DocxDesignTests
     }
 
     [Fact]
+    public void Drop_caps_round_trip_as_Words_framed_letter_paragraph()
+    {
+        var dropped = new Paragraph([new Run("Once upon a time", new RunProperties { Italic = true }), new Run(" there was")], properties: new ParagraphProperties { DropCap = DropCap.Dropped(3) });
+        var inMargin = new Paragraph([new Run("Margin text")], properties: new ParagraphProperties { DropCap = new DropCap(DropCapPosition.InMargin, 2, new Twips(100)) });
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(dropped, inMargin, Paragraph.FromText("Plain")))), DefaultStyleSheet.Create());
+
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+            List<DocumentFormat.OpenXml.Wordprocessing.Paragraph> paragraphs = package.MainDocumentPart!.Document!.Body!.Elements<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().ToList();
+            Assert.Equal(5, paragraphs.Count); // letter + rest, letter + rest, plain
+            var frame = paragraphs[0].ParagraphProperties!.FrameProperties!;
+            Assert.Equal(DocumentFormat.OpenXml.Wordprocessing.DropCapLocationValues.Drop, frame.DropCap!.Value);
+            Assert.Equal(3, frame.Lines!.Value);
+            Assert.Equal("O", paragraphs[0].InnerText);
+            Assert.Equal("nce upon a time there was", paragraphs[1].InnerText);
+            Assert.Null(paragraphs[1].ParagraphProperties?.FrameProperties);
+            Assert.Equal("100", paragraphs[2].ParagraphProperties!.FrameProperties!.HorizontalSpace!.Value);
+        }
+
+        LoadResult reread = DocxReader.Read(new MemoryStream(bytes));
+        Assert.Empty(reread.Warnings);
+        Assert.Equal(3, reread.Document.Sections[0].Body.Count);
+        var first = (Paragraph)reread.Document.Sections[0].Body[0];
+        Assert.Equal("Once upon a time there was", first.FlatText);
+        Assert.Equal(DropCap.Dropped(3), first.Properties.DropCap);
+        Assert.True(first.Inlines[0].Properties.Italic);
+        Assert.Null(first.Inlines[0].Properties.FontSize);
+        var second = (Paragraph)reread.Document.Sections[0].Body[1];
+        Assert.Equal("Margin text", second.FlatText);
+        Assert.Equal(new DropCap(DropCapPosition.InMargin, 2, new Twips(100)), second.Properties.DropCap);
+        Assert.Null(((Paragraph)reread.Document.Sections[0].Body[2]).Properties.DropCap);
+    }
+
+    [Fact]
     public void Line_numbering_round_trips()
     {
         var numbering = new LineNumbering { CountBy = 5, Start = 1, Distance = Twips.FromInches(0.3), Restart = LineNumberRestart.EachPage };
