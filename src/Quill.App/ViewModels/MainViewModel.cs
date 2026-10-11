@@ -242,6 +242,14 @@ public sealed partial class MainViewModel : ObservableObject
     private void SortParagraphs(string order) => Session.SortParagraphs(descending: string.Equals(order, "Desc", StringComparison.OrdinalIgnoreCase));
 
     [RelayCommand]
+    private void ApplyMultilevelList(string preset)
+    {
+        Session.ApplyMultilevelList(preset);
+        RefreshFormatState();
+    }
+
+
+    [RelayCommand]
     private void InsertBlankPage() => Session.InsertBlankPage();
 
     [RelayCommand]

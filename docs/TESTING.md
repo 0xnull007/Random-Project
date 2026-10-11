@@ -138,6 +138,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 7. Lists
 
+- [ ] Home > Paragraph > 1.a.i (Multilevel List) offers 1. a. i. / 1 1.1 1.1.1 / I. A. 1. a) (1) and three bullet
+      outlines: the selected paragraphs join the list, Tab and Shift+Tab move between levels and show the outline's
+      markers, and picking another outline reformats the whole list; one undo step **(new)**.
 - [ ] "• List" and "1. List" toggles; Enter continues the list; Enter on an empty item ends it.
 - [ ] Tab / Shift+Tab at the start of an item changes the level (bullets change shape, numbers become a./i.).
 - [ ] Backspace at the start of an item removes the bullet first, then merges.

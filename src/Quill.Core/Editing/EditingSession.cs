@@ -905,7 +905,60 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithLists(Document.Lists.With(changed)), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
     }
 
+    /// <summary>
+    /// Word's Multilevel List gallery: the selected paragraphs join a new list built from the preset, keeping their
+    /// levels; when the caret paragraph already belongs to a list, that whole list (in this block list) moves to the
+    /// new definition. One undo step.
+    /// </summary>
+    public void ApplyMultilevelList(string presetName)
+    {
+        if (MultilevelLists.Find(presetName) is not { } preset)
+        {
+            return;
+        }
+
+        TextRange range = Selection.Range;
+        if (!range.Start.Block.SameContainer(range.End.Block))
+        {
+            return;
+        }
+
+        (ListStore store, int newId) = Document.Lists.AddList(preset.Levels);
+        Document document = Document.WithLists(store);
+        ImmutableList<Block> blocks = document.GetContainer(range.Story, range.Start.Block);
+        ImmutableList<Block>.Builder builder = blocks.ToBuilder();
+        var resolver = new StyleResolver(document.Styles, document.Lists);
+        int? oldId = CurrentList() is (_, { } current) ? current.NumberingId : null;
+        int first = range.Start.Block.Last;
+        int last = range.End.Block.Last;
+        if (last > first && range.End.Offset == 0)
+        {
+            last--;
+        }
+
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            if (blocks[i] is not Paragraph paragraph)
+            {
+                continue;
+            }
+
+            ListFormat? existing = resolver.ResolveParagraph(paragraph).List is { IsNone: false } format ? format : null;
+            bool selected = i >= first && i <= last;
+            bool sameList = oldId is { } id && existing?.NumberingId == id;
+            if (!selected && !sameList)
+            {
+                continue;
+            }
+
+            builder[i] = paragraph.WithProperties(paragraph.Properties.Merge(new ParagraphProperties { List = new ListFormat(newId, existing?.Level ?? 0) }));
+        }
+
+        Commit(new EditResult(document.WithContainer(range.Story, range.Start.Block, builder.ToImmutable()), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
     private (int Index, ListFormat Format)? CurrentList()
+
     {
         Paragraph paragraph = Document.GetParagraph(Selection.Active);
         return _resolver.ResolveParagraph(paragraph).List is { IsNone: false } format ? (Selection.Active.Block.Last, format) : null;

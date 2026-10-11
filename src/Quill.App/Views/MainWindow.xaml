@@ -240,6 +240,20 @@
               <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                 <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsBulleted}" Content="&#xE8FD;" ToolTip="Bullets" />
                 <ToggleButton Style="{StaticResource Quill.CommandToggle}" IsChecked="{Binding IsNumbered}" Content="1." Width="30" Padding="0" ToolTip="Numbering" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="1.a.i" Width="38" Padding="0" FontSize="11" Click="OnCaseMenu" ToolTip="Multilevel list: pick an outline for all nine levels (Tab and Shift+Tab change the level)">
+                  <Button.ContextMenu>
+                    <ContextMenu Closed="OnMenuClosed">
+                      <MenuItem Header="1.  a.  i." Command="{Binding ApplyMultilevelListCommand}" CommandParameter="1. a. i." />
+                      <MenuItem Header="1  1.1  1.1.1" Command="{Binding ApplyMultilevelListCommand}" CommandParameter="1 1.1 1.1.1" />
+                      <MenuItem Header="I.  A.  1.  a)  (1)" Command="{Binding ApplyMultilevelListCommand}" CommandParameter="I. A. 1. a) (1)" />
+                      <Separator />
+                      <MenuItem Header="•  o  ▪" Command="{Binding ApplyMultilevelListCommand}" CommandParameter="• o ▪ bullets" />
+                      <MenuItem Header="➢  •  ○" Command="{Binding ApplyMultilevelListCommand}" CommandParameter="➢ • ○ bullets" />
+                      <MenuItem Header="❖  ➢  ▪" Command="{Binding ApplyMultilevelListCommand}" CommandParameter="❖ ➢ ▪ bullets" />
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                </Button>
+
                 <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E4;" Width="30" Padding="0" Command="{Binding DecreaseIndentCommand}" ToolTip="Decrease indent (Shift+Tab at the start of a list item)" />
                 <Button Style="{StaticResource Quill.CommandButton}" Content="&#x21E5;" Width="30" Padding="0" Command="{Binding IncreaseIndentCommand}" ToolTip="Increase indent (Tab at the start of a list item)" />
                 <Button Style="{StaticResource Quill.CommandButton}" Content="A&#x2193;Z" Width="34" Padding="0" Click="OnCaseMenu" ToolTip="Sort the selected paragraphs (or all of them) alphabetically or numerically">
