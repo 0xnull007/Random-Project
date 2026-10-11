@@ -126,6 +126,12 @@ public sealed class WpfFormattedLine : IFormattedLine
         {
             RectD b = placement.Bounds;
             var bounds = new RectD(origin.X + b.X, origin.Y + b.Y, b.Width, b.Height);
+            if (placement.Image.IsShape)
+            {
+                PageRenderer.DrawShape(placement.Image, bounds, target);
+                continue;
+            }
+
             if (placement.Data is { } data)
             {
                 target.DrawImage(data, bounds);

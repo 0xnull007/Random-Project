@@ -8,6 +8,7 @@ using Quill.Core.Units;
 using A = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+using WPS = DocumentFormat.OpenXml.Office2010.Word.DrawingShape;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 using static Quill.Docx.OoxmlValues;
 
@@ -471,6 +472,9 @@ public static class DocxWriter
                     break;
                 }
 
+                case InlineImage { IsShape: true } shape:
+                    container.Append(BuildPictureRun(shape, null, context.NextPictureId()));
+                    break;
                 case InlineImage image:
                     if (context.AddImage(image.ImageId) is { } relationshipId)
                     {
@@ -1168,46 +1172,81 @@ public static class DocxWriter
     // ------------------------------------------------------------------ pictures
 
 
-    private static W.Run BuildPictureRun(InlineImage image, string relationshipId, uint pictureId)
+    /// <summary>Word's a:ln for a picture border or shape outline: width in EMU (12700 per point; BorderLine widths are eighths of a point), colour and dash preset.</summary>
+    private static A.Outline BuildOutline(BorderLine border)
+    {
+        var outline = new A.Outline(new A.SolidFill(new A.RgbColorModelHex { Val = border.EffectiveColor.ToHex() }))
+        {
+            Width = (int)Math.Max(1, Math.Round(border.Width / 8.0 * 12700)),
+        };
+        A.PresetLineDashValues? dash = border.Style switch
+        {
+            PageBorderStyle.Dashed => A.PresetLineDashValues.Dash,
+            PageBorderStyle.Dotted => A.PresetLineDashValues.Dot,
+            _ => null,
+        };
+        if (dash is { } value)
+        {
+            outline.Append(new A.PresetDash { Val = value });
+        }
+
+        return outline;
+    }
+
+    /// <summary>A drawn shape as a WordprocessingShape (wps:wsp): geometry, fill and outline, no text.</summary>
+    private static A.Graphic BuildShapeGraphic(InlineImage image, long cx, long cy)
+    {
+        ShapeStyle shape = image.Shape!;
+        var shapeProperties = new WPS.ShapeProperties(
+            new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = cx, Cy = cy }),
+            new A.PresetGeometry(new A.AdjustValueList())
+            {
+                Preset = shape.Kind switch
+                {
+                    ShapeKind.RoundedRectangle => A.ShapeTypeValues.RoundRectangle,
+                    ShapeKind.Ellipse => A.ShapeTypeValues.Ellipse,
+                    ShapeKind.Line => A.ShapeTypeValues.Line,
+                    _ => A.ShapeTypeValues.Rectangle,
+                },
+            });
+        shapeProperties.Append(shape.Fill is { IsAuto: false } fill
+            ? new A.SolidFill(new A.RgbColorModelHex { Val = fill.ToHex() })
+            : new A.NoFill());
+        shapeProperties.Append(image.Border is { } outline ? BuildOutline(outline) : new A.Outline(new A.NoFill()));
+        var wsp = new WPS.WordprocessingShape(
+            new WPS.NonVisualDrawingShapeProperties(),
+            shapeProperties,
+            new WPS.TextBodyProperties { RightToLeftColumns = false, Anchor = A.TextAnchoringTypeValues.Center });
+        return new A.Graphic(new A.GraphicData(wsp) { Uri = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape" });
+    }
+
+    /// <param name="relationshipId">The picture part's relationship, or null for a drawn shape.</param>
+    private static W.Run BuildPictureRun(InlineImage image, string? relationshipId, uint pictureId)
     {
         long cx = Math.Max(1, image.Width.ToEmu());
         long cy = Math.Max(1, image.Height.ToEmu());
-        string name = "Picture " + pictureId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string name = (image.IsShape ? "Shape " : "Picture ") + pictureId.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var shapeProperties = new PIC.ShapeProperties(
             new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = cx, Cy = cy }),
             new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle });
-        if (image.Border is { } border)
+        if (image.Border is { } border && !image.IsShape)
         {
-            // Word's Picture Border: a:ln with the width in EMU (12700 per point; BorderLine widths are eighths of a point).
-            var outline = new A.Outline(new A.SolidFill(new A.RgbColorModelHex { Val = border.EffectiveColor.ToHex() }))
-            {
-                Width = (int)Math.Max(1, Math.Round(border.Width / 8.0 * 12700)),
-            };
-            A.PresetLineDashValues? dash = border.Style switch
-            {
-                PageBorderStyle.Dashed => A.PresetLineDashValues.Dash,
-                PageBorderStyle.Dotted => A.PresetLineDashValues.Dot,
-                _ => null,
-            };
-            if (dash is { } value)
-            {
-                outline.Append(new A.PresetDash { Val = value });
-            }
-
-            shapeProperties.Append(outline);
+            shapeProperties.Append(BuildOutline(border));
         }
 
-        var graphic = new A.Graphic(
-            new A.GraphicData(
-                new PIC.Picture(
-                    new PIC.NonVisualPictureProperties(
-                        new PIC.NonVisualDrawingProperties { Id = 0U, Name = name },
-                        new PIC.NonVisualPictureDrawingProperties()),
-                    new PIC.BlipFill(
-                        new A.Blip { Embed = relationshipId },
-                        new A.Stretch(new A.FillRectangle())),
-                    shapeProperties))
-            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" });
+        A.Graphic graphic = image.IsShape || relationshipId is null
+            ? BuildShapeGraphic(image, cx, cy)
+            : new A.Graphic(
+                new A.GraphicData(
+                    new PIC.Picture(
+                        new PIC.NonVisualPictureProperties(
+                            new PIC.NonVisualDrawingProperties { Id = 0U, Name = name },
+                            new PIC.NonVisualPictureDrawingProperties()),
+                        new PIC.BlipFill(
+                            new A.Blip { Embed = relationshipId },
+                            new A.Stretch(new A.FillRectangle())),
+                        shapeProperties))
+                { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" });
         OpenXmlElement drawing = image.Anchor is { } anchor
             ? BuildAnchor(anchor, cx, cy, pictureId, name, image.AltText, graphic)
             : new DW.Inline(

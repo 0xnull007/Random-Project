@@ -343,6 +343,16 @@ public interface IRenderTarget
     /// <summary>Draws an encoded picture into <paramref name="bounds"/>.</summary>
     void DrawImage(ImageData image, RectD bounds);
 
+    /// <summary>Fills an ellipse inscribed in <paramref name="rect"/>; targets without ellipses may fill the rectangle.</summary>
+    void FillEllipse(RectD rect, DocColor color) => FillRectangle(rect, color);
+
+    void DrawEllipse(RectD rect, DocColor color, double thickness) => DrawRectangle(rect, color, thickness);
+
+    /// <summary>Fills a rectangle with rounded corners of the given radius.</summary>
+    void FillRoundedRectangle(RectD rect, double radius, DocColor color) => FillRectangle(rect, color);
+
+    void DrawRoundedRectangle(RectD rect, double radius, DocColor color, double thickness) => DrawRectangle(rect, color, thickness);
+
     /// <summary>Diagonal translucent text across the page (a watermark); targets that cannot rotate text may ignore it.</summary>
     void DrawWatermark(string text, DocColor color, double opacity, SizeD page)
     {

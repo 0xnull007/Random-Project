@@ -268,6 +268,19 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Pictures appear in Print Preview, on paper and in the exported PDF.
 - [ ] Pictures in a header or footer work too.
 
+## 10c. Shapes (new)
+
+- [ ] Insert > Shapes > Rectangle / Rounded Rectangle / Ellipse: a blue shape with a darker outline appears in front
+      of the text at the top-left of the paragraph; it is selected (frame with handles) and the Picture Format tab
+      shows a Shape Styles group. Drag it anywhere; resize it with the handles; Wrap Text > Square makes text flow
+      around it; Delete removes it; each step is one Ctrl+Z.
+- [ ] Shape Fill > No Fill / a colour changes the inside; Picture Border changes the outline (colour, width, dashed).
+      Alt Text works for shapes too.
+- [ ] Shapes > Horizontal Line inserts a 3-inch blue rule in the line of text at the caret.
+- [ ] Shapes print, export to PDF (ellipses and rounded corners stay round) and survive save/reopen; Word shows them
+      as its own shapes. A Word document with simple shapes opens with them (other shape types show as rectangles;
+      text inside shapes is dropped, with a note in the status bar).
+
 ## 10b. Tables (new)
 
 - [ ] (new) Table Layout > Alignment > Align Center / Align Bottom: in a tall row (drag a row taller or set a row

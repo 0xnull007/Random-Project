@@ -120,7 +120,10 @@ public sealed class Field : Inline
 /// <summary>An inline picture, displayed at <see cref="Width"/> by <see cref="Height"/>. Occupies one character; the bytes live in the document's <see cref="ImageStore"/>.</summary>
 public sealed class InlineImage : Inline
 {
-    public InlineImage(string imageId, Units.Twips width, Units.Twips height, RunProperties? properties = null, string? styleId = null, ImageAnchor? anchor = null, string? altText = null, BorderLine? border = null)
+    /// <summary>The image id drawn shapes carry; it never has picture data.</summary>
+    public const string ShapeImageId = "shape";
+
+    public InlineImage(string imageId, Units.Twips width, Units.Twips height, RunProperties? properties = null, string? styleId = null, ImageAnchor? anchor = null, string? altText = null, BorderLine? border = null, ShapeStyle? shape = null)
         : base(styleId, properties)
     {
         ArgumentNullException.ThrowIfNull(imageId);
@@ -130,9 +133,22 @@ public sealed class InlineImage : Inline
         Anchor = anchor;
         AltText = string.IsNullOrWhiteSpace(altText) ? null : altText;
         Border = border;
+        Shape = shape;
+    }
+
+    /// <summary>A drawn shape of the given kind: no picture data, Word's default fill and outline unless overridden.</summary>
+    public static InlineImage CreateShape(ShapeKind kind, Units.Twips width, Units.Twips height, ImageAnchor? anchor = null, Units.DocColor? fill = null, BorderLine? outline = null, bool useDefaults = true)
+    {
+        (ShapeStyle style, BorderLine defaultOutline) = ShapeStyle.Default(kind);
+        return new InlineImage(ShapeImageId, width, height, anchor: anchor, border: outline ?? (useDefaults ? defaultOutline : null), shape: useDefaults && fill is null ? style : style with { Fill = fill });
     }
 
     public string ImageId { get; }
+
+    /// <summary>Set when this is a drawn shape rather than a picture (see <see cref="ShapeStyle"/>).</summary>
+    public ShapeStyle? Shape { get; }
+
+    public bool IsShape => Shape is not null;
 
     public Units.Twips Width { get; }
 
@@ -151,21 +167,23 @@ public sealed class InlineImage : Inline
 
     public override int Length => 1;
 
-    public InlineImage WithSize(Units.Twips width, Units.Twips height) => new(ImageId, width, height, Properties, StyleId, Anchor, AltText, Border);
+    public InlineImage WithSize(Units.Twips width, Units.Twips height) => new(ImageId, width, height, Properties, StyleId, Anchor, AltText, Border, Shape);
 
-    public InlineImage WithAnchor(ImageAnchor? anchor) => new(ImageId, Width, Height, Properties, StyleId, anchor, AltText, Border);
+    public InlineImage WithAnchor(ImageAnchor? anchor) => new(ImageId, Width, Height, Properties, StyleId, anchor, AltText, Border, Shape);
 
-    public InlineImage WithAltText(string? altText) => new(ImageId, Width, Height, Properties, StyleId, Anchor, altText, Border);
+    public InlineImage WithAltText(string? altText) => new(ImageId, Width, Height, Properties, StyleId, Anchor, altText, Border, Shape);
 
-    public InlineImage WithBorder(BorderLine? border) => new(ImageId, Width, Height, Properties, StyleId, Anchor, AltText, border);
+    public InlineImage WithBorder(BorderLine? border) => new(ImageId, Width, Height, Properties, StyleId, Anchor, AltText, border, Shape);
 
-    public override InlineImage WithProperties(RunProperties properties) => new(ImageId, Width, Height, properties, StyleId, Anchor, AltText, Border);
+    public InlineImage WithShape(ShapeStyle? shape) => new(ImageId, Width, Height, Properties, StyleId, Anchor, AltText, Border, shape);
 
-    public override InlineImage WithStyle(string? styleId) => new(ImageId, Width, Height, Properties, styleId, Anchor, AltText, Border);
+    public override InlineImage WithProperties(RunProperties properties) => new(ImageId, Width, Height, properties, StyleId, Anchor, AltText, Border, Shape);
+
+    public override InlineImage WithStyle(string? styleId) => new(ImageId, Width, Height, Properties, styleId, Anchor, AltText, Border, Shape);
 
     internal override void AppendFlatText(System.Text.StringBuilder builder) => builder.Append(Paragraph.ObjectReplacementChar);
 
-    public override string ToString() => $"Image({ImageId} {Width}x{Height}{(Anchor is null ? string.Empty : " floating")})";
+    public override string ToString() => $"{(Shape is null ? "Image" : "Shape")}({(Shape is null ? ImageId : Shape.Kind.ToString())} {Width}x{Height}{(Anchor is null ? string.Empty : " floating")})";
 }
 
 /// <summary>

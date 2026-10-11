@@ -126,6 +126,22 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsPictureSelected { get; set; }
 
+    /// <summary>True while the selected picture is a drawn shape; shows the Shape Fill group.</summary>
+    [ObservableProperty]
+    public partial bool IsShapeSelected { get; set; }
+
+    /// <summary>Insert > Shapes: a 2 by 1 inch shape in front of the text, or a horizontal line in the text.</summary>
+    [RelayCommand]
+    private void InsertShape(string kind)
+    {
+        ShapeKind shapeKind = Enum.TryParse(kind, out ShapeKind parsed) ? parsed : ShapeKind.Rectangle;
+        Session.InsertShape(shapeKind, Twips.FromInches(shapeKind == ShapeKind.Line ? 3 : 2), shapeKind == ShapeKind.Line ? Twips.Zero : Twips.FromInches(1));
+    }
+
+    /// <summary>Shape Fill menu: a hex colour, or "auto" for no fill.</summary>
+    [RelayCommand]
+    private void SetShapeFill(string value) => Session.SetShapeFill(value == "auto" ? null : DocColor.Parse(value));
+
     /// <summary>Word's Wrap Text menu: "Inline" puts the picture back in the line; any other value floats it (keeping its place if it already floats).</summary>
     [RelayCommand]
     private void WrapPicture(string mode)
@@ -1939,7 +1955,9 @@ public sealed partial class MainViewModel : ObservableObject
             Paragraph current = Session.Document.GetParagraph(Session.Selection.Active);
             CurrentStyle = ParagraphStyles.FirstOrDefault(s => s.Id == (current.StyleId ?? Session.Document.Styles.DefaultParagraphStyleId));
             bool? listKind = Session.ListKind(current);
-            IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
+            (TextPosition Start, InlineImage Image)? selectedImage = Session.Selection.IsCollapsed ? null : Session.SelectedImage();
+            IsPictureSelected = selectedImage is not null;
+            IsShapeSelected = selectedImage is (_, { IsShape: true });
             IsInTable = Session.IsInTable;
             IsInHeaderFooter = Session.IsInHeaderFooter;
             if (IsInHeaderFooter)

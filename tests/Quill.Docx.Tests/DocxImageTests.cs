@@ -91,6 +91,72 @@ public class DocxImageTests
     }
 
     [Fact]
+    public void Shapes_round_trip_as_wordprocessing_shapes_and_alternate_content_is_read()
+    {
+        InlineImage rectangle = InlineImage.CreateShape(ShapeKind.Rectangle, Twips.FromInches(2), Twips.FromInches(1), ImageAnchor.Default with { Wrap = ImageWrap.InFrontOfText }, fill: DocColor.FromRgb(0xC0, 0, 0), outline: new BorderLine(PageBorderStyle.Dashed, 16, DocColor.Black, 0));
+        InlineImage ellipse = InlineImage.CreateShape(ShapeKind.Ellipse, Twips.FromInches(1), Twips.FromInches(1), fill: DocColor.Auto, outline: new BorderLine(PageBorderStyle.Single, 8, DocColor.FromRgb(0x2F, 0x52, 0x8F), 0), useDefaults: false);
+        InlineImage line = InlineImage.CreateShape(ShapeKind.Line, Twips.FromInches(3), Twips.Zero);
+        InlineImage rounded = InlineImage.CreateShape(ShapeKind.RoundedRectangle, Twips.FromInches(2), Twips.FromInches(1));
+        var body = ImmutableList.Create<Block>(
+            new Paragraph([new Run("A "), rectangle, new Run(" b")]),
+            new Paragraph([ellipse]),
+            new Paragraph([line]),
+            new Paragraph([rounded]));
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, body)), DefaultStyleSheet.Create());
+
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+            Assert.Empty(package.MainDocumentPart!.ImageParts);
+            Assert.Equal(4, package.MainDocumentPart.Document!.Descendants<DocumentFormat.OpenXml.Office2010.Word.DrawingShape.WordprocessingShape>().Count());
+        }
+
+        LoadResult result = DocxReader.Read(new MemoryStream(bytes));
+        Assert.Empty(result.Warnings);
+        var readRectangle = (InlineImage)((Paragraph)result.Document.Sections[0].Body[0]).Inlines[1];
+        Assert.Equal(new ShapeStyle(ShapeKind.Rectangle, DocColor.FromRgb(0xC0, 0, 0)), readRectangle.Shape);
+        Assert.Equal(new BorderLine(PageBorderStyle.Dashed, 16, DocColor.Black, 0), readRectangle.Border);
+        Assert.Equal(ImageWrap.InFrontOfText, readRectangle.Anchor!.Wrap);
+        Assert.Equal(Twips.FromInches(2), readRectangle.Width);
+
+        var readEllipse = (InlineImage)((Paragraph)result.Document.Sections[0].Body[1]).Inlines[0];
+        Assert.Equal(ShapeKind.Ellipse, readEllipse.Shape!.Kind);
+        Assert.Null(readEllipse.Shape.Fill);
+        Assert.Equal(DocColor.FromRgb(0x2F, 0x52, 0x8F), readEllipse.Border!.EffectiveColor);
+        Assert.False(readEllipse.IsFloating);
+
+        var readLine = (InlineImage)((Paragraph)result.Document.Sections[0].Body[2]).Inlines[0];
+        Assert.Equal(ShapeKind.Line, readLine.Shape!.Kind);
+        Assert.Null(readLine.Shape.Fill);
+        Assert.Equal(line.Border, readLine.Border);
+
+        Assert.Equal(ShapeKind.RoundedRectangle, ((InlineImage)((Paragraph)result.Document.Sections[0].Body[3]).Inlines[0]).Shape!.Kind);
+
+        // Word wraps shapes in mc:AlternateContent with a VML fallback: the wps choice is read, the fallback ignored.
+        using var wrapped = new MemoryStream(); // expandable: the edited package grows
+        wrapped.Write(bytes);
+        wrapped.Position = 0;
+        using (WordprocessingDocument package = WordprocessingDocument.Open(wrapped, true))
+        {
+            DocumentFormat.OpenXml.Wordprocessing.Drawing drawing = package.MainDocumentPart!.Document!.Descendants<DocumentFormat.OpenXml.Wordprocessing.Drawing>().First();
+            var alternate = new AlternateContent(
+                new AlternateContentChoice(drawing.CloneNode(true)) { Requires = "wps" },
+                new AlternateContentFallback(new DocumentFormat.OpenXml.Wordprocessing.Picture()));
+            drawing.Parent!.ReplaceChild(alternate, drawing);
+            package.MainDocumentPart.Document.Save();
+        }
+
+        LoadResult fromAlternate = DocxReader.Read(new MemoryStream(wrapped.ToArray()));
+        Assert.Empty(fromAlternate.Warnings);
+        var viaChoice = (InlineImage)((Paragraph)fromAlternate.Document.Sections[0].Body[0]).Inlines[1];
+        Assert.Equal(ShapeKind.Rectangle, viaChoice.Shape!.Kind);
+        Assert.Equal(DocColor.FromRgb(0xC0, 0, 0), viaChoice.Shape.Fill);
+    }
+
+    [Fact]
     public void Floating_pictures_round_trip_with_their_anchors()
     {
         ImageAnchor[] anchors =

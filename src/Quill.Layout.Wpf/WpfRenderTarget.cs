@@ -49,6 +49,26 @@ public sealed class WpfRenderTarget : IRenderTarget
         Context.DrawLine(pen, new Point(from.X, from.Y), new Point(to.X, to.Y));
     }
 
+    public void FillEllipse(RectD rect, DocColor color) =>
+        Context.DrawEllipse(_fonts.GetBrush(color), null, new Point(rect.X + rect.Width / 2, rect.Y + rect.Height / 2), rect.Width / 2, rect.Height / 2);
+
+    public void DrawEllipse(RectD rect, DocColor color, double thickness)
+    {
+        var pen = new Pen(_fonts.GetBrush(color), thickness);
+        pen.Freeze();
+        Context.DrawEllipse(null, pen, new Point(rect.X + rect.Width / 2, rect.Y + rect.Height / 2), rect.Width / 2, rect.Height / 2);
+    }
+
+    public void FillRoundedRectangle(RectD rect, double radius, DocColor color) =>
+        Context.DrawRoundedRectangle(_fonts.GetBrush(color), null, ToRect(rect), radius, radius);
+
+    public void DrawRoundedRectangle(RectD rect, double radius, DocColor color, double thickness)
+    {
+        var pen = new Pen(_fonts.GetBrush(color), thickness);
+        pen.Freeze();
+        Context.DrawRoundedRectangle(null, pen, ToRect(rect), radius, radius);
+    }
+
     public void PushClip(RectD rect) => Context.PushClip(new RectangleGeometry(ToRect(rect)));
 
     public void Pop() => Context.Pop();

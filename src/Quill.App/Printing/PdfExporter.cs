@@ -213,6 +213,18 @@ public static class PdfExporter
         public void DrawLine(PointD from, PointD to, DocColor color, double thickness) =>
             _gfx.DrawLine(new XPen(ToColor(color), thickness), from.X, from.Y, to.X, to.Y);
 
+        public void FillEllipse(RectD rect, DocColor color) =>
+            _gfx.DrawEllipse(new XSolidBrush(ToColor(color)), rect.X, rect.Y, rect.Width, rect.Height);
+
+        public void DrawEllipse(RectD rect, DocColor color, double thickness) =>
+            _gfx.DrawEllipse(new XPen(ToColor(color), thickness), rect.X, rect.Y, rect.Width, rect.Height);
+
+        public void FillRoundedRectangle(RectD rect, double radius, DocColor color) =>
+            _gfx.DrawRoundedRectangle(new XSolidBrush(ToColor(color)), rect.X, rect.Y, rect.Width, rect.Height, radius * 2, radius * 2);
+
+        public void DrawRoundedRectangle(RectD rect, double radius, DocColor color, double thickness) =>
+            _gfx.DrawRoundedRectangle(new XPen(ToColor(color), thickness), rect.X, rect.Y, rect.Width, rect.Height, radius * 2, radius * 2);
+
         public void PushClip(RectD rect)
         {
             _states.Push(_gfx.Save());

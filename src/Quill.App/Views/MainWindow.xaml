@@ -367,7 +367,20 @@
           </HeaderedContentControl>
 
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Illustrations">
-            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8B9;" Content="Pictures" Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8B9;" Content="Pictures" Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Shapes" Click="OnCaseMenu" ToolTip="Insert a drawn shape in front of the text; drag it to move, use its handles to resize, Shape Fill and Picture Border to style it">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Rectangle" Command="{Binding InsertShapeCommand}" CommandParameter="Rectangle" />
+                    <MenuItem Header="Rounded Rectangle" Command="{Binding InsertShapeCommand}" CommandParameter="RoundedRectangle" />
+                    <MenuItem Header="Ellipse" Command="{Binding InsertShapeCommand}" CommandParameter="Ellipse" />
+                    <Separator />
+                    <MenuItem Header="Horizontal Line (in the text)" Command="{Binding InsertShapeCommand}" CommandParameter="Line" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+            </StackPanel>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Links">
             <StackPanel Orientation="Horizontal">
@@ -681,6 +694,25 @@
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE74D;" Content="Delete" Click="OnDeletePicture" ToolTip="Remove the picture" />
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE946;" Content="Alt Text" Click="OnPictureAltText" ToolTip="Describe the picture for screen readers (saved in the .docx)" />
             </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Shape Styles" Visibility="{Binding IsShapeSelected, Converter={StaticResource BoolToVis}}">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE790;" Content="Shape Fill" Click="OnCaseMenu" ToolTip="The colour inside the shape (the outline is set with Picture Border)">
+              <Button.ContextMenu>
+                <ContextMenu Closed="OnMenuClosed">
+                  <MenuItem Header="No Fill" Command="{Binding SetShapeFillCommand}" CommandParameter="auto" />
+                  <Separator />
+                  <MenuItem Header="Blue" Command="{Binding SetShapeFillCommand}" CommandParameter="4472C4" />
+                  <MenuItem Header="Light Blue" Command="{Binding SetShapeFillCommand}" CommandParameter="9DC3E6" />
+                  <MenuItem Header="Orange" Command="{Binding SetShapeFillCommand}" CommandParameter="ED7D31" />
+                  <MenuItem Header="Gray" Command="{Binding SetShapeFillCommand}" CommandParameter="A5A5A5" />
+                  <MenuItem Header="Gold" Command="{Binding SetShapeFillCommand}" CommandParameter="FFC000" />
+                  <MenuItem Header="Green" Command="{Binding SetShapeFillCommand}" CommandParameter="70AD47" />
+                  <MenuItem Header="Red" Command="{Binding SetShapeFillCommand}" CommandParameter="C00000" />
+                  <MenuItem Header="White" Command="{Binding SetShapeFillCommand}" CommandParameter="FFFFFF" />
+                  <MenuItem Header="Black" Command="{Binding SetShapeFillCommand}" CommandParameter="000000" />
+                </ContextMenu>
+              </Button.ContextMenu>
+            </Button>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Picture Styles">
             <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Picture Border" Click="OnCaseMenu" ToolTip="A line around the picture, like Word's Picture Border">

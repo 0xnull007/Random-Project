@@ -165,6 +165,40 @@ public class ImageTests
     }
 
     [Fact]
+    public void Shapes_insert_floating_with_default_fill_and_outline_and_the_fill_can_change()
+    {
+        var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));
+        session.MoveCaret(Pos(0, 1), extend: false);
+        session.InsertShape(ShapeKind.RoundedRectangle, Twips.FromInches(2), Twips.FromInches(1));
+
+        var shape = Assert.IsType<InlineImage>(session.Document.Para(0).Inlines[1]);
+        Assert.True(shape.IsShape);
+        Assert.Equal(ShapeKind.RoundedRectangle, shape.Shape!.Kind);
+        Assert.Equal(ShapeStyle.DefaultFill, shape.Shape.Fill);
+        Assert.Equal(ShapeStyle.DefaultOutline, shape.Border!.EffectiveColor);
+        Assert.Equal(ImageWrap.InFrontOfText, shape.Anchor!.Wrap);
+        Assert.True(session.Document.Images.IsEmpty);
+        Assert.Equal(new Selection(Pos(0, 1), Pos(0, 2)), session.Selection);
+        Assert.NotNull(session.SelectedImage());
+
+        session.SetShapeFill(null);
+        Assert.Null(((InlineImage)session.Document.Para(0).Inlines[1]).Shape!.Fill);
+        session.SetShapeFill(DocColor.FromRgb(0xC0, 0, 0));
+        Assert.Equal(DocColor.FromRgb(0xC0, 0, 0), ((InlineImage)session.Document.Para(0).Inlines[1]).Shape!.Fill);
+        session.Undo();
+        session.Undo();
+        Assert.Equal(ShapeStyle.DefaultFill, ((InlineImage)session.Document.Para(0).Inlines[1]).Shape!.Fill);
+
+        // A line goes into the text itself, with a stroke and no fill.
+        session.MoveCaret(Pos(0, 3), extend: false);
+        session.InsertShape(ShapeKind.Line, Twips.FromInches(3), Twips.Zero);
+        var line = Assert.IsType<InlineImage>(session.Document.Para(0).Inlines[3]);
+        Assert.False(line.IsFloating);
+        Assert.Null(line.Shape!.Fill);
+        Assert.NotNull(line.Border);
+    }
+
+    [Fact]
     public void Selected_picture_can_be_resized_and_undone()
     {
         var session = new EditingSession(WithParagraphs("ab"), new UndoStack(time: new FakeTime()));

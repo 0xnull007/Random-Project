@@ -58,6 +58,12 @@ internal sealed class ImageEmbeddedObject : TextEmbeddedObject
         }
 
         var bounds = new Rect(origin.X, origin.Y - Height, Width, Height);
+        if (Run.Image is { IsShape: true } shape)
+        {
+            PageRenderer.DrawShape(shape, new RectD(bounds.X, bounds.Y, bounds.Width, bounds.Height), new WpfRenderTarget(drawingContext));
+            return;
+        }
+
         DrawInto(drawingContext, Run.ImageData, bounds);
         if (Run.Image?.Border is { } border)
         {

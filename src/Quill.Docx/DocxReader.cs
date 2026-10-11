@@ -9,6 +9,7 @@ using Quill.Core.Units;
 using A = DocumentFormat.OpenXml.Drawing;
 using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+using WPS = DocumentFormat.OpenXml.Office2010.Word.DrawingShape;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 using static Quill.Docx.OoxmlValues;
 
@@ -596,6 +597,10 @@ public sealed class DocxReader
                     Flush();
                     ReadDrawing(drawing, builder, properties, styleId);
                     break;
+                case AlternateContent alternate:
+                    Flush();
+                    ReadAlternateContent(alternate, builder, properties, styleId);
+                    break;
                 case W.Picture picture when TryReadWatermark(picture):
                     break;
                 case W.Picture or W.EmbeddedObject:
@@ -648,9 +653,105 @@ public sealed class DocxReader
     }
 
     /// <summary>Reads an inline (or, flattened, a floating) picture: the blip's relationship points at an image part.</summary>
+    /// <summary>
+    /// Word wraps newer drawings (shapes, text boxes) in mc:AlternateContent with a VML fallback: the first choice
+    /// holding a drawing we understand wins; otherwise the fallback is handled like any legacy picture.
+    /// </summary>
+    private void ReadAlternateContent(AlternateContent alternate, InlineBuilder builder, RunProperties properties, string? styleId)
+    {
+        foreach (AlternateContentChoice choice in alternate.Elements<AlternateContentChoice>())
+        {
+            if (choice.Descendants<W.Drawing>().FirstOrDefault() is { } drawing
+                && (drawing.Descendants<A.Blip>().Any() || drawing.Descendants<WPS.WordprocessingShape>().Any()))
+            {
+                ReadDrawing(drawing, builder, properties, styleId);
+                return;
+            }
+        }
+
+        if (alternate.GetFirstChild<AlternateContentFallback>()?.Descendants<W.Drawing>().FirstOrDefault() is { } fallback)
+        {
+            ReadDrawing(fallback, builder, properties, styleId);
+            return;
+        }
+
+        Warn("Legacy (VML) pictures and embedded objects are not supported and were dropped.");
+    }
+
+    /// <summary>The floating placement of a drawing, or null for an inline one (or one inside a table cell, which is placed in the text).</summary>
+    private ImageAnchor? ReadAnchorIfAny(W.Drawing drawing)
+    {
+        if (drawing.GetFirstChild<DW.Anchor>() is not { } anchored)
+        {
+            return null;
+        }
+
+        if (drawing.Ancestors<W.TableCell>().Any())
+        {
+            Warn("Floating pictures inside table cells are placed in the text.");
+            return null;
+        }
+
+        return ReadAnchor(anchored);
+    }
+
+    /// <summary>A WordprocessingShape (wps:wsp): rectangle, rounded rectangle, ellipse or line with its fill and outline. Other presets show as rectangles; text inside a shape is dropped.</summary>
+    private void ReadShape(W.Drawing drawing, WPS.WordprocessingShape wsp, long cx, long cy, InlineBuilder builder, RunProperties properties, string? styleId)
+    {
+        A.ShapeTypeValues? preset = wsp.Descendants<A.PresetGeometry>().FirstOrDefault()?.Preset?.Value;
+        ShapeKind kind;
+        if (preset == A.ShapeTypeValues.Ellipse)
+        {
+            kind = ShapeKind.Ellipse;
+        }
+        else if (preset == A.ShapeTypeValues.RoundRectangle)
+        {
+            kind = ShapeKind.RoundedRectangle;
+        }
+        else if (preset == A.ShapeTypeValues.Line || preset == A.ShapeTypeValues.StraightConnector1)
+        {
+            kind = ShapeKind.Line;
+        }
+        else
+        {
+            kind = ShapeKind.Rectangle;
+            if (preset is not null && preset != A.ShapeTypeValues.Rectangle)
+            {
+                Warn("Shapes other than rectangles, rounded rectangles, ellipses and lines are shown as rectangles.");
+            }
+        }
+
+        if (wsp.Descendants<WPS.TextBoxInfo2>().Any())
+        {
+            Warn("Text inside shapes (text boxes) is not supported; the shape is shown without its text.");
+        }
+
+        WPS.ShapeProperties? spPr = wsp.GetFirstChild<WPS.ShapeProperties>();
+        DocColor? fill = ShapeStyle.DefaultFill;
+        if (spPr?.GetFirstChild<A.NoFill>() is not null || kind == ShapeKind.Line)
+        {
+            fill = null;
+        }
+        else if (spPr?.GetFirstChild<A.SolidFill>()?.RgbColorModelHex?.Val?.Value is { Length: 6 } hex && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgb))
+        {
+            fill = DocColor.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+        }
+
+        A.Outline? ln = spPr?.GetFirstChild<A.Outline>();
+        BorderLine? outline = ln is null ? ShapeStyle.Default(kind).Outline : ReadPictureBorder(ln);
+        string? altText = drawing.Descendants<DW.DocProperties>().FirstOrDefault()?.Description?.Value;
+        builder.AddInline(new InlineImage(InlineImage.ShapeImageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId, ReadAnchorIfAny(drawing), altText, outline, new ShapeStyle(kind, fill)));
+    }
+
     private void ReadDrawing(W.Drawing drawing, InlineBuilder builder, RunProperties properties, string? styleId)
     {
         DW.Extent? extent = drawing.Descendants<DW.Extent>().FirstOrDefault();
+        if (extent?.Cx?.Value is { } shapeCx && extent.Cy?.Value is { } shapeCy && drawing.Descendants<WPS.WordprocessingShape>().FirstOrDefault() is { } wsp && !drawing.Descendants<A.Blip>().Any())
+        {
+            ReadShape(drawing, wsp, shapeCx, shapeCy, builder, properties, styleId);
+            return;
+        }
+
         A.Blip? blip = drawing.Descendants<A.Blip>().FirstOrDefault();
         string? relationshipId = blip?.Embed?.Value;
         if (relationshipId is null || extent?.Cx?.Value is not { } cx || extent.Cy?.Value is not { } cy)
@@ -676,19 +777,7 @@ public sealed class DocxReader
             _imageIdsByUri[key] = imageId;
         }
 
-        ImageAnchor? anchor = null;
-        if (drawing.GetFirstChild<DW.Anchor>() is { } anchored)
-        {
-            if (drawing.Ancestors<W.TableCell>().Any())
-            {
-                Warn("Floating pictures inside table cells are placed in the text.");
-            }
-            else
-            {
-                anchor = ReadAnchor(anchored);
-            }
-        }
-
+        ImageAnchor? anchor = ReadAnchorIfAny(drawing);
         string? altText = drawing.Descendants<DW.DocProperties>().FirstOrDefault()?.Description?.Value;
         BorderLine? border = ReadPictureBorder(drawing.Descendants<PIC.ShapeProperties>().FirstOrDefault()?.GetFirstChild<A.Outline>());
         builder.AddInline(new InlineImage(imageId, Twips.FromEmu(cx), Twips.FromEmu(cy), properties, styleId, anchor, altText, border));

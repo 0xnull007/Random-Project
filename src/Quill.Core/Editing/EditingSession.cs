@@ -253,6 +253,30 @@ public sealed partial class EditingSession
         Commit(ReplaceImage(Document, at, image.WithAnchor(anchor)), EditKind.Formatting, startsNewGroup: true);
     }
 
+    /// <summary>
+    /// Insert > Shapes: a drawn shape with Word's default fill and outline, floating in front of the text at the
+    /// top-left of the caret paragraph (a line is inserted in the line of text). One undo step; the shape is selected.
+    /// </summary>
+    public void InsertShape(ShapeKind kind, Twips width, Twips height)
+    {
+        (Document working, TextPosition at, ChangeSet? deletion) = DeleteSelectionIfAny();
+        ImageAnchor? anchor = kind == ShapeKind.Line || at.Block.TablePath is not null ? null : ImageAnchor.Default with { Wrap = ImageWrap.InFrontOfText, DistanceX = Twips.Zero };
+        InlineImage shape = InlineImage.CreateShape(kind, width, height, anchor);
+        EditResult result = DocumentEditor.InsertInline(working, at, shape, inheritFormat: false);
+        Commit(WithDeletion(result with { Selection = new Selection(at, at.WithOffset(at.Offset + 1)) }, deletion), EditKind.Other, startsNewGroup: true);
+        PendingFormat = null;
+    }
+
+    /// <summary>Shape Fill for the selected shape; null means no fill. Pictures are left alone. One undo step.</summary>
+    public void SetShapeFill(DocColor? fill)
+    {
+        DocColor? value = fill is { IsAuto: true } ? null : fill;
+        if (SelectedImage() is ({ } at, { Shape: { } shape } image) && shape.Fill != value)
+        {
+            Commit(ReplaceImage(Document, at, image.WithShape(shape with { Fill = value })), EditKind.Formatting, startsNewGroup: true);
+        }
+    }
+
     /// <summary>Word's Picture Border for the selected picture; null removes it. One undo step.</summary>
     public void SetImageBorder(BorderLine? border)
     {

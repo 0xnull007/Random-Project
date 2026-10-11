@@ -84,11 +84,83 @@ public static class PageRenderer
     /// <summary>Word's change bar colour: a dark red line in the margin beside changed lines.</summary>
     private static readonly DocColor ChangeBarColor = DocColor.FromRgb(0xC0, 0x1E, 0x1E);
 
+    /// <summary>A drawn shape (rectangle, rounded rectangle, ellipse or line) with its fill and outline.</summary>
+    public static void DrawShape(InlineImage image, RectD bounds, IRenderTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentNullException.ThrowIfNull(target);
+        if (image.Shape is not { } shape)
+        {
+            return;
+        }
+
+        BorderLine? outline = image.Border;
+        switch (shape.Kind)
+        {
+            case ShapeKind.Line:
+            {
+                BorderLine stroke = outline ?? new BorderLine(PageBorderStyle.Single, 6, DocColor.Black, 0);
+                // A flat box is a horizontal rule; otherwise the line runs corner to corner.
+                PointD from = bounds.Height <= 1.5 ? new PointD(bounds.Left, bounds.Top + bounds.Height / 2) : bounds.TopLeft;
+                PointD to = bounds.Height <= 1.5 ? new PointD(bounds.Right, bounds.Top + bounds.Height / 2) : new PointD(bounds.Right, bounds.Bottom);
+                DrawBorderLine(from, to, stroke, target);
+                return;
+            }
+
+            case ShapeKind.Ellipse:
+                if (shape.Fill is { IsAuto: false } ellipseFill)
+                {
+                    target.FillEllipse(bounds, ellipseFill);
+                }
+
+                if (outline is { } ellipseOutline)
+                {
+                    target.DrawEllipse(bounds.Inflate(-ellipseOutline.ThicknessDips / 2, -ellipseOutline.ThicknessDips / 2), ellipseOutline.EffectiveColor, ellipseOutline.ThicknessDips);
+                }
+
+                return;
+            case ShapeKind.RoundedRectangle:
+            {
+                double radius = Math.Min(bounds.Width, bounds.Height) * 0.16667; // Word's roundRect default adjustment
+                if (shape.Fill is { IsAuto: false } roundedFill)
+                {
+                    target.FillRoundedRectangle(bounds, radius, roundedFill);
+                }
+
+                if (outline is { } roundedOutline)
+                {
+                    target.DrawRoundedRectangle(bounds.Inflate(-roundedOutline.ThicknessDips / 2, -roundedOutline.ThicknessDips / 2), radius, roundedOutline.EffectiveColor, roundedOutline.ThicknessDips);
+                }
+
+                return;
+            }
+
+            default:
+                if (shape.Fill is { IsAuto: false } fill)
+                {
+                    target.FillRectangle(bounds, fill);
+                }
+
+                if (outline is { } border)
+                {
+                    DrawImageBorder(bounds, border, target);
+                }
+
+                return;
+        }
+    }
+
     /// <summary>A floating picture at its page rectangle, or a grey box when its bytes are missing.</summary>
     public static void DrawFloatingImage(FloatingImage image, IRenderTarget target)
     {
         ArgumentNullException.ThrowIfNull(image);
         ArgumentNullException.ThrowIfNull(target);
+        if (image.Image.IsShape)
+        {
+            DrawShape(image.Image, image.Bounds, target);
+            return;
+        }
+
         if (image.Data is { } data)
         {
             target.DrawImage(data, image.Bounds);
