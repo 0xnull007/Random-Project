@@ -161,6 +161,14 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 9. Headers and footers
 
+- [ ] Entering a header or footer switches the ribbon to a **Header & Footer** tab (Header, Footer, Page Number,
+      Page Count, Date & Time, Link to Previous, Different First Page, Different Odd & Even Pages, Close); leaving
+      returns to the previous tab **(new)**.
+- [ ] In a document with two sections, edit the header on a page of section 2: Link to Previous is on; switch it
+      off and type: only section 2's header changes; switch it on again and section 2 shows section 1's header
+      once more; the toggle is disabled in the first section **(new)**.
+- [ ] Different First Page / Different Odd & Even Pages on the tab behave like the Page Setup options and undo in
+      one step **(new)**.
 - [ ] Double-click the top or bottom margin, or Insert > Header / Footer: the body dims, blue guides appear.
 - [ ] Type in the header; Insert > Page Number and Page Count insert fields that show the right numbers on every
       page; "Page X of Y" updates when pages are added.

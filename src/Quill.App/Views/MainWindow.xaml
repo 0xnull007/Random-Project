@@ -570,6 +570,36 @@
           </HeaderedContentControl>
         </WrapPanel>
       </TabItem>
+      <!-- Contextual tab: appears while a header or footer is being edited, like Word's Header & Footer tab. -->
+      <TabItem x:Name="HeaderFooterTab" Header="Header &amp; Footer" Visibility="{Binding IsInHeaderFooter, Converter={StaticResource BoolToVis}}">
+        <WrapPanel Orientation="Horizontal">
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Header &amp; Footer">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56E;" Content="Header" Click="OnEditHeader" ToolTip="Edit the header of this page" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Footer" Click="OnEditFooter" ToolTip="Edit the footer of this page" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Insert">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="#" Content="Page Number" Click="OnInsertPageNumber" ToolTip="Insert the page number field" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x2211;" Content="Page Count" Click="OnInsertPageCount" ToolTip="Insert the total number of pages" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE787;" Content="Date &amp; Time" Click="OnInsertDateTime" ToolTip="Insert the current date or time" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Navigation">
+            <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xE71B;" Content="Link to Previous" IsChecked="{Binding IsLinkedToPrevious}" IsEnabled="{Binding CanLinkToPrevious}" ToolTip="Use the previous section's header or footer here; switch off to give this section its own copy" />
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Options">
+            <StackPanel Style="{StaticResource Quill.RibbonStack}">
+              <ToggleButton Style="{StaticResource Quill.StackToggle}" Content="Different First Page" IsChecked="{Binding DifferentFirstPage}" ToolTip="The first page of this section gets its own header and footer" />
+              <ToggleButton Style="{StaticResource Quill.StackToggle}" Content="Different Odd &amp; Even Pages" IsChecked="{Binding DifferentOddEven}" ToolTip="Even pages get their own header and footer (whole document)" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Close">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE711;" Content="Close Header and Footer" Click="OnCloseHeaderFooter" ToolTip="Return to the document body (Esc)" />
+          </HeaderedContentControl>
+        </WrapPanel>
+      </TabItem>
     </TabControl>
     <ToggleButton Style="{StaticResource Quill.IconToggle}" IsChecked="{Binding IsRibbonCollapsed}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,8,0" Height="24" Width="26"
                   ToolTip="Collapse the ribbon to its tabs; click a tab to use it (Ctrl+F1)" AutomationProperties.Name="Collapse the ribbon">

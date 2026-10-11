@@ -32,10 +32,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ViewModel.CurrentSectionProvider = () => Editor.CurrentSectionIndex();
         Loaded += (_, _) => ApplyRibbonCollapse();
         Editor.GotKeyboardFocus += (_, _) =>
         {
-            if (ViewModel.IsRibbonCollapsed && Tabs.SelectedIndex >= 0 && !ReferenceEquals(Tabs.SelectedItem, PictureTab))
+            if (ViewModel.IsRibbonCollapsed && Tabs.SelectedIndex >= 0 && !ReferenceEquals(Tabs.SelectedItem, PictureTab) && !ReferenceEquals(Tabs.SelectedItem, HeaderFooterTab))
             {
                 Tabs.SelectedIndex = -1;
             }
@@ -888,7 +889,30 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (e.PropertyName == nameof(MainViewModel.IsInHeaderFooter))
+        {
+            if (ViewModel.IsInHeaderFooter)
+            {
+                if (!ReferenceEquals(Tabs.SelectedItem, HeaderFooterTab))
+                {
+                    if (!ReferenceEquals(Tabs.SelectedItem, PictureTab) && !ReferenceEquals(Tabs.SelectedItem, TableTab) && Tabs.SelectedIndex >= 0)
+                    {
+                        _tabBeforePicture = Tabs.SelectedIndex;
+                    }
+
+                    Tabs.SelectedItem = HeaderFooterTab;
+                }
+            }
+            else if (ReferenceEquals(Tabs.SelectedItem, HeaderFooterTab))
+            {
+                RestoreTab();
+            }
+
+            return;
+        }
+
         if (e.PropertyName == nameof(MainViewModel.IsRibbonCollapsed))
+
         {
             ApplyRibbonCollapse();
             return;

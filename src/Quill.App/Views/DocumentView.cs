@@ -749,7 +749,15 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             new TextPosition(last.Story, last.Path, last.Layout.Lines[last.LastLine].End));
     }
 
+    /// <summary>Index of the section whose page holds the caret (the page's section, which may inherit its header from an earlier one).</summary>
+    public int CurrentSectionIndex()
+    {
+        int page = CurrentPageIndex();
+        return page >= 0 && page < _layout.PageCount ? _layout.Pages[page].SectionIndex : Session?.Selection.Story.SectionIndex ?? 0;
+    }
+
     private int CurrentPageIndex()
+
 
 
 

@@ -130,6 +130,64 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsInTable { get; set; }
 
+    /// <summary>Gives the section of the page under the caret (set by the window from the layout); the caret's story section otherwise.</summary>
+    public Func<int>? CurrentSectionProvider { get; set; }
+
+    private int HeaderFooterSection => CurrentSectionProvider?.Invoke() ?? Session.Selection.Story.SectionIndex;
+
+    /// <summary>True while the caret is in a header or footer; shows the contextual Header &amp; Footer tab.</summary>
+    [ObservableProperty]
+    public partial bool IsInHeaderFooter { get; set; }
+
+    [ObservableProperty]
+    public partial bool DifferentFirstPage { get; set; }
+
+    partial void OnDifferentFirstPageChanged(bool value)
+    {
+        if (!_syncingFormat)
+        {
+            Session.SetDifferentFirstPage(HeaderFooterSection, value);
+        }
+    }
+
+    [ObservableProperty]
+    public partial bool DifferentOddEven { get; set; }
+
+    partial void OnDifferentOddEvenChanged(bool value)
+    {
+        if (!_syncingFormat)
+        {
+            Session.SetDifferentOddEven(value);
+        }
+    }
+
+    /// <summary>Word's "Link to Previous": the page shows the previous section's header or footer.</summary>
+    [ObservableProperty]
+    public partial bool IsLinkedToPrevious { get; set; }
+
+    partial void OnIsLinkedToPreviousChanged(bool value)
+    {
+        if (_syncingFormat)
+        {
+            return;
+        }
+
+        if (value)
+        {
+            Session.LinkHeaderFooterToPrevious(HeaderFooterSection);
+        }
+        else
+        {
+            Session.UnlinkHeaderFooterFromPrevious(HeaderFooterSection);
+        }
+
+        RefreshFormatState();
+    }
+
+    [ObservableProperty]
+    public partial bool CanLinkToPrevious { get; set; }
+
+
     /// <summary>Whether the caret's table row repeats at the top of following pages (Table tab toggle).</summary>
     [ObservableProperty]
     public partial bool IsHeaderRow { get; set; }
@@ -1544,6 +1602,16 @@ public sealed partial class MainViewModel : ObservableObject
             bool? listKind = Session.ListKind(current);
             IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
             IsInTable = Session.IsInTable;
+            IsInHeaderFooter = Session.IsInHeaderFooter;
+            if (IsInHeaderFooter)
+            {
+                int pageSection = HeaderFooterSection;
+                DifferentFirstPage = Session.HasDifferentFirstPage(pageSection);
+                DifferentOddEven = Session.HasDifferentOddEven;
+                CanLinkToPrevious = pageSection > 0;
+                IsLinkedToPrevious = Session.IsLinkedToPrevious(pageSection);
+            }
+
             IsHeaderRow = Session.IsHeaderRowAtCaret;
             PageColorSwatch = Session.PageColor is { IsAuto: false } pageColor ? Color.FromRgb(pageColor.R, pageColor.G, pageColor.B) : Colors.White;
             CellShadingSwatch = Session.CellShadingAtCaret is { IsAuto: false } shading ? Color.FromRgb(shading.R, shading.G, shading.B) : Colors.White;
