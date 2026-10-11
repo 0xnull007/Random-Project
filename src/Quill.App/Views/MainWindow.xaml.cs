@@ -200,7 +200,37 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnInsertTableOfFigures(object sender, RoutedEventArgs e)
+    {
+        string label = (sender as FrameworkElement)?.Tag as string ?? "Figure";
+        EditingSession session = ViewModel.Session;
+        List<TocEntry> entries = CollectCaptionEntries(session, label);
+        session.InsertTableOfFigures(entries, Editor.TextColumnWidth(), label);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            List<TocEntry> refreshed = CollectCaptionEntries(session, label);
+            if (refreshed.SequenceEqual(entries))
+            {
+                break;
+            }
+
+            entries = refreshed;
+            session.InsertTableOfFigures(entries, Editor.TextColumnWidth(), label);
+        }
+
+        ViewModel.StatusMessage = entries.Count == 0
+            ? "No " + label.ToLowerInvariant() + " captions found: insert captions first, then the table again"
+            : "Table of " + label.ToLowerInvariant() + "s with " + entries.Count.ToString(System.Globalization.CultureInfo.CurrentCulture) + " entries; insert again to refresh the page numbers";
+        Editor.Focus();
+    }
+
+    private List<TocEntry> CollectCaptionEntries(EditingSession session, string label) =>
+        TableOfFigures.Captions(session.Document, label)
+            .Select(c => new TocEntry(c.Text, 0, Editor.PageNumberTextOf(new TextPosition(c.Story, c.Path, 0)) ?? "?"))
+            .ToList();
+
     private List<TocEntry> CollectTocEntries(EditingSession session)
+
     {
         var entries = new List<TocEntry>();
         Document document = session.Document;

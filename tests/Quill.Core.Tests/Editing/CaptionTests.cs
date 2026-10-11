@@ -70,4 +70,42 @@ public class CaptionTests
         Assert.Equal("2", ((Field)refreshed.Para(1).Inlines[1]).CachedResult);
         Assert.Same(refreshed, SequenceFields.RefreshResults(refreshed));
     }
+
+    [Fact]
+    public void A_table_of_figures_lists_the_captions_of_one_series_and_is_replaced_on_reinsert()
+    {
+        var session = new EditingSession(WithParagraphs("Intro", "Pic A", "Pic B", "Tail"));
+        session.MoveCaret(Pos(1, 0), extend: false);
+        session.InsertCaption("Figure", "First", above: false);
+        session.MoveCaret(Pos(3, 0), extend: false);
+        session.InsertCaption("Figure", "Second", above: false);
+        session.MoveCaret(Pos(5, 0), extend: false);
+        session.InsertCaption("Table", "Data", above: false);
+
+        IReadOnlyList<CaptionEntry> figures = TableOfFigures.Captions(session.Document, "Figure");
+        Assert.Equal(["Figure 1: First", "Figure 2: Second"], figures.Select(c => c.Text));
+        Assert.Equal(BlockPath.Of(2), figures[0].Path);
+        Assert.Single(TableOfFigures.Captions(session.Document, "Table"));
+
+        List<TocEntry> entries = figures.Select(c => new TocEntry(c.Text, 0, "1")).ToList();
+        session.MoveCaret(Pos(0, 0), extend: false);
+        session.InsertTableOfFigures(entries, Twips.FromInches(6), "Figure");
+        Assert.Equal(TableOfFigures.StyleId, session.Document.Para(0).StyleId);
+        Assert.Equal("Figure 1: First\t1", session.Document.Text(0));
+        Assert.Equal("Figure 2: Second\t1", session.Document.Text(1));
+        Assert.Equal("Intro", session.Document.Text(2));
+        Assert.Equal((Body, 0, 1), TableOfFigures.FindExisting(session.Document));
+        Assert.True(session.Document.Styles.Contains(TableOfFigures.StyleId));
+
+        // Re-inserting replaces the old table in place, and its own lines are never counted as captions.
+        session.MoveCaret(Pos(5, 0), extend: false);
+        session.InsertTableOfFigures([new TocEntry("Figure 1: First", 0, "2")], Twips.FromInches(6), "Figure");
+        Assert.Equal((Body, 0, 0), TableOfFigures.FindExisting(session.Document));
+        Assert.Equal("Figure 1: First\t2", session.Document.Text(0));
+        Assert.Equal(2, TableOfFigures.Captions(session.Document, "Figure").Count);
+
+        var empty = new EditingSession(WithParagraphs("x"));
+        empty.InsertTableOfFigures([], Twips.FromInches(6), "Equation");
+        Assert.StartsWith("No equation captions found", empty.Document.Text(0), StringComparison.Ordinal);
+    }
 }

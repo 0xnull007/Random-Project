@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Quill.Core.Model;
 using Quill.Core.Styles;
 using Quill.Core.Text;
+using Quill.Core.Units;
 
 namespace Quill.Core.Editing;
 
@@ -49,5 +50,41 @@ public sealed partial class EditingSession
         var caret = new TextPosition(story, anchor.WithLast(index), caption.Length);
         Commit(new EditResult(document, Selection.Caret(caret), ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
         PendingFormat = null;
+    }
+
+    /// <summary>Inserts (or replaces) the table of figures for a caption series at the caret, like <see cref="InsertTableOfContents"/>.</summary>
+    public void InsertTableOfFigures(IReadOnlyList<TocEntry> entries, Twips columnWidth, string label)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        Document document = Document;
+        foreach (Style style in TableOfFigures.RequiredStyles(document.Styles))
+        {
+            if (!document.Styles.Contains(style.Id))
+            {
+                document = document.WithStyles(document.Styles.With(style));
+            }
+        }
+
+        ImmutableArray<Paragraph> paragraphs = TableOfFigures.Build(entries, columnWidth, label);
+        StoryId story;
+        int index;
+        ImmutableList<Block> blocks;
+        if (TableOfFigures.FindExisting(document) is { } existing)
+        {
+            story = existing.Story;
+            index = existing.First;
+            blocks = document.GetStory(story).RemoveRange(index, existing.Last - existing.First + 1);
+        }
+        else
+        {
+            story = StoryId.Body(Selection.Story.SectionIndex);
+            index = Selection.Story == story ? Selection.Range.Start.Block.TopIndex : 0;
+            blocks = document.GetStory(story);
+        }
+
+        blocks = blocks.InsertRange(index, paragraphs);
+        document = document.WithStory(story, blocks);
+        int after = Math.Min(index + paragraphs.Length, blocks.Count - 1);
+        Commit(new EditResult(document, Selection.Caret(new TextPosition(story, BlockPath.Of(after), 0)), ChangeSet.Structural()), EditKind.Paste, startsNewGroup: true);
     }
 }

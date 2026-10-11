@@ -267,6 +267,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Save and open in Word: captions are SEQ fields with the right numbers and the Caption style; F9 in Word keeps
       them. Open a Word document with captions: the numbers follow document order here too.
 - [ ] Copy a caption and paste into Notepad: the current number appears in the text.
+- [ ] References > Table of Figures (Figures / Tables / Equations): a list of that series' captions with dot-leader page
+      numbers appears at the caret in the "table of figures" style; inserting again replaces it with fresh numbers;
+      with no captions a hint line is inserted instead **(new)**.
 
 ## 12. Find and replace
 
