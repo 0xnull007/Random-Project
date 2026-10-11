@@ -297,4 +297,43 @@ public class TableCommandTests
         session.MergeCellDown();
         Assert.Same(before, session.Document);
     }
+
+    [Fact]
+    public void Table_style_presets_colour_the_header_row_band_the_body_and_can_be_reset()
+    {
+        EditingSession session = SessionWithGrid();
+        session.InsertText("Head");
+        session.MoveCaret(Cell(1, 1, 0), extend: false);
+        session.InsertText("body");
+        session.InsertRow(below: true);
+        session.ApplyTableStyle("Grid Table Blue");
+        Table table = TableOf(session);
+        Assert.True(table.HasBorders);
+        Assert.True(table.Rows[0].IsHeader);
+        Assert.Equal(DocColor.Parse("4472C4"), table.Rows[0].Cells[0].Shading);
+        Paragraph head = (Paragraph)table.Rows[0].Cells[0].Blocks[0];
+        Assert.True(head.Inlines[0].Properties.Bold);
+        Assert.Equal(DocColor.Parse("FFFFFF"), head.Inlines[0].Properties.Color);
+        Assert.True(head.MarkProperties.Bold);
+        Assert.Null(table.Rows[1].Cells[1].Shading);
+        Assert.Equal(DocColor.Parse("D9E2F3"), table.Rows[2].Cells[0].Shading);
+        Assert.Null(((Paragraph)table.Rows[1].Cells[0].Blocks[0]).Inlines[0].Properties.Bold);
+
+        session.ApplyTableStyle("Plain Table");
+        table = TableOf(session);
+        Assert.False(table.HasBorders);
+        Assert.False(table.Rows[0].IsHeader);
+        Assert.All(table.Rows.SelectMany(r => r.Cells), c => Assert.Null(c.Shading));
+        head = (Paragraph)table.Rows[0].Cells[0].Blocks[0];
+        Assert.Null(head.Inlines[0].Properties.Bold);
+        Assert.Null(head.Inlines[0].Properties.Color);
+        Assert.Equal("Head", head.FlatText);
+
+        Document before = session.Document;
+        session.ApplyTableStyle("No Such Style");
+        Assert.Same(before, session.Document);
+        session.Undo();
+        Assert.Equal(DocColor.Parse("4472C4"), TableOf(session).Rows[0].Cells[0].Shading);
+        Assert.Equal(8, TableStylePreset.All.Length);
+    }
 }

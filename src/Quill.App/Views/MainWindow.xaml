@@ -567,7 +567,25 @@
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF740;" Content="Split Cell" Command="{Binding SplitCellCommand}" ToolTip="Undo a merge: one cell per column, or one per row" />
             </StackPanel>
           </HeaderedContentControl>
-          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Table Style">
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Table Styles">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF207;" Content="Table Styles" Click="OnCaseMenu" ToolTip="Apply a built-in look: borders, a coloured bold header row and banded rows">
+              <Button.ContextMenu>
+                <ContextMenu Closed="OnMenuClosed">
+                  <MenuItem Header="Plain Table" Command="{Binding ApplyTableStyleCommand}" CommandParameter="Plain Table" />
+                  <MenuItem Header="Table Grid" Command="{Binding ApplyTableStyleCommand}" CommandParameter="Table Grid" />
+                  <MenuItem Header="Grid Table Light (bold header)" Command="{Binding ApplyTableStyleCommand}" CommandParameter="Grid Table Light" />
+                  <Separator />
+                  <MenuItem Header="Grid Table Blue" Command="{Binding ApplyTableStyleCommand}" CommandParameter="Grid Table Blue" />
+                  <MenuItem Header="Grid Table Orange" Command="{Binding ApplyTableStyleCommand}" CommandParameter="Grid Table Orange" />
+                  <MenuItem Header="Grid Table Green" Command="{Binding ApplyTableStyleCommand}" CommandParameter="Grid Table Green" />
+                  <MenuItem Header="Grid Table Gray" Command="{Binding ApplyTableStyleCommand}" CommandParameter="Grid Table Gray" />
+                  <MenuItem Header="List Table Blue (no borders)" Command="{Binding ApplyTableStyleCommand}" CommandParameter="List Table Blue" />
+                </ContextMenu>
+              </Button.ContextMenu>
+            </Button>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Borders and Shading">
+
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Borders" Command="{Binding ToggleTableBordersCommand}" ToolTip="Show or hide the grid lines" />
               <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xE8E9;" Content="Header Row" IsChecked="{Binding IsHeaderRow}" ToolTip="Repeat this row at the top of every page the table continues on" />

@@ -704,6 +704,14 @@ public sealed partial class MainViewModel : ObservableObject
     private void ToggleTableBorders() => Session.ToggleTableBorders();
 
     [RelayCommand]
+    private void ApplyTableStyle(string preset)
+    {
+        Session.ApplyTableStyle(preset);
+        RefreshFormatState();
+    }
+
+
+    [RelayCommand]
     private void MergeCellRight() => Session.MergeCellRight();
 
     [RelayCommand]

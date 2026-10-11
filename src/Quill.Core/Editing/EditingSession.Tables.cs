@@ -347,7 +347,19 @@ public sealed partial class EditingSession
         return -1;
     }
 
+    /// <summary>Applies one of the built-in table looks to the caret's table; one undo step.</summary>
+    public void ApplyTableStyle(string presetName)
+    {
+        if (TableAtCaret() is not { } at || TableStylePreset.Find(presetName) is not { } preset)
+        {
+            return;
+        }
+
+        CommitTableFormat(at.Path, preset.Apply(at.Table));
+    }
+
     /// <summary>Switches the single black grid borders on or off for the caret's table.</summary>
+
 
     public void ToggleTableBorders()
     {

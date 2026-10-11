@@ -218,6 +218,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       is drawn again at the top of the continuation (not editable there); Header Row off stops that **(new)**.
 - [ ] Table tab > shading swatch: pick a colour and the caret's cell is filled (text stays readable); "Automatic"
       clears it; the swatch shows the current cell's colour; saved files keep the shading **(new)**.
+- [ ] Table Layout > Table Styles: Grid Table Blue gives a blue bold-white header row, light-blue banded rows and
+      borders; Plain Table takes it all away again; the look survives save and reload and shows in Word (as direct
+      shading, not a table style) **(new)**.
 - [ ] Table tab > Merge Right joins the caret's cell with its right neighbour (contents one after the other), Merge
       Down joins it with the cell beneath (one tall cell without the inner border), Split Cell undoes either; merged
       cells survive save and reload and look the same in Word **(new)**.
