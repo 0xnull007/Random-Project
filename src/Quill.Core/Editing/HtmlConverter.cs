@@ -141,6 +141,7 @@ public static class HtmlConverter
         private readonly Stack<TableBuild> _tables = new();
 
         private readonly List<Inline> _inlines = [];
+        private readonly Dictionary<string, ImageData> _images = new(StringComparer.Ordinal);
         private readonly Stack<(string Tag, RunProperties Format, string? Link)> _stack = new();
         private readonly Stack<(bool Ordered, int Count)> _lists = new();
         private ParagraphProperties _paragraphProperties = ParagraphProperties.Empty;
@@ -233,6 +234,21 @@ public static class HtmlConverter
                 EnsureParagraph();
                 _inlines.Add(new Break(BreakKind.Line));
                 _lastWasSpace = true;
+            }
+            else if (tag == "img")
+            {
+                // Only pictures embedded in the page (data URIs) come in; pictures on the web are not fetched.
+                if (Attribute(attributes, "src") is { } src && TryDecodeDataUri(src, out ImageData? data))
+                {
+                    EnsureParagraph();
+                    string id = ImageStore.MakeId(_images.Count + 1);
+                    _images[id] = data;
+                    (int pixelWidth, int pixelHeight) = PngSize(data) ?? (0, 0);
+                    double width = Pixels(Attribute(attributes, "width")) ?? (pixelWidth > 0 ? pixelWidth : 192);
+                    double height = Pixels(Attribute(attributes, "height")) ?? (pixelHeight > 0 ? pixelHeight * width / Math.Max(1, pixelWidth) : width * 0.75);
+                    _inlines.Add(new InlineImage(id, Twips.FromDips(Math.Max(1, width)), Twips.FromDips(Math.Max(1, height)), CurrentFormat, altText: Attribute(attributes, "alt")));
+                    _lastWasSpace = false; // a picture counts as a character, so a following space stays
+                }
             }
 
             RunProperties format = CurrentFormat;
@@ -435,7 +451,74 @@ public static class HtmlConverter
                 }
             }
 
-            return new DocumentFragment(_blocks.ToImmutableArray());
+            return new DocumentFragment(_blocks.ToImmutableArray(), _images.Count == 0 ? null : _images.ToImmutableDictionary(StringComparer.Ordinal));
+        }
+
+        /// <summary>A "data:image/png;base64,..." URI as picture bytes.</summary>
+        private static bool TryDecodeDataUri(string src, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ImageData? data)
+        {
+            data = null;
+            string trimmed = src.Trim();
+            int comma = trimmed.IndexOf(',', StringComparison.Ordinal);
+            if (!trimmed.StartsWith("data:", StringComparison.OrdinalIgnoreCase) || comma < 0)
+            {
+                return false;
+            }
+
+            string header = trimmed[5..comma];
+            string[] parts = header.Split(';');
+            string contentType = parts[0].Length > 0 ? parts[0].Trim().ToLowerInvariant() : "image/png";
+            if (!contentType.StartsWith("image/", StringComparison.Ordinal) || !parts.Skip(1).Any(p => p.Trim().Equals("base64", StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            try
+            {
+                byte[] bytes = Convert.FromBase64String(trimmed[(comma + 1)..].Trim());
+                if (bytes.Length == 0)
+                {
+                    return false;
+                }
+
+                data = new ImageData(bytes, contentType);
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Width and height from a PNG header (the only format read without a decoder), or null.</summary>
+        private static (int Width, int Height)? PngSize(ImageData data)
+        {
+            byte[] b = data.Bytes;
+            if (b.Length < 24 || b[0] != 0x89 || b[1] != 0x50 || b[2] != 0x4E || b[3] != 0x47)
+            {
+                return null;
+            }
+
+            int width = (b[16] << 24) | (b[17] << 16) | (b[18] << 8) | b[19];
+            int height = (b[20] << 24) | (b[21] << 16) | (b[22] << 8) | b[23];
+            return width > 0 && height > 0 ? (width, height) : null;
+        }
+
+        /// <summary>An HTML length attribute in CSS pixels ("120", "120px"); percentages and other units are ignored.</summary>
+        private static double? Pixels(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            string number = value.Trim();
+            if (number.EndsWith("px", StringComparison.OrdinalIgnoreCase))
+            {
+                number = number[..^2];
+            }
+
+            return double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double pixels) && pixels > 0 ? pixels : null;
         }
 
 
@@ -970,11 +1053,24 @@ public static class HtmlConverter
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(lists);
         var html = new StringBuilder();
-        AppendBlocks(html, ImmutableList.CreateRange(fragment.Blocks), resolver, lists);
+        AppendBlocks(html, ImmutableList.CreateRange(fragment.Blocks), resolver, lists, fragment.Images);
         return html.ToString();
     }
 
-    private static void AppendBlocks(StringBuilder html, ImmutableList<Block> blocks, StyleResolver resolver, ListStore lists)
+    /// <summary>A complete, self-contained web page (File > Save As > Web Page): pictures are embedded as data URIs.</summary>
+    public static string ToDocumentHtml(DocumentFragment fragment, StyleResolver resolver, ListStore lists, string? title)
+    {
+        var page = new StringBuilder();
+        page.Append("<!DOCTYPE html>\r\n<html>\r\n<head>\r\n<meta charset=\"utf-8\">\r\n<meta name=\"generator\" content=\"Quill\">\r\n");
+        page.Append("<title>").Append(WebUtility.HtmlEncode(title ?? "Document")).Append("</title>\r\n");
+        page.Append("<style>body{max-width:8.5in;margin:1in auto;padding:0 1em;}table{border-collapse:collapse;}img{max-width:100%;}</style>\r\n");
+        page.Append("</head>\r\n<body>\r\n");
+        page.Append(ToHtml(fragment, resolver, lists));
+        page.Append("</body>\r\n</html>\r\n");
+        return page.ToString();
+    }
+
+    private static void AppendBlocks(StringBuilder html, ImmutableList<Block> blocks, StyleResolver resolver, ListStore lists, ImmutableDictionary<string, ImageData> images)
     {
         IReadOnlyDictionary<int, ListMarker> markers = ListNumbering.Compute(blocks, lists, resolver);
         for (int i = 0; i < blocks.Count; i++)
@@ -982,16 +1078,16 @@ public static class HtmlConverter
             switch (blocks[i])
             {
                 case Paragraph paragraph:
-                    AppendParagraph(html, paragraph, markers.TryGetValue(i, out ListMarker marker) ? marker : null, resolver);
+                    AppendParagraph(html, paragraph, markers.TryGetValue(i, out ListMarker marker) ? marker : null, resolver, images);
                     break;
                 case Table table:
-                    AppendTable(html, table, resolver, lists);
+                    AppendTable(html, table, resolver, lists, images);
                     break;
             }
         }
     }
 
-    private static void AppendTable(StringBuilder html, Table table, StyleResolver resolver, ListStore lists)
+    private static void AppendTable(StringBuilder html, Table table, StyleResolver resolver, ListStore lists, ImmutableDictionary<string, ImageData> images)
     {
         html.Append(table.HasBorders ? "<table border=\"1\" cellspacing=\"0\" cellpadding=\"4\" style=\"border-collapse:collapse\">\r\n" : "<table cellspacing=\"0\" cellpadding=\"4\">\r\n");
         int columns = Math.Max(1, table.ColumnCount);
@@ -1020,7 +1116,7 @@ public static class HtmlConverter
                 }
 
                 html.Append(" style=\"").Append(style).Append("\">");
-                AppendBlocks(html, cell.Blocks, resolver, lists);
+                AppendBlocks(html, cell.Blocks, resolver, lists, images);
                 html.Append("</td>");
             }
 
@@ -1030,7 +1126,7 @@ public static class HtmlConverter
         html.Append("</table>\r\n");
     }
 
-    private static void AppendParagraph(StringBuilder html, Paragraph paragraph, ListMarker? marker, StyleResolver resolver)
+    private static void AppendParagraph(StringBuilder html, Paragraph paragraph, ListMarker? marker, StyleResolver resolver, ImmutableDictionary<string, ImageData> images)
     {
         ResolvedParagraphProperties pp = resolver.ResolveParagraph(paragraph);
         string tag = paragraph.StyleId switch
@@ -1075,6 +1171,18 @@ public static class HtmlConverter
                     break;
                 case Field field:
                     AppendRun(html, field.CachedResult, resolver.ResolveRun(paragraph, field), null);
+                    break;
+                case InlineImage image when !image.IsShape && images.TryGetValue(image.ImageId, out ImageData? data):
+                    // Pictures travel inside the page as data URIs; floating ones are placed in the text.
+                    html.Append("<img src=\"data:").Append(data.ContentType).Append(";base64,").Append(Convert.ToBase64String(data.Bytes)).Append('"');
+                    html.Append(" width=\"").Append(Math.Max(1, (int)Math.Round(image.Width.ToDips())).ToString(CultureInfo.InvariantCulture)).Append('"');
+                    html.Append(" height=\"").Append(Math.Max(1, (int)Math.Round(image.Height.ToDips())).ToString(CultureInfo.InvariantCulture)).Append('"');
+                    if (image.AltText is { } altText)
+                    {
+                        html.Append(" alt=\"").Append(WebUtility.HtmlEncode(altText)).Append('"');
+                    }
+
+                    html.Append('>');
                     break;
             }
         }

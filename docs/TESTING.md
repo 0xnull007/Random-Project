@@ -455,6 +455,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Open (Ctrl+O), drag-and-drop of a .docx, Recent list (last 10; a missing file is reported and removed).
 - [ ] Open (or drop) a .rtf or .txt file: it is imported into a new document ("Imported ..." in the status bar);
       Save As offers .docx, .rtf and .txt; .rtf/.txt are exports (the open document stays a .docx) **(new)**.
+- [ ] (new) File > Web Page (or Save As > Web Page): a single .html file opens in a browser with headings, formatting,
+      lists, tables and pictures (embedded, no extra folder). Open (or drop) an .html file saved from a browser: the
+      text, links, tables and embedded pictures come in as a new document.
 - [ ] Ctrl+Q resets paragraph formatting to the style; Ctrl+Shift+L toggles bullets; Ctrl+M / Ctrl+Shift+M change
       the indent; Ctrl+Shift+8 toggles formatting marks **(new)**.
 - [ ] Save (Ctrl+S) and Save As (F12) write .docx; the file opens in Word without a repair prompt.

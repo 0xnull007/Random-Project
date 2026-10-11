@@ -24,8 +24,8 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private static readonly double[] StandardSizes = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
 
-    private const string FileFilter = "All supported (*.docx;*.dotx;*.rtf;*.txt)|*.docx;*.dotx;*.rtf;*.txt|Word Documents (*.docx)|*.docx|Word Templates (*.dotx)|*.dotx|Rich Text Format (*.rtf)|*.rtf|Text files (*.txt)|*.txt|All files (*.*)|*.*";
-    private const string SaveFilter = "Word Document (*.docx)|*.docx|Word Template (*.dotx)|*.dotx|Rich Text Format (*.rtf)|*.rtf|Plain Text (*.txt)|*.txt";
+    private const string FileFilter = "All supported (*.docx;*.dotx;*.rtf;*.txt;*.html;*.htm)|*.docx;*.dotx;*.rtf;*.txt;*.html;*.htm|Word Documents (*.docx)|*.docx|Word Templates (*.dotx)|*.dotx|Rich Text Format (*.rtf)|*.rtf|Text files (*.txt)|*.txt|Web Pages (*.html;*.htm)|*.html;*.htm|All files (*.*)|*.*";
+    private const string SaveFilter = "Word Document (*.docx)|*.docx|Word Template (*.dotx)|*.dotx|Rich Text Format (*.rtf)|*.rtf|Plain Text (*.txt)|*.txt|Web Page (*.html)|*.html";
 
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly DispatcherTimer _autosaveTimer;
@@ -1414,7 +1414,7 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             string extension = Path.GetExtension(path);
-            if (extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase) || extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
+            if (IsConvertedExtension(extension))
             {
                 OpenConverted(path, extension);
                 return;
@@ -1497,11 +1497,16 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Imports RTF or plain text into a new document; Save As keeps it as .docx.</summary>
 
+    /// <summary>Files that are imported into a new document rather than opened as .docx.</summary>
+    public static bool IsConvertedExtension(string extension) =>
+        extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase) || extension.Equals(".txt", StringComparison.OrdinalIgnoreCase)
+        || extension.Equals(".html", StringComparison.OrdinalIgnoreCase) || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase);
+
     private void OpenConverted(string path, string extension)
     {
         string text = File.ReadAllText(path);
-        DocumentFragment fragment = extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase)
-            ? Quill.Layout.Wpf.RichTextConverter.FromRtf(text)
+        DocumentFragment fragment = extension.Equals(".rtf", StringComparison.OrdinalIgnoreCase) ? Quill.Layout.Wpf.RichTextConverter.FromRtf(text)
+            : extension.Equals(".html", StringComparison.OrdinalIgnoreCase) || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase) ? HtmlConverter.FromHtml(text)
             : DocumentFragment.FromPlainText(text);
         Document document = Document.CreateNew(metricPaper: IsMetricRegion());
         if (!fragment.IsEmpty)
@@ -1517,6 +1522,29 @@ public sealed partial class MainViewModel : ObservableObject
         RememberFile(path);
         StatusMessage = "Imported " + Path.GetFileName(path) + "; use Save As to keep it as a .docx";
         UpdateTitle();
+    }
+
+    /// <summary>Every body block of every section, tables intact, with the pictures they use; for HTML export.</summary>
+    private DocumentFragment WholeDocumentBlocks()
+    {
+        var blocks = System.Collections.Immutable.ImmutableArray.CreateBuilder<Block>();
+        foreach (Section section in Session.Document.Sections)
+        {
+            blocks.AddRange(section.Body);
+        }
+
+        return new DocumentFragment(blocks.ToImmutable(), Session.Document.Images.Images);
+    }
+
+    /// <summary>Exports the document as a self-contained web page (File > Export > Web Page).</summary>
+    [RelayCommand]
+    private void ExportHtml()
+    {
+        var dialog = new SaveFileDialog { Filter = "Web Page (*.html)|*.html", DefaultExt = ".html", FileName = _documentName + ".html", Title = "Export as Web Page" };
+        if (dialog.ShowDialog() == true)
+        {
+            SaveTo(dialog.FileName);
+        }
     }
 
     /// <summary>All body paragraphs (table cells flattened), for RTF and text export.</summary>
@@ -1607,6 +1635,13 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 File.WriteAllText(path, WholeDocumentFragment().ToPlainText().Replace("\n", Environment.NewLine, StringComparison.Ordinal), System.Text.Encoding.UTF8);
                 StatusMessage = "Exported " + Path.GetFileName(path) + " (the open document is still the .docx)";
+                return;
+            }
+
+            if (extension.Equals(".html", StringComparison.OrdinalIgnoreCase) || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase))
+            {
+                File.WriteAllText(path, HtmlConverter.ToDocumentHtml(WholeDocumentBlocks(), Session.Resolver, Session.Document.Lists, Session.Document.Metadata.Title ?? _documentName), new System.Text.UTF8Encoding(false));
+                StatusMessage = "Exported " + Path.GetFileName(path) + " as a web page (the open document is still the .docx)";
                 return;
             }
 

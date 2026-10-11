@@ -177,6 +177,7 @@
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE749;" Content="Print" Command="{Binding PrintCommand}" ToolTip="Print (Ctrl+P)" />
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56D;" Content="Print Preview" Click="OnPrintPreview" ToolTip="See the pages exactly as they will print" />
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xEE71;" Content="Export PDF" Command="{Binding ExportPdfCommand}" ToolTip="Save the document as a PDF file" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE774;" Content="Web Page" Command="{Binding ExportHtmlCommand}" ToolTip="Save the document as a self-contained .html page (pictures embedded); Open also reads .html files" />
             </StackPanel>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Quill">

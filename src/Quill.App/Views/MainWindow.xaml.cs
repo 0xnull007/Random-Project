@@ -159,7 +159,7 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
         {
-            return files.FirstOrDefault(f => f.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".rtf", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) || ImageFiles.IsPictureFile(f));
+            return files.FirstOrDefault(f => f.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".dotx", StringComparison.OrdinalIgnoreCase) || MainViewModel.IsConvertedExtension(Path.GetExtension(f)) || ImageFiles.IsPictureFile(f));
         }
 
         return null;

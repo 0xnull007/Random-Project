@@ -35,6 +35,50 @@ public class HtmlConverterTests
     }
 
     [Fact]
+    public void Pictures_export_as_data_uris_and_import_back_with_their_bytes_and_size()
+    {
+        byte[] png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==");
+        var image = new InlineImage("pic", Twips.FromDips(120), Twips.FromDips(60), altText: "A dot");
+        var fragment = new DocumentFragment(
+            System.Collections.Immutable.ImmutableArray.Create<Block>(new Paragraph([new Run("Before "), image, new Run(" after")])),
+            System.Collections.Immutable.ImmutableDictionary<string, ImageData>.Empty.Add("pic", new ImageData(png, "image/png", 1, 1)));
+        var resolver = new StyleResolver(DefaultStyleSheet.Create());
+
+        string html = HtmlConverter.ToHtml(fragment, resolver, ListStore.Empty);
+        Assert.Contains("<img src=\"data:image/png;base64,iVBORw0KGgo", html, StringComparison.Ordinal);
+        Assert.Contains("width=\"120\" height=\"60\" alt=\"A dot\"", html, StringComparison.Ordinal);
+
+        DocumentFragment back = HtmlConverter.FromHtml(html);
+        Paragraph paragraph = back.Paragraphs.Single();
+        Assert.Equal("Before ￼ after", paragraph.FlatText);
+        var imported = Assert.IsType<InlineImage>(paragraph.Inlines[1]);
+        Assert.Equal(Twips.FromDips(120), imported.Width);
+        Assert.Equal(Twips.FromDips(60), imported.Height);
+        Assert.Equal("A dot", imported.AltText);
+        Assert.Equal(png, back.Images[imported.ImageId].Bytes);
+        Assert.Equal("image/png", back.Images[imported.ImageId].ContentType);
+
+        // Pictures that live on the web are not fetched; they are dropped rather than left as broken boxes.
+        Assert.Empty(HtmlConverter.FromHtml("<p><img src=\"https://example.com/a.png\"></p>").Paragraphs.Single().Inlines);
+    }
+
+    [Fact]
+    public void Whole_page_export_is_a_complete_html_document_with_the_title_and_tables()
+    {
+        var table = new Table([new TableRow([new TableCell(System.Collections.Immutable.ImmutableList.Create<Block>(Paragraph.FromText("cell")))])], [Twips.FromInches(2)], hasBorders: true, Twips.Zero);
+        var fragment = new DocumentFragment(System.Collections.Immutable.ImmutableArray.Create<Block>(Paragraph.FromText("Hello & welcome"), table));
+        string page = HtmlConverter.ToDocumentHtml(fragment, new StyleResolver(DefaultStyleSheet.Create()), ListStore.Empty, "My <Report>");
+
+        Assert.StartsWith("<!DOCTYPE html>", page, StringComparison.Ordinal);
+        Assert.Contains("<meta charset=\"utf-8\">", page, StringComparison.Ordinal);
+        Assert.Contains("<title>My &lt;Report&gt;</title>", page, StringComparison.Ordinal);
+        Assert.Contains("Hello &amp; welcome", page, StringComparison.Ordinal);
+        Assert.Contains("<table", page, StringComparison.Ordinal);
+        Assert.Contains("cell", page, StringComparison.Ordinal);
+        Assert.EndsWith("</html>\r\n", page, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Collapses_whitespace_and_handles_entities_and_unknown_tags()
     {
         DocumentFragment fragment = HtmlConverter.FromHtml("<div>  Some\n   text &nbsp;here&#169; <custom>inside</custom> <script>alert(1)</script></div><p></p>");
