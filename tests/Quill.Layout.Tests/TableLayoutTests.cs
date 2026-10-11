@@ -232,3 +232,34 @@ public class MergedCellLayoutTests
         Assert.Equal((0, 0), (hit!.Value.Row, hit.Value.Cell));
     }
 }
+
+public class SequenceFieldLayoutTests
+{
+    private static string? SeqText(BlockFragment fragment) => ((ParagraphFragment)fragment).Layout.Input.Runs.Single(r => r.Kind == RunKind.Field).FieldText;
+
+    [Fact]
+    public void Caption_fields_show_their_running_number_and_relayout_when_a_caption_is_added_before_them()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(400),
+            PageHeight = Twips.FromDips(400),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        Paragraph Caption() => new([new Run("Figure "), new Field(FieldKind.Seq, "SEQ Figure \\* ARABIC", "7")]);
+        var cache = new LayoutCache();
+        var paginator = new Paginator(new FakeLineFormatter(), cache);
+        Paragraph second = Caption();
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(second))), StyleSheet.Empty);
+        LayoutDocument layout = paginator.Layout(document, new StyleResolver(document.Styles));
+        Assert.Equal("1", SeqText(layout.Pages[0].Body[0]));
+
+        Document grown = document.WithStory(StoryId.Body(0), document.Sections[0].Body.Insert(0, Caption()));
+        LayoutDocument relaid = paginator.Layout(grown, new StyleResolver(grown.Styles));
+        Assert.Equal("1", SeqText(relaid.Pages[0].Body[0]));
+        Assert.Equal("2", SeqText(relaid.Pages[0].Body[1]));
+    }
+}

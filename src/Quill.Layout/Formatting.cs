@@ -43,6 +43,7 @@ public sealed record FieldValues(string Page, string NumPages, string SectionPag
         FieldKind.Page => Page,
         FieldKind.NumPages => NumPages,
         FieldKind.SectionPages => SectionPages,
+        FieldKind.Seq => SequenceFields.Text(field, SequenceNumbers),
         _ => field.CachedResult,
     };
 
@@ -52,6 +53,9 @@ public sealed record FieldValues(string Page, string NumPages, string SectionPag
     public IReadOnlyDictionary<int, int>? FootnoteNumbers { get; init; }
 
     public IReadOnlyDictionary<int, int>? EndnoteNumbers { get; init; }
+
+    /// <summary>Running numbers of SEQ (caption) fields by field instance; null outside a document layout.</summary>
+    public IReadOnlyDictionary<Field, int>? SequenceNumbers { get; init; }
 
     public string EndnoteNumber(int noteId) =>
         EndnoteNumbers is not null && EndnoteNumbers.TryGetValue(noteId, out int number) ? NumberText.Format(number, NumberFormat.LowerRoman) : "?";

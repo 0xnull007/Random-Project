@@ -460,7 +460,20 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnInsertCaption(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        var dialog = new CaptionWindow(session.DefaultCaptionLabel, session.NextCaptionNumber) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            session.InsertCaption(dialog.Label, dialog.CaptionText, dialog.Above);
+        }
+
+        Editor.Focus();
+    }
+
     private void OnInsertTable(object sender, RoutedEventArgs e)
+
     {
         var dialog = new InsertTableWindow { Owner = this };
         if (dialog.ShowDialog() == true)

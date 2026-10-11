@@ -247,6 +247,17 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       changes appear as markup and can be accepted or rejected here.
 - [ ] Cut (Ctrl+X) while tracking strikes the text instead of removing it; Paste marks the pasted text inserted.
 
+## 11c. Captions (new)
+
+- [ ] Click a picture, References > Insert Caption: the dialog offers Figure/Table/Equation (or a label of your own),
+      Below/Above, a text box and a preview "Figure 1"; OK adds "Figure 1: text" under the picture in the Caption
+      style (9 pt, blue-grey) with the caret at its end.
+- [ ] With the caret in a table the dialog defaults to "Table" and "Above"; the caption lands above the table.
+- [ ] Add a caption above an earlier figure: the later captions renumber on screen at once (2, 3...); undo renumbers back.
+- [ ] Save and open in Word: captions are SEQ fields with the right numbers and the Caption style; F9 in Word keeps
+      them. Open a Word document with captions: the numbers follow document order here too.
+- [ ] Copy a caption and paste into Notepad: the current number appears in the text.
+
 ## 12. Find and replace
 
 - [ ] Ctrl+F opens Find pre-filled with the selected word; Enter / Find Next / F3 moves forward, Shift+F4 back,

@@ -378,7 +378,7 @@ public static class DocxWriter
 
                     var element = new W.Run();
                     AppendRunProperties(element, field.Properties, field.StyleId);
-                    element.Append(new W.Text(field.CachedResult) { Space = SpaceProcessingModeValues.Preserve });
+                    element.Append(new W.Text(SequenceFields.Text(field, context.State.Sequences)) { Space = SpaceProcessingModeValues.Preserve });
                     simple.Append(element);
                     container.Append(simple);
                     break;
@@ -949,6 +949,7 @@ public static class DocxWriter
             Images = images;
             NoteIds = noteIds;
             EndnoteIds = FootnoteSupport.ReferencedEndnoteIds(document);
+            Sequences = SequenceFields.Numbers(document);
             Comments = document.Comments;
             foreach ((StoryId story, BlockPath path, Paragraph paragraph) in DocumentEditor.AllParagraphs(document))
             {
@@ -967,6 +968,9 @@ public static class DocxWriter
         public IReadOnlyList<int> NoteIds { get; }
 
         public IReadOnlyList<int> EndnoteIds { get; }
+
+        /// <summary>Running numbers of the SEQ fields, so saved captions show the right number without a field update.</summary>
+        public IReadOnlyDictionary<Field, int> Sequences { get; }
 
         public ImmutableDictionary<int, Comment> Comments { get; }
 

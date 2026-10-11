@@ -82,7 +82,7 @@ public sealed class Paginator
             _options = options;
             _totalPagesHint = totalPagesHint;
             _sectionPagesHint = sectionPagesHint;
-            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document), EndnoteNumbers = FootnoteSupport.EndnoteNumbers(document) };
+            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document), EndnoteNumbers = FootnoteSupport.EndnoteNumbers(document), SequenceNumbers = SequenceFields.Numbers(document) };
         }
 
         public bool UsedTotalDependentField { get; private set; }
@@ -900,6 +900,7 @@ public sealed class Paginator
         {
             string signature = (paragraph.Inlines.Any(i => i is Field or FootnoteReference) ? fields.Signature : string.Empty)
                 + (paragraph.Inlines.OfType<FootnoteReference>().Any() ? "|fn:" + string.Join(",", paragraph.Inlines.OfType<FootnoteReference>().Select(n => fields.NoteNumber(n))) : string.Empty)
+                + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Seq }) ? "|seq:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind == FieldKind.Seq).Select(fields.Resolve)) : string.Empty)
                 + (marker is { } m ? "|" + m.Text : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {

@@ -78,6 +78,9 @@ public enum FieldKind
     Page,
     NumPages,
     SectionPages,
+
+    /// <summary>A SEQ field: the running number of a caption series such as "Figure" or "Table".</summary>
+    Seq,
     Unknown,
 }
 
