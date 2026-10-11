@@ -112,7 +112,10 @@ public class WpfLineFormatterTests
         var paragraph = new Paragraph([new Run("Hello big "), Field.Page(), new Run(" world", new RunProperties { Bold = true })]);
         IFormattedLine line = new WpfLineFormatter().FormatParagraph(Input(paragraph, 500, new FieldValues("12", "3", "1")))[0];
         List<TextSegment> segments = line.GetSegments().ToList();
-        Assert.Equal(["Hello", "big", "12", "world"], segments.Select(s => s.Text));
+        // Since the PDF highlight fix a segment is a word plus the spaces after it (a run starting with a space yields a
+        // space-only segment), so highlights form one band; compare the words themselves.
+        Assert.Equal(["Hello", "big", "12", "world"], segments.Select(s => s.Text.Trim()).Where(t => t.Length > 0));
+        Assert.Equal(["Hello ", "big ", "12", " ", "world"], segments.Select(s => s.Text));
         for (int i = 1; i < segments.Count; i++)
         {
             Assert.True(segments[i].X > segments[i - 1].X);
