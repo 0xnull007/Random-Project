@@ -27,7 +27,9 @@ public static class DocxWriter
         using WordprocessingDocument package = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
         MainDocumentPart main = package.AddMainDocumentPart();
         var body = new W.Body();
-        main.Document = new W.Document(body);
+        main.Document = document.Settings.PageColor is { IsAuto: false } pageColor
+            ? new W.Document(new W.DocumentBackground { Color = pageColor.ToHex() }, body)
+            : new W.Document(body);
         var writerState = new WriterState(document.Images, FootnoteSupport.ReferencedNoteIds(document), document);
         var bodyContext = new PartContext(writerState, main, main);
 
@@ -45,6 +47,11 @@ public static class DocxWriter
         if (document.Settings.TrackChanges)
         {
             settings.PrependChild(new W.TrackRevisions());
+        }
+
+        if (document.Settings.PageColor is { IsAuto: false })
+        {
+            settings.PrependChild(new W.DisplayBackgroundShape()); // first in w:settings: Word shows the colour only with this switch
         }
 
         if (document.Settings.EvenAndOddHeaders)
@@ -709,7 +716,26 @@ public static class DocxWriter
             Gutter = (uint)Math.Max(0, p.Gutter.Value),
         });
 
+        if (p.PageBorders is { } borders)
+        {
+            W.BorderValues value = borders.Style switch
+            {
+                PageBorderStyle.Double => W.BorderValues.Double,
+                PageBorderStyle.Dotted => W.BorderValues.Dotted,
+                PageBorderStyle.Dashed => W.BorderValues.Dashed,
+                PageBorderStyle.Thick => W.BorderValues.Thick,
+                _ => W.BorderValues.Single,
+            };
+            T Side<T>()
+                where T : W.BorderType, new() => new() { Val = value, Size = (uint)borders.Width, Space = (uint)borders.Space, Color = borders.Color.IsAuto ? "auto" : borders.Color.ToHex() };
+            sectPr.Append(new W.PageBorders(Side<W.TopBorder>(), Side<W.LeftBorder>(), Side<W.BottomBorder>(), Side<W.RightBorder>())
+            {
+                OffsetFrom = borders.FromText ? W.PageBorderOffsetValues.Text : W.PageBorderOffsetValues.Page,
+            });
+        }
+
         if (p.PageNumberStart is not null || p.PageNumberFormat != PageNumberFormat.Decimal)
+
         {
             sectPr.Append(new W.PageNumberType
             {

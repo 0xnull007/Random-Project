@@ -18,6 +18,9 @@ public sealed record DocumentSettings
 
     /// <summary>Record insertions and deletions as tracked changes (<c>w:trackRevisions</c>).</summary>
     public bool TrackChanges { get; init; }
+
+    /// <summary>Background colour of every page (<c>w:background</c>); shown on screen, not printed, like Word.</summary>
+    public DocColor? PageColor { get; init; }
 }
 
 public sealed record DocumentMetadata

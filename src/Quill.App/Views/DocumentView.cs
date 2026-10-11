@@ -1185,7 +1185,15 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     {
         Rect rect = PageRect(index);
         Brush page = TryFindResource("Quill.PageBrush") as Brush ?? Brushes.White;
+        if (index < _layout.PageCount && _layout.Pages[index].PageColor is { IsAuto: false } pageColor)
+        {
+            var tinted = new SolidColorBrush(Color.FromRgb(pageColor.R, pageColor.G, pageColor.B)); // Word shows the page colour on screen only
+            tinted.Freeze();
+            page = tinted;
+        }
+
         Brush border = TryFindResource("Quill.PageBorderBrush") as Brush ?? Brushes.Gray;
+
         Brush shadow = TryFindResource("Quill.PageShadowBrush") as Brush ?? Brushes.Transparent;
         double thickness = 1 / Zoom;
         using DrawingContext dc = visual.RenderOpen();

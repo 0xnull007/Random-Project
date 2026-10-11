@@ -59,6 +59,9 @@ public sealed record SectionProperties
     /// <summary>Space between columns (<c>w:cols/@w:space</c>).</summary>
     public Twips ColumnSpacing { get; init; } = Twips.FromInches(0.5);
 
+    /// <summary>Border drawn around each page of the section, or null for none.</summary>
+    public PageBorders? PageBorders { get; init; }
+
     /// <summary>Width available to body text.</summary>
     public Twips BodyWidth => PageWidth - MarginLeft - MarginRight - Gutter;
 

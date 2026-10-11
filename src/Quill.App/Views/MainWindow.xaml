@@ -321,7 +321,33 @@
         </WrapPanel>
       </TabItem>
 
+      <TabItem Header="Design">
+        <WrapPanel Orientation="Horizontal">
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Document Formatting">
+            <StackPanel Orientation="Horizontal">
+              <StackPanel>
+                <ComboBox Style="{StaticResource Quill.CommandCombo}" Width="170" Margin="1,0,1,4"
+                          ItemsSource="{Binding ParagraphStyles}" DisplayMemberPath="Name" SelectedItem="{Binding CurrentStyle}"
+                          ToolTip="Paragraph style (Ctrl+Alt+1/2/3 headings, Ctrl+Shift+N normal)" />
+                <Button Style="{StaticResource Quill.CommandButton}" Content="Modify Style..." HorizontalAlignment="Stretch" Click="OnModifyStyle" ToolTip="Change the formatting of the current paragraph style for the whole document" />
+              </StackPanel>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="1.1" Content="Number Headings" Command="{Binding ToggleHeadingNumbersCommand}" ToolTip="Number Heading 1-3 as 1, 1.1, 1.1.1 (click again to remove)" />
+            </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Page Background">
+            <StackPanel Orientation="Horizontal">
+              <StackPanel Style="{StaticResource Quill.RibbonStack}" Margin="4,0">
+                <TextBlock Text="Page Color" FontSize="11" Opacity="0.8" Margin="2,0,0,2" HorizontalAlignment="Center" />
+                <views:ColorPickerButton x:Name="PageColorPicker" GlyphText="&#x25A3;" ToggleToolTip="Page color (shown on screen, not printed, like Word)" CurrentColor="{Binding PageColorSwatch}" ColorSelected="OnPageColorSelected" HorizontalAlignment="Center" />
+              </StackPanel>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Page Borders" Click="OnPageBorders" ToolTip="A border around every page of the section or document: style, width, colour and distance" />
+            </StackPanel>
+          </HeaderedContentControl>
+        </WrapPanel>
+      </TabItem>
+
       <TabItem Header="Layout">
+
         <WrapPanel Orientation="Horizontal">
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Page Setup">
             <StackPanel Orientation="Horizontal">

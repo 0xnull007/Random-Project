@@ -263,3 +263,38 @@ public class SequenceFieldLayoutTests
         Assert.Equal("2", SeqText(relaid.Pages[0].Body[1]));
     }
 }
+
+public class PageBorderLayoutTests
+{
+    [Fact]
+    public void Pages_carry_their_section_border_and_the_border_rect_follows_the_distance_setting()
+    {
+        var box = new PageBorders { Space = 18, Width = 8 };
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(300),
+            PageHeight = Twips.FromDips(400),
+            MarginTop = Twips.FromDips(40),
+            MarginBottom = Twips.FromDips(40),
+            MarginLeft = Twips.FromDips(30),
+            MarginRight = Twips.FromDips(30),
+            PageBorders = box,
+        };
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(Paragraph.FromText("a")))), StyleSheet.Empty, new DocumentSettings { PageColor = DocColor.Parse("FFF2CC") });
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        PageLayout first = layout.Pages[0];
+
+        Assert.Same(box, first.Borders);
+        Assert.Equal(DocColor.Parse("FFF2CC"), first.PageColor);
+        RectD fromPage = first.BorderRect()!.Value;
+        Assert.Equal(24, fromPage.Left, 3);
+        Assert.Equal(300 - 24, fromPage.Right, 3);
+        Assert.Equal(400 - 24, fromPage.Bottom, 3);
+
+        Document textOffset = document.WithSection(0, document.Sections[0].WithProperties(page with { PageBorders = box with { FromText = true } }));
+        PageLayout second = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(textOffset, new StyleResolver(textOffset.Styles)).Pages[0];
+        RectD fromText = second.BorderRect()!.Value;
+        Assert.Equal(30 - 24, fromText.Left, 3);
+        Assert.Equal(300 - 30 + 24, fromText.Right, 3);
+    }
+}

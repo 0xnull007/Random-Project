@@ -13,6 +13,12 @@ public static class PageRenderer
     {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(target);
+        if (page.Borders is { } borders && page.BorderRect() is { } borderRect)
+        {
+            DrawPageBorder(borderRect, borders, target);
+        }
+
+
         foreach (double? separator in new[] { page.FootnoteSeparatorY, page.EndnoteSeparatorY })
         {
             if (separator is { } y)
@@ -44,7 +50,59 @@ public static class PageRenderer
         }
     }
 
+    /// <summary>Word's page border: single, double (two lines a gap apart), dotted, dashed or thick, in the chosen colour.</summary>
+    public static void DrawPageBorder(RectD rect, PageBorders borders, IRenderTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(borders);
+        ArgumentNullException.ThrowIfNull(target);
+        double thickness = borders.ThicknessDips;
+        switch (borders.Style)
+        {
+            case PageBorderStyle.Double:
+                target.DrawRectangle(rect, borders.Color, thickness);
+                double inset = thickness * 2.5;
+                target.DrawRectangle(RectD.FromEdges(rect.Left + inset, rect.Top + inset, rect.Right - inset, rect.Bottom - inset), borders.Color, thickness);
+                break;
+            case PageBorderStyle.Dotted:
+                DrawDashedRectangle(rect, borders.Color, thickness, dash: thickness, gap: thickness * 1.5, target);
+                break;
+            case PageBorderStyle.Dashed:
+                DrawDashedRectangle(rect, borders.Color, thickness, dash: thickness * 4, gap: thickness * 2, target);
+                break;
+            default:
+                target.DrawRectangle(rect, borders.Color, thickness);
+                break;
+        }
+    }
+
+    private static void DrawDashedRectangle(RectD rect, DocColor color, double thickness, double dash, double gap, IRenderTarget target)
+    {
+        double half = thickness / 2;
+        DrawDashedLine(new PointD(rect.Left, rect.Top + half), new PointD(rect.Right, rect.Top + half), color, thickness, dash, gap, target);
+        DrawDashedLine(new PointD(rect.Left, rect.Bottom - half), new PointD(rect.Right, rect.Bottom - half), color, thickness, dash, gap, target);
+        DrawDashedLine(new PointD(rect.Left + half, rect.Top), new PointD(rect.Left + half, rect.Bottom), color, thickness, dash, gap, target);
+        DrawDashedLine(new PointD(rect.Right - half, rect.Top), new PointD(rect.Right - half, rect.Bottom), color, thickness, dash, gap, target);
+    }
+
+    private static void DrawDashedLine(PointD from, PointD to, DocColor color, double thickness, double dash, double gap, IRenderTarget target)
+    {
+        double length = Math.Sqrt((to.X - from.X) * (to.X - from.X) + (to.Y - from.Y) * (to.Y - from.Y));
+        if (length <= 0 || dash <= 0)
+        {
+            return;
+        }
+
+        double ux = (to.X - from.X) / length;
+        double uy = (to.Y - from.Y) / length;
+        for (double at = 0; at < length; at += dash + gap)
+        {
+            double end = Math.Min(length, at + dash);
+            target.DrawLine(new PointD(from.X + ux * at, from.Y + uy * at), new PointD(from.X + ux * end, from.Y + uy * end), color, thickness);
+        }
+    }
+
     public static void DrawTable(TableFragment fragment, IRenderTarget target)
+
     {
         ArgumentNullException.ThrowIfNull(fragment);
         ArgumentNullException.ThrowIfNull(target);

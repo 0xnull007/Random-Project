@@ -149,6 +149,16 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 - [ ] Keep-with-next: a heading at the bottom of a page moves to the next page with its paragraph.
 - [ ] Widow/orphan control: a paragraph never leaves a single line alone at the top or bottom of a page.
 
+## 8b. Design tab: page colour and page borders (new)
+
+- [ ] Design > Page Color: pick a colour and every page is tinted on screen (dark mode too); "Automatic" clears it;
+      Print Preview, printing and PDF export stay white, as in Word; the colour survives save and reload and shows in
+      Word (which asks for "display background" only when the setting is missing, so it should just appear).
+- [ ] Design > Page Borders: Box, Double, 1½ pt, blue, 18 pt from the page edge, whole document: every page gets a
+      double blue frame; "Text" measures from the text area instead; "This section" limits it; None removes it;
+      undo reverts in one step; the border prints and exports to PDF; Word shows the same frame.
+- [ ] Design > Document Formatting repeats the style picker, Modify Style and Number Headings from Home/References.
+
 ## 9. Headers and footers
 
 - [ ] Double-click the top or bottom margin, or Insert > Header / Footer: the body dims, blue guides appear.

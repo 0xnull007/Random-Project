@@ -559,7 +559,26 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnPageColorSelected(object? sender, string value)
+    {
+        ViewModel.SetPageColor(value);
+        Editor.Focus();
+    }
+
+    private void OnPageBorders(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        var dialog = new PageBordersWindow(session.PageBordersAtCaret, session.Document.Sections.Count > 1) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            session.SetPageBorders(dialog.Result, dialog.WholeDocument);
+        }
+
+        Editor.Focus();
+    }
+
     private void OnCellShadingSelected(object? sender, string value)
+
     {
         ViewModel.SetCellShading(value);
         Editor.Focus();

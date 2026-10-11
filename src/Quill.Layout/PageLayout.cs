@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Quill.Core.Model;
+using Quill.Core.Units;
 using Quill.Core.Text;
 
 namespace Quill.Layout;
@@ -131,8 +132,12 @@ public sealed class PageLayout
         HeaderFooterVariant variant = HeaderFooterVariant.Default,
         ImmutableArray<StoryLayout> footnotes = default,
         double? footnoteSeparatorY = null,
-        double? endnoteSeparatorY = null)
+        double? endnoteSeparatorY = null,
+        PageBorders? borders = null,
+        DocColor? pageColor = null)
     {
+        Borders = borders;
+        PageColor = pageColor;
         EndnoteSeparatorY = endnoteSeparatorY;
         Footnotes = footnotes.IsDefault ? ImmutableArray<StoryLayout>.Empty : footnotes;
         FootnoteSeparatorY = footnoteSeparatorY;
@@ -149,7 +154,28 @@ public sealed class PageLayout
         Variant = variant;
     }
 
+    /// <summary>The section's page border, or null.</summary>
+    public PageBorders? Borders { get; }
+
+    /// <summary>The document's page colour, or null for white.</summary>
+    public DocColor? PageColor { get; }
+
+    /// <summary>Where the page border is drawn: inside the page edge or around the text area, by the border's distance.</summary>
+    public RectD? BorderRect()
+    {
+        if (Borders is not { } borders)
+        {
+            return null;
+        }
+
+        double space = borders.SpaceDips;
+        return borders.FromText
+            ? RectD.FromEdges(BodyArea.Left - space, Math.Min(BodyArea.Top, Header?.Bounds.Top ?? BodyArea.Top) - space, BodyArea.Right + space, Math.Max(BodyArea.Bottom, Footer?.Bounds.Bottom ?? BodyArea.Bottom) + space)
+            : RectD.FromEdges(space, space, Size.Width - space, Size.Height - space);
+    }
+
     /// <summary>Which header/footer variant this page shows (first page, even page, or default).</summary>
+
     public HeaderFooterVariant Variant { get; }
 
     /// <summary>

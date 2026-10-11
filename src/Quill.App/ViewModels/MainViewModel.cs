@@ -153,6 +153,18 @@ public sealed partial class MainViewModel : ObservableObject
         RefreshFormatState();
     }
 
+    /// <summary>Page colour for the Design tab picker (white when none).</summary>
+    [ObservableProperty]
+    public partial Color PageColorSwatch { get; set; } = Colors.White;
+
+    /// <summary>Applies a page colour from the picker: "auto" clears it, otherwise an RRGGBB hex.</summary>
+    public void SetPageColor(string value)
+    {
+        Session.SetPageColor(value == "auto" ? null : DocColor.Parse(value));
+        RefreshFormatState();
+    }
+
+
 
     /// <summary>Mirrors the document's track-changes switch (Review tab toggle, Ctrl+Shift+E).</summary>
     [ObservableProperty]
@@ -1533,6 +1545,7 @@ public sealed partial class MainViewModel : ObservableObject
             IsPictureSelected = !Session.Selection.IsCollapsed && Session.SelectedImage() is not null;
             IsInTable = Session.IsInTable;
             IsHeaderRow = Session.IsHeaderRowAtCaret;
+            PageColorSwatch = Session.PageColor is { IsAuto: false } pageColor ? Color.FromRgb(pageColor.R, pageColor.G, pageColor.B) : Colors.White;
             CellShadingSwatch = Session.CellShadingAtCaret is { IsAuto: false } shading ? Color.FromRgb(shading.R, shading.G, shading.B) : Colors.White;
             TrackChanges = Session.TrackChanges;
             UpdateCurrentHeading();

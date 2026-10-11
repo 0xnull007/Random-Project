@@ -62,6 +62,11 @@ public sealed class DocxReader
         _theme = ThemeInfo.From(_main.ThemePart);
         StyleSheet styles = ReadStyles(_main.StyleDefinitionsPart);
         DocumentSettings settings = ReadSettings(_main.DocumentSettingsPart);
+        if (_main.Document?.GetFirstChild<W.DocumentBackground>()?.Color?.Value is { Length: 6 } backgroundHex && !backgroundHex.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            settings = settings with { PageColor = DocColor.Parse(backgroundHex) };
+        }
+
         ListStore lists = ReadNumbering(_main.NumberingDefinitionsPart);
         W.Body body = _main.Document?.Body ?? new W.Body();
         ImmutableList<Section> sections = ReadSections(body);
@@ -214,9 +219,30 @@ public sealed class DocxReader
             };
         }
 
+        if (sectPr.GetFirstChild<W.PageBorders>() is { } pgBorders && (pgBorders.TopBorder ?? pgBorders.LeftBorder ?? pgBorders.BottomBorder ?? (W.BorderType?)pgBorders.RightBorder) is { } side
+            && side.Val?.Value is { } borderValue && borderValue != W.BorderValues.Nil && borderValue != W.BorderValues.None)
+        {
+            props = props with
+            {
+                PageBorders = new PageBorders
+                {
+                    Style = borderValue == W.BorderValues.Double ? PageBorderStyle.Double
+                        : borderValue == W.BorderValues.Dotted ? PageBorderStyle.Dotted
+                        : borderValue == W.BorderValues.Dashed || borderValue == W.BorderValues.DashSmallGap ? PageBorderStyle.Dashed
+                        : borderValue == W.BorderValues.Thick ? PageBorderStyle.Thick
+                        : PageBorderStyle.Single,
+                    Width = (int)Math.Clamp(side.Size?.Value ?? 4, 2, 96),
+                    Space = (int)Math.Clamp(side.Space?.Value ?? 24, 0, 31),
+                    Color = side.Color?.Value is { } hex && !hex.Equals("auto", StringComparison.OrdinalIgnoreCase) && hex.Length == 6 ? DocColor.Parse(hex) : DocColor.Black,
+                    FromText = pgBorders.OffsetFrom?.Value == W.PageBorderOffsetValues.Text,
+                },
+            };
+        }
+
         props = props with
         {
             Start = SectionStartFrom(sectPr.GetFirstChild<W.SectionType>()?.Val?.InnerText),
+
             TitlePage = OnOff(sectPr.GetFirstChild<W.TitlePage>()) ?? false,
         };
 
