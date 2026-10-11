@@ -1016,11 +1016,20 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
     /// <summary>Raised when laying the document out threw; the previous layout stays on screen.</summary>
     public event EventHandler<Exception>? LayoutFailed;
 
+    private Quill.Core.Styles.StyleResolver? _lastResolver;
+
     private void Relayout()
     {
         EditingSession? session = Session;
         try
         {
+            if (session is not null && !ReferenceEquals(session.Resolver, _lastResolver))
+            {
+                // A new resolver (styles edited, or the markup view switched) changes how unchanged paragraphs look.
+                _cache.Clear();
+                _lastResolver = session.Resolver;
+            }
+
             _layout = session is null ? LayoutDocument.Empty : _paginator.Layout(session.Document, session.Resolver);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)

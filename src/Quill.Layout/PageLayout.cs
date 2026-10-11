@@ -142,9 +142,11 @@ public sealed class PageLayout
         Watermark? watermark = null,
         ImmutableArray<LineNumber> lineNumbers = default,
         double lineNumberX = 0,
-        ImmutableArray<FloatingImage> floats = default)
+        ImmutableArray<FloatingImage> floats = default,
+        ImmutableArray<ChangeBar> changeBars = default)
     {
         Floats = floats.IsDefault ? ImmutableArray<FloatingImage>.Empty : floats;
+        ChangeBars = changeBars.IsDefault ? ImmutableArray<ChangeBar>.Empty : changeBars;
         Borders = borders;
         PageColor = pageColor;
         Watermark = watermark;
@@ -168,6 +170,12 @@ public sealed class PageLayout
 
     /// <summary>Every floating picture on the page (body, header and footer), in page coordinates, in document order.</summary>
     public ImmutableArray<FloatingImage> Floats { get; }
+
+    /// <summary>Vertical bars in the left margin beside lines with tracked changes (Word's change bars); empty when the view hides markup.</summary>
+    public ImmutableArray<ChangeBar> ChangeBars { get; }
+
+    /// <summary>How far left of the body a change bar sits.</summary>
+    public const double ChangeBarOffset = 12;
 
     /// <summary>The topmost floating picture under a page point, or null; pictures drawn in front win over those behind the text.</summary>
     public FloatingImage? FloatAt(PointD pagePoint)
@@ -356,6 +364,9 @@ public sealed class LayoutDocument
         return null;
     }
 }
+
+/// <summary>A change bar: page y range of consecutive lines containing tracked changes, drawn at <paramref name="X"/>.</summary>
+public readonly record struct ChangeBar(double X, double Top, double Bottom);
 
 /// <summary>One line number on a page: the text baseline and the number to show.</summary>
 public readonly record struct LineNumber(double Baseline, int Number, double FontSize);

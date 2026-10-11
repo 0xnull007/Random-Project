@@ -569,7 +569,19 @@
             </StackPanel>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Tracking">
-            <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xEF60;" Content="Track Changes" IsChecked="{Binding TrackChanges}" ToolTip="Record insertions and deletions as tracked changes (Ctrl+Shift+E); insertions are underlined and deletions struck through in the author's colour" />
+            <StackPanel Orientation="Horizontal">
+              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xEF60;" Content="Track Changes" IsChecked="{Binding TrackChanges}" ToolTip="Record insertions and deletions as tracked changes (Ctrl+Shift+E); insertions are underlined and deletions struck through in the author's colour" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7B3;" Content="{Binding RevisionViewLabel}" Click="OnCaseMenu" ToolTip="Display for Review: show changes as markup, the final text (with or without change bars) or the original text">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="All Markup" Command="{Binding SetRevisionViewCommand}" CommandParameter="AllMarkup" />
+                    <MenuItem Header="Simple Markup" Command="{Binding SetRevisionViewCommand}" CommandParameter="SimpleMarkup" />
+                    <MenuItem Header="No Markup" Command="{Binding SetRevisionViewCommand}" CommandParameter="NoMarkup" />
+                    <MenuItem Header="Original" Command="{Binding SetRevisionViewCommand}" CommandParameter="Original" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+            </StackPanel>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Changes">
             <StackPanel Orientation="Horizontal">

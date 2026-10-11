@@ -312,6 +312,13 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 11b. Track changes (new)
 
+- [ ] (new) Review > Tracking > the "All Markup" button opens Display for Review: **Simple Markup** shows the final
+      text with a red bar in the left margin beside changed lines; **No Markup** shows the final text only;
+      **Original** shows the text before any change (insertions vanish, deletions reappear as plain text);
+      **All Markup** brings the coloured underlines and strikethroughs back (also with bars). The button's label
+      follows the choice; the document is not modified (title bar shows no unsaved mark, Ctrl+Z unaffected).
+- [ ] (new) In No Markup, typing with Track Changes on shows plain text and deleting text makes it disappear as
+      usual; switch to All Markup to see the recorded changes. Print Preview and PDF export follow the chosen view.
 - [ ] Review > Track Changes (or Ctrl+Shift+E): the toggle lights up and "Track Changes" appears in the status bar.
       Type: new text is underlined in a colour; select text and press Delete: it stays, struck through in the same
       colour; type over a selection: the old text is struck and the new text follows underlined; Backspace over

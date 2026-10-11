@@ -769,6 +769,66 @@ public sealed class Paginator
             return (numbers.ToImmutable(), page.BodyArea.Left - numbering.Distance.ToDips());
         }
 
+        /// <summary>Change bars for the body lines that contain tracked changes, consecutive lines merged into one bar.</summary>
+        private ImmutableArray<ChangeBar> ChangeBarsFor(PageBuilder page)
+        {
+            if (!_resolver.ShowsChangeBars)
+            {
+                return ImmutableArray<ChangeBar>.Empty;
+            }
+
+            double x = page.BodyArea.Left - PageLayout.ChangeBarOffset;
+            var bars = ImmutableArray.CreateBuilder<ChangeBar>();
+            foreach (BlockFragment block in page.Fragments)
+            {
+                IEnumerable<ParagraphFragment> paragraphs = block switch
+                {
+                    ParagraphFragment paragraph => [paragraph],
+                    TableFragment table => table.AllParagraphs(),
+                    _ => [],
+                };
+                foreach (ParagraphFragment fragment in paragraphs)
+                {
+                    List<(int Start, int End)>? changed = null;
+                    foreach (InlineSpan span in fragment.Paragraph.Spans())
+                    {
+                        if (span.Inline.Properties.Revision is not null)
+                        {
+                            (changed ??= []).Add((span.Start, span.Start + Math.Max(1, span.Length)));
+                        }
+                    }
+
+                    if (changed is null)
+                    {
+                        continue;
+                    }
+
+                    for (int i = fragment.FirstLine; i <= fragment.LastLine; i++)
+                    {
+                        IFormattedLine line = fragment.Layout.Lines[i];
+                        int lineEnd = Math.Max(line.End, line.Start + 1);
+                        if (!changed.Any(c => c.Start < lineEnd && c.End > line.Start))
+                        {
+                            continue;
+                        }
+
+                        double top = fragment.LineTop(i);
+                        double bottom = fragment.LineBottom(i);
+                        if (bars.Count > 0 && Math.Abs(bars[^1].Bottom - top) < 0.5)
+                        {
+                            bars[^1] = bars[^1] with { Bottom = bottom };
+                        }
+                        else
+                        {
+                            bars.Add(new ChangeBar(x, top, bottom));
+                        }
+                    }
+                }
+            }
+
+            return bars.ToImmutable();
+        }
+
         private void FinishPage(PageBuilder page, int pageNumber, int sectionIndex)
         {
             (ImmutableArray<StoryLayout> notes, double? separator) = PlaceFootnotes(page);
@@ -794,7 +854,8 @@ public sealed class Paginator
                 _document.Settings.Watermark,
                 lineNumbers,
                 lineNumberX,
-                AllFloats(page)));
+                AllFloats(page),
+                ChangeBarsFor(page)));
         }
 
         /// <summary>Body, header and footer floats of a page in one list, in document order.</summary>

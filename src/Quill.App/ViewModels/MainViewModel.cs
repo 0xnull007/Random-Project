@@ -387,6 +387,37 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Word's Display for Review: how tracked changes show (All Markup, Simple Markup, No Markup, Original).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RevisionViewLabel))]
+    public partial RevisionView RevisionView { get; set; }
+
+    public string RevisionViewLabel => RevisionView switch
+    {
+        RevisionView.SimpleMarkup => "Simple Markup",
+        RevisionView.NoMarkup => "No Markup",
+        RevisionView.Original => "Original",
+        _ => "All Markup",
+    };
+
+    partial void OnRevisionViewChanged(RevisionView value)
+    {
+        if (Session.RevisionView != value)
+        {
+            Session.SetRevisionView(value);
+            StatusMessage = value switch
+            {
+                RevisionView.SimpleMarkup => "Simple Markup: the final text, with a bar beside changed lines",
+                RevisionView.NoMarkup => "No Markup: the text as it reads with every change accepted",
+                RevisionView.Original => "Original: the text before any tracked change",
+                _ => "All Markup: insertions underlined, deletions struck through",
+            };
+        }
+    }
+
+    [RelayCommand]
+    private void SetRevisionView(string name) => RevisionView = Enum.Parse<RevisionView>(name);
+
 
 
     [ObservableProperty]
@@ -1845,6 +1876,7 @@ public sealed partial class MainViewModel : ObservableObject
             PageColorSwatch = Session.PageColor is { IsAuto: false } pageColor ? Color.FromRgb(pageColor.R, pageColor.G, pageColor.B) : Colors.White;
             CellShadingSwatch = Session.CellShadingAtCaret is { IsAuto: false } shading ? Color.FromRgb(shading.R, shading.G, shading.B) : Colors.White;
             TrackChanges = Session.TrackChanges;
+            RevisionView = Session.RevisionView;
             UpdateCurrentHeading();
             UpdateWordCountText();
             IsBulleted = listKind == true;

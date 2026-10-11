@@ -46,6 +46,22 @@ public sealed partial class EditingSession
 
     public StyleResolver Resolver => _resolver;
 
+    /// <summary>How tracked changes are displayed (Word's Display for Review); not saved with the document.</summary>
+    public RevisionView RevisionView { get; private set; } = RevisionView.AllMarkup;
+
+    /// <summary>Switches the markup view; the resolver changes, so listeners re-lay out everything.</summary>
+    public void SetRevisionView(RevisionView view)
+    {
+        if (view == RevisionView)
+        {
+            return;
+        }
+
+        RevisionView = view;
+        _resolver = new StyleResolver(Document.Styles, Document.Lists, view);
+        DocumentChanged?.Invoke(this, new DocumentChangedEventArgs(Document, Document, ChangeSet.Structural()));
+    }
+
     /// <summary>Character formatting queued by a toggle with a collapsed selection; applied to the next typed text.</summary>
     public RunProperties? PendingFormat { get; private set; }
 
@@ -1504,7 +1520,7 @@ public sealed partial class EditingSession
         Document = document;
         if (!ReferenceEquals(old.Styles, document.Styles) || !ReferenceEquals(old.Lists, document.Lists))
         {
-            _resolver = new StyleResolver(document.Styles, document.Lists);
+            _resolver = new StyleResolver(document.Styles, document.Lists, RevisionView);
         }
 
         bool selectionChanged = selection != Selection;

@@ -55,11 +55,12 @@ public sealed class StyleResolver
     private readonly RunProperties _runBase;
     private readonly ParagraphProperties _paragraphBase;
 
-    public StyleResolver(StyleSheet sheet, ListStore? lists = null)
+    public StyleResolver(StyleSheet sheet, ListStore? lists = null, RevisionView revisionView = RevisionView.AllMarkup)
     {
         ArgumentNullException.ThrowIfNull(sheet);
         Sheet = sheet;
         Lists = lists ?? ListStore.Empty;
+        RevisionView = revisionView;
         _runBase = HardRunDefaults.Merge(sheet.Defaults.Run);
         _paragraphBase = HardParagraphDefaults.Merge(sheet.Defaults.Paragraph);
     }
@@ -67,6 +68,12 @@ public sealed class StyleResolver
     public StyleSheet Sheet { get; }
 
     public ListStore Lists { get; }
+
+    /// <summary>How tracked changes resolve: as markup, as the final text (deletions hidden) or as the original (insertions hidden).</summary>
+    public RevisionView RevisionView { get; }
+
+    /// <summary>True when changed lines get a bar in the margin (All Markup and Simple Markup).</summary>
+    public bool ShowsChangeBars => RevisionView is RevisionView.AllMarkup or RevisionView.SimpleMarkup;
 
     public ResolvedParagraphProperties ResolveParagraph(Paragraph paragraph)
     {
@@ -160,20 +167,34 @@ public sealed class StyleResolver
 
         merged = merged.Merge(key.Direct);
 
-        // Tracked changes show as markup: insertions underlined and deletions struck through, in the author's colour.
+        // Tracked changes show as markup (insertions underlined and deletions struck through, in the author's colour),
+        // or the view hides one side of each change to show the final or the original text.
         UnderlineStyle underline = merged.Underline!.Value;
         bool strikethrough = merged.Strikethrough!.Value;
         DocColor color = merged.Color!.Value;
+        bool hidden = merged.Hidden!.Value;
         if (merged.Revision is { } revision)
         {
-            color = Revision.ColorFor(revision.Author);
-            if (revision.IsInsertion)
+            switch (RevisionView)
             {
-                underline = underline == UnderlineStyle.None ? UnderlineStyle.Single : underline;
-            }
-            else
-            {
-                strikethrough = true;
+                case RevisionView.AllMarkup:
+                    color = Revision.ColorFor(revision.Author);
+                    if (revision.IsInsertion)
+                    {
+                        underline = underline == UnderlineStyle.None ? UnderlineStyle.Single : underline;
+                    }
+                    else
+                    {
+                        strikethrough = true;
+                    }
+
+                    break;
+                case RevisionView.Original:
+                    hidden |= revision.IsInsertion;
+                    break;
+                default:
+                    hidden |= revision.IsDeletion;
+                    break;
             }
         }
 
@@ -190,7 +211,7 @@ public sealed class StyleResolver
             merged.VerticalAlignment!.Value,
             merged.SmallCaps!.Value,
             merged.AllCaps!.Value,
-            merged.Hidden!.Value,
+            hidden,
             merged.Language!,
             merged.Link,
             merged.CommentId,

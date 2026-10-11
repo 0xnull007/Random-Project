@@ -37,6 +37,11 @@ public static class PageRenderer
             }
         }
 
+        foreach (ChangeBar bar in page.ChangeBars)
+        {
+            target.DrawLine(new PointD(bar.X, bar.Top), new PointD(bar.X, bar.Bottom), ChangeBarColor, 2);
+        }
+
         foreach (double? separator in new[] { page.FootnoteSeparatorY, page.EndnoteSeparatorY })
         {
             if (separator is { } y)
@@ -75,6 +80,9 @@ public static class PageRenderer
             }
         }
     }
+
+    /// <summary>Word's change bar colour: a dark red line in the margin beside changed lines.</summary>
+    private static readonly DocColor ChangeBarColor = DocColor.FromRgb(0xC0, 0x1E, 0x1E);
 
     /// <summary>A floating picture at its page rectangle, or a grey box when its bytes are missing.</summary>
     public static void DrawFloatingImage(FloatingImage image, IRenderTarget target)

@@ -7,6 +7,22 @@ public enum RevisionKind
     Deletion,
 }
 
+/// <summary>How tracked changes are shown (Word's Display for Review). A view setting, not part of the document.</summary>
+public enum RevisionView
+{
+    /// <summary>Insertions underlined and deletions struck through in the author's colour, with change bars.</summary>
+    AllMarkup,
+
+    /// <summary>The text as it would read with every change accepted, with a change bar beside changed lines.</summary>
+    SimpleMarkup,
+
+    /// <summary>The text with every change accepted and no markup.</summary>
+    NoMarkup,
+
+    /// <summary>The text as it was before any change: insertions hidden, deletions shown as plain text.</summary>
+    Original,
+}
+
 /// <summary>
 /// A tracked change on a run: who inserted or deleted it and when. Dates are kept to the minute so continuous
 /// typing stays one run.
