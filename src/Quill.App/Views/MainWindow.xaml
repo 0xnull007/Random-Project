@@ -113,6 +113,7 @@
     <KeyBinding Key="F1" Command="{x:Static views:MainWindow.ShortcutsCommand}" />
     <KeyBinding Modifiers="Ctrl" Key="F1" Command="{x:Static views:MainWindow.ToggleRibbonCommand}" />
     <KeyBinding Key="F9" Command="{x:Static views:MainWindow.UpdateFieldsCommand}" />
+    <KeyBinding Key="F7" Command="{x:Static views:MainWindow.SpellingCommand}" />
     <KeyBinding Modifiers="Ctrl+Shift" Key="C" Command="{Binding CopyFormatCommand}" />
     <KeyBinding Modifiers="Ctrl+Shift" Key="V" Command="{Binding PasteFormatCommand}" />
     <KeyBinding Modifiers="Ctrl+Alt" Key="V" Command="{x:Static views:MainWindow.PastePlainCommand}" />
@@ -137,6 +138,7 @@
     <CommandBinding Command="{x:Static views:MainWindow.WordCountCommand}" Executed="OnWordCountCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.ToggleRibbonCommand}" Executed="OnToggleRibbon" />
     <CommandBinding Command="{x:Static views:MainWindow.UpdateFieldsCommand}" Executed="OnUpdateFields" />
+    <CommandBinding Command="{x:Static views:MainWindow.SpellingCommand}" Executed="OnSpelling" />
     <CommandBinding Command="{x:Static views:MainWindow.ShortcutsCommand}" Executed="OnShortcutsCommand" />
     <CommandBinding Command="{x:Static views:MainWindow.PastePlainCommand}" Executed="OnPastePlain" />
     <CommandBinding Command="{x:Static views:MainWindow.InsertLinkCommand}" Executed="OnInsertLinkCommand" />
@@ -537,10 +539,14 @@
         <WrapPanel Orientation="Horizontal">
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Proofing">
             <StackPanel Orientation="Horizontal">
-              <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xE82D;" Content="Spelling" IsChecked="{Binding CheckSpelling}" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE82D;" Content="Spelling" Command="{x:Static views:MainWindow.SpellingCommand}" ToolTip="Check spelling from the caret onwards: ignore, add to the dictionary or change each word (F7)" />
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8C1;" Content="Word Count" Command="{x:Static views:MainWindow.WordCountCommand}" ToolTip="Pages, words, characters, paragraphs (Ctrl+Shift+G)" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <ToggleButton Style="{StaticResource Quill.StackToggle}" Content="Check as you type" IsChecked="{Binding CheckSpelling}" ToolTip="Underline words the Windows spell checker does not know; right-click a word for suggestions" />
+              </StackPanel>
             </StackPanel>
           </HeaderedContentControl>
+
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Comments">
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE90A;" Content="New Comment" Click="OnInsertComment" ToolTip="Attach a comment to the selected text (Ctrl+Alt+M)" />

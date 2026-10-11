@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand WordCountCommand = new("WordCount", typeof(MainWindow));
     public static readonly RoutedCommand ToggleRibbonCommand = new("ToggleRibbon", typeof(MainWindow));
     public static readonly RoutedCommand UpdateFieldsCommand = new("UpdateFields", typeof(MainWindow));
+    public static readonly RoutedCommand SpellingCommand = new("Spelling", typeof(MainWindow));
     public static readonly RoutedCommand ShortcutsCommand = new("Shortcuts", typeof(MainWindow));
     public static readonly RoutedCommand PastePlainCommand = new("PastePlain", typeof(MainWindow));
     public static readonly RoutedCommand InsertLinkCommand = new("InsertLink", typeof(MainWindow));
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
     public static readonly RoutedCommand InsertCommentCommand = new("InsertComment", typeof(MainWindow));
 
     private FindReplaceWindow? _findWindow;
+    private SpellingWindow? _spellingWindow;
 
     public MainWindow()
     {
@@ -675,6 +677,7 @@ public partial class MainWindow : Window
         {
             ViewModel.SaveWindowState(this);
             _findWindow?.ForceClose();
+            _spellingWindow?.ForceClose();
             _symbolWindow?.Close();
         }
     }
@@ -813,7 +816,14 @@ public partial class MainWindow : Window
         return text.Length is > 0 and <= 100 && !text.Contains('\n', StringComparison.Ordinal) ? text : null;
     }
 
+    private void OnSpelling(object sender, ExecutedRoutedEventArgs e)
+    {
+        _spellingWindow ??= new SpellingWindow(ViewModel.Session) { Owner = this, Editor = Editor };
+        _spellingWindow.Start();
+    }
+
     private void OnFind(object sender, ExecutedRoutedEventArgs e) => FindWindow.ShowFind(SelectedTextForSearch());
+
 
     private void OnReplace(object sender, ExecutedRoutedEventArgs e) => FindWindow.ShowReplace(SelectedTextForSearch());
 

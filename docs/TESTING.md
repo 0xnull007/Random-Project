@@ -71,6 +71,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 2c. Spelling (new)
 
+- [ ] Review > Spelling (F7) opens Word's Spelling dialog: it selects each misspelling from the caret on, shows the
+      sentence with the word in red and suggestions; Change/Change All replace, Ignore Once skips, Ignore All and Add
+      to Dictionary stop the word being flagged (squiggles update too); it wraps to the start and ends with "Spelling
+      check complete" **(new)**.
 - [ ] Misspelled words get a red wavy underline shortly after you finish typing them (the word at the caret is
       not flagged until you move on). View > Spelling toggles it; it is remembered.
 - [ ] Right-click a flagged word: suggestions appear at the top of the menu; choosing one replaces the word.
