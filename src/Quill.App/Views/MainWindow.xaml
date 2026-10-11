@@ -626,8 +626,17 @@
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Zoom">
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE71E;" Content="100%" Command="{Binding SetZoomCommand}" CommandParameter="100" ToolTip="Zoom to 100%" />
-              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="One Page" Click="OnFitPage" ToolTip="Zoom so a whole page fits" />
-              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56E;" Content="Page Width" Click="OnFitWidth" ToolTip="Zoom so the page fills the width" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="One Page" Click="OnFitPage" ToolTip="Pages in one column, zoomed so a whole page fits" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Multiple Pages" Click="OnMultiplePages" Tag="2" ToolTip="Two pages side by side, zoomed so both show; right-click for three or four across">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Two Pages" Click="OnMultiplePages" Tag="2" />
+                    <MenuItem Header="Three Pages" Click="OnMultiplePages" Tag="3" />
+                    <MenuItem Header="Four Pages" Click="OnMultiplePages" Tag="4" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF56E;" Content="Page Width" Click="OnFitWidth" ToolTip="Pages in one column, zoomed so the page fills the width" />
               <StackPanel Style="{StaticResource Quill.RibbonStack}">
                 <Button Style="{StaticResource Quill.StackButton}" Content="50%" Command="{Binding SetZoomCommand}" CommandParameter="50" />
                 <Button Style="{StaticResource Quill.StackButton}" Content="75%" Command="{Binding SetZoomCommand}" CommandParameter="75" />

@@ -366,6 +366,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       numbers appears at the caret in the "table of figures" style; inserting again replaces it with fresh numbers;
       with no captions a hint line is inserted instead **(new)**.
 
+- [ ] (new) View > Multiple Pages: pages appear two across, zoomed so a whole row is visible; the arrow menu
+      offers three or four across. Clicking, selecting and dragging work on every page of a row; the caret, the
+      ruler and Go To Page follow; One Page and Page Width return to a single column.
+
 ## 12. Find and replace
 
 - [ ] Ctrl+F opens Find pre-filled with the selected word; Enter / Find Next / F3 moves forward, Shift+F4 back,

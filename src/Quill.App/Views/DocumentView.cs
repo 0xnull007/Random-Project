@@ -322,6 +322,17 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         return null;
     }
 
+    /// <summary>How many pages sit side by side (1 = one column, Word's Multiple Pages uses 2 or more).</summary>
+    public static readonly DependencyProperty PagesAcrossProperty = DependencyProperty.Register(
+        nameof(PagesAcross), typeof(int), typeof(DocumentView),
+        new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (d, _) => ((DocumentView)d).ArrangePages(), (_, value) => Math.Clamp((int)value, 1, 4)));
+
+    public int PagesAcross
+    {
+        get => (int)GetValue(PagesAcrossProperty);
+        set => SetValue(PagesAcrossProperty, value);
+    }
+
     public static readonly DependencyProperty ShowFormattingMarksProperty =
  DependencyProperty.Register(
         nameof(ShowFormattingMarks), typeof(bool), typeof(DocumentView),
@@ -532,7 +543,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         Zoom = Math.Clamp(Math.Min(byHeight, byWidth), 0.1, 5);
     }
 
-    /// <summary>Zooms so the widest page fills the viewport width.</summary>
+    /// <summary>Zooms so the widest page (or the whole row of pages) fills the viewport width.</summary>
     public void ZoomToFitWidth()
     {
         if (_layout.PageCount == 0 || _viewport.Width <= 0)
@@ -541,6 +552,21 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         Zoom = Math.Clamp((_viewport.Width - 2 * CanvasPadding) / Math.Max(1, _docWidth - 2 * CanvasPadding), 0.1, 5);
+    }
+
+    /// <summary>Word's Multiple Pages: <paramref name="across"/> pages side by side, zoomed so a whole row is visible.</summary>
+    public void ZoomToFitPages(int across)
+    {
+        PagesAcross = across;
+        if (_layout.PageCount == 0 || _viewport.Width <= 0 || _viewport.Height <= 0)
+        {
+            return;
+        }
+
+        double rowHeight = _layout.Pages.Take(PagesAcross).Max(p => p.Size.Height);
+        double byWidth = (_viewport.Width - 2 * CanvasPadding) / Math.Max(1, _docWidth - 2 * CanvasPadding);
+        double byHeight = (_viewport.Height - 2 * CanvasPadding) / Math.Max(1, rowHeight);
+        Zoom = Math.Clamp(Math.Min(byWidth, byHeight), 0.1, 5);
     }
 
     private void OnReadOnlyChanged()
@@ -835,7 +861,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         Point doc = ToDocument(viewPoint);
-        int pageIndex = PageIndexAt(doc.Y);
+        int pageIndex = PageIndexAt(doc);
         if (pageIndex < 0)
         {
             return false;
@@ -1041,8 +1067,14 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             LayoutFailed?.Invoke(this, ex);
         }
 
-        ComputeGeometry();
         BuildLineIndex();
+        ArrangePages();
+    }
+
+    /// <summary>Places the pages on the canvas (one column or several across) and rebuilds the page visuals.</summary>
+    private void ArrangePages()
+    {
+        ComputeGeometry();
         foreach (PageVisuals visuals in _pageVisuals.Values)
         {
             _pagesLayer.Children.Remove(visuals.Root);
@@ -1052,30 +1084,16 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         UpdateScrollExtent();
         RealizePages();
         UpdateCaretAndSelection();
+        ViewportChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ComputeGeometry()
     {
-        int count = _layout.PageCount;
-        _pageTops = new double[count];
-        _pageLefts = new double[count];
-        double widest = 0;
-        foreach (PageLayout page in _layout.Pages)
-        {
-            widest = Math.Max(widest, page.Size.Width);
-        }
-
-        _docWidth = Math.Max(1, widest + 2 * CanvasPadding);
-        double y = CanvasPadding;
-        for (int i = 0; i < count; i++)
-        {
-            PageLayout page = _layout.Pages[i];
-            _pageTops[i] = y;
-            _pageLefts[i] = Math.Max(CanvasPadding, (_docWidth - page.Size.Width) / 2);
-            y += page.Size.Height + PageGap;
-        }
-
-        _docHeight = Math.Max(1, count == 0 ? 1 : y - PageGap + CanvasPadding);
+        PageArrangement.Result arranged = PageArrangement.Compute(_layout.Pages.Select(p => p.Size).ToList(), PagesAcross, CanvasPadding, PageGap);
+        _pageTops = [.. arranged.Tops];
+        _pageLefts = [.. arranged.Lefts];
+        _docWidth = arranged.Width;
+        _docHeight = arranged.Height;
     }
 
     private void BuildLineIndex()
@@ -1665,7 +1683,11 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         return new Point((viewPoint.X - _host.Offset.X) / zoom, (viewPoint.Y - _host.Offset.Y) / zoom);
     }
 
-    private int PageIndexAt(double y)
+    /// <summary>The first page of the row at a canvas y (the page itself when pages are stacked).</summary>
+    private int PageIndexAt(double y) => PageIndexAt(new Point(0, y));
+
+    /// <summary>The page under a canvas point: its row by y, then the nearest page of that row by x.</summary>
+    private int PageIndexAt(Point doc)
     {
         int count = _layout.PageCount;
         if (count == 0)
@@ -1673,16 +1695,36 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
             return -1;
         }
 
+        int first = count - 1;
         for (int i = 0; i < count; i++)
         {
-            Rect rect = PageRect(i);
-            if (y < rect.Bottom + PageGap / 2)
+            if (doc.Y < PageRect(i).Bottom + PageGap / 2)
             {
-                return i;
+                first = i;
+                break;
             }
         }
 
-        return count - 1;
+        int rowStart = first;
+        while (rowStart > 0 && _pageTops[rowStart - 1] == _pageTops[first])
+        {
+            rowStart--;
+        }
+
+        int best = rowStart;
+        double bestDistance = double.MaxValue;
+        for (int i = rowStart; i < count && _pageTops[i] == _pageTops[first]; i++)
+        {
+            Rect rect = PageRect(i);
+            double distance = doc.X < rect.Left ? rect.Left - doc.X : doc.X > rect.Right ? doc.X - rect.Right : 0;
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = i;
+            }
+        }
+
+        return best;
     }
 
     private (TextPosition Position, CaretAffinity Affinity)? HitTest(Point viewPoint)
@@ -1694,7 +1736,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         Point doc = ToDocument(viewPoint);
-        int pageIndex = PageIndexAt(doc.Y);
+        int pageIndex = PageIndexAt(doc);
         if (pageIndex < 0)
         {
             return null;
@@ -1911,7 +1953,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         Point doc = ToDocument(viewPoint);
-        int pageIndex = PageIndexAt(doc.Y);
+        int pageIndex = PageIndexAt(doc);
         if (pageIndex < 0)
         {
             return null;
@@ -1988,7 +2030,7 @@ public sealed partial class DocumentView : FrameworkElement, IScrollInfo
         }
 
         Point doc = ToDocument(viewPoint);
-        int pageIndex = PageIndexAt(doc.Y);
+        int pageIndex = PageIndexAt(doc);
         if (pageIndex < 0)
         {
             return null;

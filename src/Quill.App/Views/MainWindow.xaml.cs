@@ -858,12 +858,22 @@ public partial class MainWindow : Window
 
     private void OnFitPage(object sender, RoutedEventArgs e)
     {
+        Editor.PagesAcross = 1;
         Editor.ZoomToFitPage();
+        Editor.Focus();
+    }
+
+    /// <summary>View > Multiple Pages: two, three or four pages side by side (the Tag), zoomed so a whole row shows.</summary>
+    private void OnMultiplePages(object sender, RoutedEventArgs e)
+    {
+        int across = sender is FrameworkElement { Tag: string tag } && int.TryParse(tag, out int parsed) ? parsed : 2;
+        Editor.ZoomToFitPages(across);
         Editor.Focus();
     }
 
     private void OnFitWidth(object sender, RoutedEventArgs e)
     {
+        Editor.PagesAcross = 1;
         Editor.ZoomToFitWidth();
         Editor.Focus();
     }
