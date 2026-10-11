@@ -48,4 +48,23 @@ public class DocxBookmarkTests
         Assert.Equal("3", fields[1].CachedResult);
         Assert.Equal("Target", BookmarkSupport.Target(fields[1]));
     }
+
+    [Fact]
+    public void Date_and_property_fields_round_trip_with_fresh_text()
+    {
+        var paragraph = new Paragraph([new Field(FieldKind.Date, "DATE \\@ \"yyyy\"", "1999"), new Run(" by "), new Field(FieldKind.DocProperty, "AUTHOR", "stale")]);
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(paragraph))), DefaultStyleSheet.Create(), metadata: new DocumentMetadata { Author = "Ada" });
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<W.SimpleField> fields = package.MainDocumentPart!.Document!.Body!.Descendants<W.SimpleField>().ToList();
+            Assert.Equal(DateTime.Now.Year.ToString(System.Globalization.CultureInfo.CurrentCulture), fields[0].InnerText);
+            Assert.Equal("Ada", fields[1].InnerText);
+        }
+
+        var read = (Paragraph)DocxReader.Read(new MemoryStream(bytes)).Document.Sections[0].Body[0];
+        Assert.Equal([FieldKind.Date, FieldKind.DocProperty], read.Inlines.OfType<Field>().Select(f => f.Kind));
+        Assert.Equal("yyyy", FieldSupport.Picture((Field)read.Inlines[0]));
+    }
 }

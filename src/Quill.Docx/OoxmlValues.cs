@@ -268,6 +268,9 @@ internal static class OoxmlValues
             "SEQ" => FieldKind.Seq,
             "REF" => FieldKind.Ref,
             "PAGEREF" => FieldKind.PageRef,
+            "DATE" => FieldKind.Date,
+            "TIME" => FieldKind.Time,
+            "AUTHOR" or "TITLE" or "SUBJECT" or "COMMENTS" => FieldKind.DocProperty,
             _ => FieldKind.Unknown,
         };
     }

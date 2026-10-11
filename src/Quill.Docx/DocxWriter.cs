@@ -410,7 +410,7 @@ public static class DocxWriter
 
                     var element = new W.Run();
                     AppendRunProperties(element, field.Properties, field.StyleId);
-                    element.Append(new W.Text(SequenceFields.Text(field, context.State.Sequences)) { Space = SpaceProcessingModeValues.Preserve });
+                    element.Append(new W.Text(field.Kind == FieldKind.Seq ? SequenceFields.Text(field, context.State.Sequences) : FieldSupport.Resolve(field, DateTime.Now, context.State.Metadata)) { Space = SpaceProcessingModeValues.Preserve });
                     simple.Append(element);
                     container.Append(simple);
                     break;
@@ -1094,6 +1094,7 @@ public static class DocxWriter
             EndnoteIds = FootnoteSupport.ReferencedEndnoteIds(document);
             Sequences = SequenceFields.Numbers(document);
             Watermark = document.Settings.Watermark;
+            Metadata = document.Metadata;
             Comments = document.Comments;
             foreach ((StoryId story, BlockPath path, Paragraph paragraph) in DocumentEditor.AllParagraphs(document))
             {
@@ -1122,6 +1123,8 @@ public static class DocxWriter
         public IReadOnlyDictionary<Field, int> Sequences { get; }
 
         public Watermark? Watermark { get; }
+
+        public DocumentMetadata Metadata { get; }
 
         private int _nextWatermarkId;
 

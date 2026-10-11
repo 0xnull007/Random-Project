@@ -110,7 +110,7 @@ public sealed class Paginator
             _totalPagesHint = totalPagesHint;
             _sectionPagesHint = sectionPagesHint;
             _pageRefsHint = pageRefsHint;
-            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document), EndnoteNumbers = FootnoteSupport.EndnoteNumbers(document), SequenceNumbers = SequenceFields.Numbers(document), PageRefs = pageRefsHint };
+            _bodyFields = FieldValues.Placeholder with { FootnoteNumbers = FootnoteSupport.Numbers(document), EndnoteNumbers = FootnoteSupport.EndnoteNumbers(document), SequenceNumbers = SequenceFields.Numbers(document), PageRefs = pageRefsHint, Now = DateTime.Now, Metadata = document.Metadata };
         }
 
         public bool UsedTotalDependentField { get; private set; }
@@ -708,7 +708,7 @@ public sealed class Paginator
             var fields = new FieldValues(
                 FormatPageNumber(pageNumber, props.PageNumberFormat),
                 _totalPagesHint.ToString(CultureInfo.InvariantCulture),
-                sectionPages.ToString(CultureInfo.InvariantCulture)) with { PageRefs = _pageRefsHint };
+                sectionPages.ToString(CultureInfo.InvariantCulture)) with { PageRefs = _pageRefsHint, Now = _bodyFields.Now, Metadata = _document.Metadata };
 
             double left = (props.MarginLeft + props.Gutter).ToDips();
             double width = Math.Max(1, pageSize.Width - left - props.MarginRight.ToDips());
@@ -944,6 +944,7 @@ public sealed class Paginator
                 + (paragraph.Inlines.OfType<FootnoteReference>().Any() ? "|fn:" + string.Join(",", paragraph.Inlines.OfType<FootnoteReference>().Select(n => fields.NoteNumber(n))) : string.Empty)
                 + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Seq }) ? "|seq:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind == FieldKind.Seq).Select(fields.Resolve)) : string.Empty)
                 + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.PageRef }) ? "|ref:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind == FieldKind.PageRef).Select(fields.Resolve)) : string.Empty)
+                + (paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Date or FieldKind.Time or FieldKind.DocProperty }) ? "|auto:" + string.Join(",", paragraph.Inlines.OfType<Field>().Where(f => f.Kind is FieldKind.Date or FieldKind.Time or FieldKind.DocProperty).Select(fields.Resolve)) : string.Empty)
                 + (marker is { } m ? "|" + m.Text : string.Empty);
             return _cache.GetOrAdd(paragraph, width, signature, () =>
             {

@@ -116,7 +116,7 @@ public sealed partial class EditingSession
         Document before = Document;
         Document document = DocumentEditor.MapParagraphs(before, paragraph =>
         {
-            if (!paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Ref or FieldKind.PageRef }))
+            if (!paragraph.Inlines.Any(i => i is Field { Kind: FieldKind.Ref or FieldKind.PageRef or FieldKind.Date or FieldKind.Time or FieldKind.DocProperty }))
             {
                 return paragraph;
             }
@@ -124,14 +124,18 @@ public sealed partial class EditingSession
             bool changed = false;
             ImmutableArray<Inline> inlines = paragraph.Inlines.Select(inline =>
             {
-                if (inline is not Field field || BookmarkSupport.Target(field) is not { } target)
+                if (inline is not Field field)
                 {
                     return inline;
                 }
 
-                string? fresh = field.Kind == FieldKind.Ref
-                    ? BookmarkSupport.TextOf(before, target)
-                    : pageNumbers.TryGetValue(target, out string? page) ? page : null;
+                string? fresh = field.Kind switch
+                {
+                    FieldKind.Date or FieldKind.Time or FieldKind.DocProperty => FieldSupport.Resolve(field, DateTime.Now, before.Metadata),
+                    FieldKind.Ref when BookmarkSupport.Target(field) is { } target => BookmarkSupport.TextOf(before, target),
+                    FieldKind.PageRef when BookmarkSupport.Target(field) is { } target && pageNumbers.TryGetValue(target, out string? page) => page,
+                    _ => null,
+                };
                 if (fresh is null || fresh == field.CachedResult)
                 {
                     return inline;

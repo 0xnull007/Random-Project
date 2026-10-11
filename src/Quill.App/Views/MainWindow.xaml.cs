@@ -189,7 +189,14 @@ public partial class MainWindow : Window
         var dialog = new DateTimeWindow { Owner = this };
         if (dialog.ShowDialog() == true)
         {
-            ViewModel.Session.InsertText(dialog.Text);
+            if (dialog.AsField)
+            {
+                ViewModel.Session.InsertDateField(dialog.WordPicture, dialog.IsTime);
+            }
+            else
+            {
+                ViewModel.Session.InsertText(dialog.Text);
+            }
         }
 
         Editor.Focus();

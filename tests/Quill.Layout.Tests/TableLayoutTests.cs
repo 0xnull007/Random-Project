@@ -351,3 +351,25 @@ public class PageRefLayoutTests
         Assert.Equal(pageOfTarget, first.Layout.Input.Runs.Single(r => r.Kind == RunKind.Field).FieldText);
     }
 }
+
+public class AutoFieldLayoutTests
+{
+    [Fact]
+    public void Date_and_property_fields_show_live_values()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(400),
+            PageHeight = Twips.FromDips(400),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        var paragraph = new Paragraph([new Field(FieldKind.Date, "DATE \\@ \"yyyy\"", "1999"), new Run(" "), new Field(FieldKind.DocProperty, "TITLE", "old")]);
+        var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(paragraph))), StyleSheet.Empty, metadata: new DocumentMetadata { Title = "Report" });
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+        List<string?> texts = ((ParagraphFragment)layout.Pages[0].Body[0]).Layout.Input.Runs.Where(r => r.Kind == RunKind.Field).Select(r => r.FieldText).ToList();
+        Assert.Equal([DateTime.Now.Year.ToString(System.Globalization.CultureInfo.CurrentCulture), "Report"], texts);
+    }
+}

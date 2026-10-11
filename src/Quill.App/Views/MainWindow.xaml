@@ -389,8 +389,21 @@
             </StackPanel>
           </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Text">
-            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE787;" Content="Date &amp; Time" Click="OnInsertDateTime" ToolTip="Insert the current date or time" />
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E3;" Content="Quick Parts" Click="OnCaseMenu" ToolTip="Document property fields that update themselves (set them under File > Properties)">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Title" Command="{Binding InsertDocumentPropertyCommand}" CommandParameter="TITLE" />
+                    <MenuItem Header="Author" Command="{Binding InsertDocumentPropertyCommand}" CommandParameter="AUTHOR" />
+                    <MenuItem Header="Subject" Command="{Binding InsertDocumentPropertyCommand}" CommandParameter="SUBJECT" />
+                    <MenuItem Header="Comments" Command="{Binding InsertDocumentPropertyCommand}" CommandParameter="COMMENTS" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE787;" Content="Date &amp; Time" Click="OnInsertDateTime" ToolTip="Insert the current date or time, as text or as a field that updates itself" />
+            </StackPanel>
           </HeaderedContentControl>
+
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Symbols">
             <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF6BA;" Content="Symbol" Click="OnInsertSymbol" ToolTip="Insert a special character" />
           </HeaderedContentControl>

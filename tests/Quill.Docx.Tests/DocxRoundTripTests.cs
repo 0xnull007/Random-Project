@@ -138,8 +138,8 @@ public class DocxRoundTripTests
         Assert.Equal("Title page header", ((Paragraph)doc.Sections[0].Headers.First![0]).FlatText);
         Assert.Null(doc.Sections[0].Headers.Even);
         var footerField = (Field)((Paragraph)doc.Sections[0].Footers.Default![0]).Inlines[0];
-        Assert.Equal(FieldKind.Unknown, footerField.Kind);
-        Assert.Equal("2026", footerField.CachedResult);
+        Assert.Equal(FieldKind.Date, footerField.Kind); // DATE fields are recognised and written with the current year
+        Assert.Equal(DateTime.Now.Year.ToString(System.Globalization.CultureInfo.CurrentCulture), footerField.CachedResult);
         Assert.Equal("DATE \\@ \"yyyy\"", footerField.Instruction);
 
         // Section 2
@@ -296,7 +296,8 @@ public class DocxRoundTripTests
         Assert.Equal(FieldKind.NumPages, OoxmlValues.FieldKindFrom("  NUMPAGES  \\* MERGEFORMAT"));
         Assert.Equal(FieldKind.PageRef, OoxmlValues.FieldKindFrom("PAGEREF _Toc1 \\h"));
         Assert.Equal(FieldKind.Ref, OoxmlValues.FieldKindFrom("REF _Ref12 \\h"));
-        Assert.Equal(FieldKind.Unknown, OoxmlValues.FieldKindFrom("AUTHOR"));
+        Assert.Equal(FieldKind.DocProperty, OoxmlValues.FieldKindFrom("AUTHOR"));
+        Assert.Equal(FieldKind.Unknown, OoxmlValues.FieldKindFrom("FILENAME"));
     }
 
     [Fact]

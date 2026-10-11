@@ -87,6 +87,15 @@ public enum FieldKind
 
     /// <summary>A PAGEREF field: the page a bookmark is on.</summary>
     PageRef,
+
+    /// <summary>DATE: today's date in the picture given by \@.</summary>
+    Date,
+
+    /// <summary>TIME: the current time in the picture given by \@.</summary>
+    Time,
+
+    /// <summary>AUTHOR, TITLE, SUBJECT or COMMENTS: a document property.</summary>
+    DocProperty,
     Unknown,
 }
 

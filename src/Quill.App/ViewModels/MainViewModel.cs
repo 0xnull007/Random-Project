@@ -296,6 +296,11 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void InsertCoverPage() => Session.InsertCoverPage(AuthorName());
 
+    /// <summary>Insert > Text > Quick Parts: a document property field (AUTHOR, TITLE, SUBJECT, COMMENTS).</summary>
+    [RelayCommand]
+    private void InsertDocumentProperty(string property) => Session.InsertDocumentPropertyField(property);
+
+
     /// <summary>Design > Watermark presets; an empty text removes the watermark.</summary>
     [RelayCommand]
     private void SetWatermark(string text) => Session.SetWatermark(string.IsNullOrWhiteSpace(text) ? null : new Watermark(text));

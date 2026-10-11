@@ -8,6 +8,7 @@
   <StackPanel Margin="16,12,16,14">
     <TextBlock Text="Available formats:" Margin="0,0,0,6" />
     <ListBox x:Name="Formats" Height="260" MouseDoubleClick="OnOk" />
+    <CheckBox x:Name="UpdateBox" Content="Update automatically" Margin="0,10,0,0" ToolTip="Insert a DATE or TIME field that shows the current value whenever the document is opened or printed" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
       <Button Content="Insert" Width="90" IsDefault="True" Click="OnOk" Margin="0,0,8,0" />
       <Button Content="Cancel" Width="90" IsCancel="True" />

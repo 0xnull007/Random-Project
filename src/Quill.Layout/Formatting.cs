@@ -45,6 +45,8 @@ public sealed record FieldValues(string Page, string NumPages, string SectionPag
         FieldKind.SectionPages => SectionPages,
         FieldKind.Seq => SequenceFields.Text(field, SequenceNumbers),
         FieldKind.PageRef => BookmarkSupport.Target(field) is { } target && PageRefs is not null && PageRefs.TryGetValue(target, out string? page) ? page : field.CachedResult,
+        FieldKind.Date or FieldKind.Time => FieldSupport.FormatDate(field, Now ?? DateTime.Now),
+        FieldKind.DocProperty => Metadata is { } metadata ? FieldSupport.DocumentPropertyText(field, metadata) ?? field.CachedResult : field.CachedResult,
         _ => field.CachedResult,
     };
 
@@ -60,6 +62,12 @@ public sealed record FieldValues(string Page, string NumPages, string SectionPag
 
     /// <summary>Page number text per bookmark, for PAGEREF fields; filled from a previous layout pass.</summary>
     public IReadOnlyDictionary<string, string>? PageRefs { get; init; }
+
+    /// <summary>The moment DATE and TIME fields show (one value per layout so every page agrees).</summary>
+    public DateTime? Now { get; init; }
+
+    /// <summary>Document properties for AUTHOR, TITLE... fields.</summary>
+    public DocumentMetadata? Metadata { get; init; }
 
     public string EndnoteNumber(int noteId) =>
         EndnoteNumbers is not null && EndnoteNumbers.TryGetValue(noteId, out int number) ? NumberText.Format(number, NumberFormat.LowerRoman) : "?";

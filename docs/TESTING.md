@@ -261,6 +261,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 11. Link, Symbol and Date & Time (new)
 
+- [ ] Insert > Date & Time with "Update automatically" inserts a DATE or TIME field that shows the current value (check
+      the next day, or in Word, where it is a real DATE field); without the box it is plain text as before. Insert >
+      Text > Quick Parts > Title/Author/Subject/Comments insert document property fields that follow File >
+      Properties and update with F9; Word shows them as AUTHOR/TITLE fields **(new)**.
 - [ ] Insert > Bookmark: select text, type a name (letters, digits, underscores), Add; the dialog lists bookmarks,
       Go To selects one, Delete removes it; Ctrl+Click a link to "#name" jumps to the bookmark **(new)**.
 - [ ] Insert > Cross-reference: pick a heading, bookmark, figure or table caption and insert its text or page
