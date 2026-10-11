@@ -146,7 +146,8 @@ public sealed class StyleResolver
             merged.OutlineLevel,
             list is { IsNone: false } ? list : null,
             merged.Shading is { IsAuto: false } shading ? shading : null,
-            merged.Borders is { IsNone: false } borders ? borders : null);
+            merged.Borders is { IsNone: false } borders ? borders : null,
+            merged.SuppressLineNumbers ?? false);
     }
 
     private ResolvedRunProperties BuildRun(RunKey key)

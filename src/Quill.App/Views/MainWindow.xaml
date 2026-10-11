@@ -491,7 +491,21 @@
                   </ContextMenu>
                 </Button.ContextMenu>
               </Button>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8E9;" Content="Line Numbers" Click="OnCaseMenu" ToolTip="Number the lines of this section in the left margin">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="None" Command="{Binding SetLineNumbersCommand}" CommandParameter="None" />
+                    <MenuItem Header="Continuous" Command="{Binding SetLineNumbersCommand}" CommandParameter="Continuous" />
+                    <MenuItem Header="Restart Each Page" Command="{Binding SetLineNumbersCommand}" CommandParameter="EachPage" />
+                    <MenuItem Header="Restart Each Section" Command="{Binding SetLineNumbersCommand}" CommandParameter="EachSection" />
+                    <Separator />
+                    <MenuItem Header="Suppress for Current Paragraph" Command="{Binding SetLineNumbersCommand}" CommandParameter="Suppress" />
+                    <MenuItem Header="Number Current Paragraph Again" Command="{Binding SetLineNumbersCommand}" CommandParameter="Resume" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE713;" Content="Page Setup" Click="OnPageSetup" ToolTip="Paper size, orientation, margins, headers and footers" />
+
             </StackPanel>
           </HeaderedContentControl>
         </WrapPanel>

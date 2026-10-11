@@ -309,6 +309,28 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SetWatermark(string text) => Session.SetWatermark(string.IsNullOrWhiteSpace(text) ? null : new Watermark(text));
 
+    /// <summary>Layout > Line Numbers: None, Continuous, EachPage, EachSection, or Suppress / Resume for the selected paragraphs.</summary>
+    [RelayCommand]
+    private void SetLineNumbers(string mode)
+    {
+        switch (mode)
+        {
+            case "None":
+                Session.SetLineNumbers(null);
+                break;
+            case "Suppress":
+                Session.SuppressLineNumbers(true);
+                break;
+            case "Resume":
+                Session.SuppressLineNumbers(false);
+                break;
+            default:
+                Session.SetLineNumbers(new LineNumbering { Restart = Enum.TryParse(mode, out LineNumberRestart restart) ? restart : LineNumberRestart.Continuous });
+                break;
+        }
+    }
+
+
 
 
 

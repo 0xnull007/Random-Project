@@ -616,6 +616,11 @@ public static class DocxWriter
                 new W.NumberingId { Val = list.IsNone ? 0 : list.NumberingId }));
         }
 
+        if (p.SuppressLineNumbers is { } suppress)
+        {
+            pPr.Append(new W.SuppressLineNumbers { Val = OnOffValue.FromBoolean(suppress) });
+        }
+
         if (p.Borders is { } borders)
         {
             var pBdr = new W.ParagraphBorders();
@@ -828,7 +833,24 @@ public static class DocxWriter
             });
         }
 
+        if (p.LineNumbers is { } lineNumbers)
+        {
+            sectPr.Append(new W.LineNumberType
+            {
+                CountBy = (short)Math.Clamp(lineNumbers.CountBy, 1, 100),
+                Start = (short)Math.Clamp(lineNumbers.Start, 1, short.MaxValue),
+                Distance = lineNumbers.Distance.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Restart = lineNumbers.Restart switch
+                {
+                    LineNumberRestart.EachPage => W.LineNumberRestartValues.NewPage,
+                    LineNumberRestart.EachSection => W.LineNumberRestartValues.NewSection,
+                    _ => W.LineNumberRestartValues.Continuous,
+                },
+            });
+        }
+
         if (p.PageNumberStart is not null || p.PageNumberFormat != PageNumberFormat.Decimal)
+
 
         {
             sectPr.Append(new W.PageNumberType

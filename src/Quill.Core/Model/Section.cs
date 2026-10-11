@@ -62,6 +62,9 @@ public sealed record SectionProperties
     /// <summary>Border drawn around each page of the section, or null for none.</summary>
     public PageBorders? PageBorders { get; init; }
 
+    /// <summary>Line numbers in the left margin, or null for none.</summary>
+    public LineNumbering? LineNumbers { get; init; }
+
     /// <summary>Width available to body text.</summary>
     public Twips BodyWidth => PageWidth - MarginLeft - MarginRight - Gutter;
 

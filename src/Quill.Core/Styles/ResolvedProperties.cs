@@ -41,7 +41,8 @@ public sealed record ResolvedParagraphProperties(
     int? OutlineLevel,
     ListFormat? List = null,
     DocColor? Shading = null,
-    ParagraphBorders? Borders = null)
+    ParagraphBorders? Borders = null,
+    bool SuppressLineNumbers = false)
 {
     public bool IsListItem => List is { IsNone: false };
 }

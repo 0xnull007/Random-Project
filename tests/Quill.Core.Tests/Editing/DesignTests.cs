@@ -58,4 +58,20 @@ public class DesignTests
         session.Undo();
         Assert.Equal("DRAFT", session.Document.Settings.Watermark!.Text);
     }
+
+    [Fact]
+    public void Line_numbers_are_a_section_setting_with_paragraph_suppression()
+    {
+        var session = new EditingSession(WithParagraphs("a", "b"));
+        session.SetLineNumbers(new LineNumbering { Restart = LineNumberRestart.EachPage });
+        Assert.Equal(LineNumberRestart.EachPage, session.Document.Sections[0].Properties.LineNumbers!.Restart);
+        session.SuppressLineNumbers(true);
+        Assert.True(session.CaretParagraphFormat().SuppressLineNumbers);
+        session.SuppressLineNumbers(false);
+        Assert.False(session.CaretParagraphFormat().SuppressLineNumbers);
+        session.SetLineNumbers(null);
+        Assert.Null(session.Document.Sections[0].Properties.LineNumbers);
+        session.Undo();
+        Assert.NotNull(session.Document.Sections[0].Properties.LineNumbers);
+    }
 }

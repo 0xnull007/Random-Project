@@ -245,9 +245,26 @@ public sealed class DocxReader
             };
         }
 
+        if (sectPr.GetFirstChild<W.LineNumberType>() is { } lnNumType)
+        {
+            props = props with
+            {
+                LineNumbers = new LineNumbering
+                {
+                    CountBy = Math.Max(1, (int)(lnNumType.CountBy?.Value ?? 1)),
+                    Start = Math.Max(1, (int)(lnNumType.Start?.Value ?? 1)),
+                    Distance = TwipsFrom(lnNumType.Distance?.Value) ?? Twips.FromInches(0.25),
+                    Restart = lnNumType.Restart?.Value is { } restart && restart == W.LineNumberRestartValues.NewPage ? LineNumberRestart.EachPage
+                        : lnNumType.Restart?.Value is { } r2 && r2 == W.LineNumberRestartValues.NewSection ? LineNumberRestart.EachSection
+                        : LineNumberRestart.Continuous,
+                },
+            };
+        }
+
         props = props with
         {
             Start = SectionStartFrom(sectPr.GetFirstChild<W.SectionType>()?.Val?.InnerText),
+
 
             TitlePage = OnOff(sectPr.GetFirstChild<W.TitlePage>()) ?? false,
         };
@@ -937,6 +954,7 @@ public sealed class DocxReader
             PageBreakBefore = OnOff(pPr.GetFirstChild<W.PageBreakBefore>()),
             WidowControl = OnOff(pPr.GetFirstChild<W.WidowControl>()),
             ContextualSpacing = OnOff(pPr.GetFirstChild<W.ContextualSpacing>()),
+            SuppressLineNumbers = OnOff(pPr.GetFirstChild<W.SuppressLineNumbers>()),
             OutlineLevel = pPr.GetFirstChild<W.OutlineLevel>()?.Val?.Value,
             List = ReadListFormat(pPr.GetFirstChild<W.NumberingProperties>()),
         };

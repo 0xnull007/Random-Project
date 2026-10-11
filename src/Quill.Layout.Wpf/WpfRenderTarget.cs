@@ -78,7 +78,19 @@ public sealed class WpfRenderTarget : IRenderTarget
         ImageEmbeddedObject.DrawInto(Context, image, ToRect(bounds));
     }
 
+    public void DrawLabel(string text, PointD baselineRight, double fontSize, DocColor color)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var formatted = new FormattedText(text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, _fonts.GetTypeface("Calibri", bold: false, italic: false), Math.Max(6, fontSize), _fonts.GetBrush(color), 1.0);
+        Context.DrawText(formatted, new Point(baselineRight.X - formatted.WidthIncludingTrailingWhitespace, baselineRight.Y - formatted.Baseline));
+    }
+
     /// <summary>Word's watermark: the text sized to span about two thirds of the page diagonal, rotated 45 degrees, half transparent.</summary>
+
     public void DrawWatermark(string text, DocColor color, double opacity, SizeD page)
     {
         if (string.IsNullOrWhiteSpace(text))

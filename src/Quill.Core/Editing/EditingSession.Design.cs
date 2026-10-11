@@ -37,7 +37,24 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithSettings(Document.Settings with { Watermark = value }), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
     }
 
+    /// <summary>Line numbers for the caret's section: null removes them; one undo step.</summary>
+    public void SetLineNumbers(LineNumbering? numbering)
+    {
+        int section = Selection.Story.SectionIndex;
+        SectionProperties props = Document.Sections[section].Properties;
+        if (Equals(props.LineNumbers, numbering))
+        {
+            return;
+        }
+
+        SetSectionProperties(section, props with { LineNumbers = numbering });
+    }
+
+    /// <summary>Leaves the selected paragraphs out of (or back into) the line numbering.</summary>
+    public void SuppressLineNumbers(bool suppress) => ApplyParagraphFormat(new ParagraphProperties { SuppressLineNumbers = suppress });
+
     /// <summary>Sets (or with null removes) the page border of the caret's section, or of every section; one undo step.</summary>
+
 
     public void SetPageBorders(PageBorders? borders, bool wholeDocument)
     {

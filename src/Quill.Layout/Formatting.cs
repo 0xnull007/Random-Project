@@ -251,4 +251,9 @@ public interface IRenderTarget
     void DrawWatermark(string text, DocColor color, double opacity, SizeD page)
     {
     }
+
+    /// <summary>A small right-aligned label whose right end sits at <paramref name="baselineRight"/> (line numbers).</summary>
+    void DrawLabel(string text, PointD baselineRight, double fontSize, DocColor color)
+    {
+    }
 }

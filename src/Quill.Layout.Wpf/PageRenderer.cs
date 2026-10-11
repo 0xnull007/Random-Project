@@ -24,6 +24,11 @@ public static class PageRenderer
             DrawPageBorder(borderRect, borders, target);
         }
 
+        foreach (LineNumber number in page.LineNumbers)
+        {
+            target.DrawLabel(number.Number.ToString(System.Globalization.CultureInfo.CurrentCulture), new PointD(page.LineNumberX, number.Baseline), number.FontSize, DocColor.Black);
+        }
+
 
         foreach (double? separator in new[] { page.FootnoteSeparatorY, page.EndnoteSeparatorY })
         {

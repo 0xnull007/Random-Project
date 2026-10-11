@@ -50,6 +50,9 @@ public sealed record ParagraphProperties
     /// <summary>Lines around the paragraph; <see cref="ParagraphBorders.None"/> switches inherited borders off.</summary>
     public ParagraphBorders? Borders { get; init; }
 
+    /// <summary>Leave this paragraph out of the section's line numbering.</summary>
+    public bool? SuppressLineNumbers { get; init; }
+
     public bool IsEmpty => Equals(Empty);
 
     /// <summary>Returns a copy where every value specified in <paramref name="overrides"/> replaces this one.</summary>
@@ -84,6 +87,7 @@ public sealed record ParagraphProperties
             List = overrides.List ?? List,
             Shading = overrides.Shading ?? Shading,
             Borders = overrides.Borders ?? Borders,
+            SuppressLineNumbers = overrides.SuppressLineNumbers ?? SuppressLineNumbers,
         };
     }
 }

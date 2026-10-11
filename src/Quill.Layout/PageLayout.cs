@@ -135,11 +135,15 @@ public sealed class PageLayout
         double? endnoteSeparatorY = null,
         PageBorders? borders = null,
         DocColor? pageColor = null,
-        Watermark? watermark = null)
+        Watermark? watermark = null,
+        ImmutableArray<LineNumber> lineNumbers = default,
+        double lineNumberX = 0)
     {
         Borders = borders;
         PageColor = pageColor;
         Watermark = watermark;
+        LineNumbers = lineNumbers.IsDefault ? ImmutableArray<LineNumber>.Empty : lineNumbers;
+        LineNumberX = lineNumberX;
         EndnoteSeparatorY = endnoteSeparatorY;
         Footnotes = footnotes.IsDefault ? ImmutableArray<StoryLayout>.Empty : footnotes;
         FootnoteSeparatorY = footnoteSeparatorY;
@@ -164,6 +168,12 @@ public sealed class PageLayout
 
     /// <summary>The document's watermark, or null.</summary>
     public Watermark? Watermark { get; }
+
+    /// <summary>Line numbers to draw beside body lines (empty when the section has none).</summary>
+    public ImmutableArray<LineNumber> LineNumbers { get; }
+
+    /// <summary>Right edge of the line numbers (page x).</summary>
+    public double LineNumberX { get; }
 
     /// <summary>Where the page border is drawn: inside the page edge or around the text area, by the border's distance.</summary>
     public RectD? BorderRect()
@@ -322,3 +332,6 @@ public sealed class LayoutDocument
         return null;
     }
 }
+
+/// <summary>One line number on a page: the text baseline and the number to show.</summary>
+public readonly record struct LineNumber(double Baseline, int Number, double FontSize);

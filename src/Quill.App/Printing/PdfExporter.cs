@@ -227,7 +227,20 @@ public static class PdfExporter
             }
         }
 
+        public void DrawLabel(string text, PointD baselineRight, double fontSize, DocColor color)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            XFont font = _fonts.Get("Calibri", Math.Max(6, fontSize), XFontStyleEx.Regular);
+            double width = _gfx.MeasureString(text, font).Width;
+            _gfx.DrawString(text, font, new XSolidBrush(ToColor(color)), new XPoint(baselineRight.X - width, baselineRight.Y), XStringFormats.BaseLineLeft);
+        }
+
         public void DrawWatermark(string text, DocColor color, double opacity, SizeD page)
+
         {
             if (string.IsNullOrWhiteSpace(text))
             {

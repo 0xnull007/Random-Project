@@ -647,9 +647,57 @@ public sealed class Paginator
             return (notes.ToImmutable(), top + FootnoteSeparatorHeight / 2);
         }
 
+        private int _lineNumber;
+        private int _lineNumberSection = -1;
+
+        /// <summary>Line numbers for the body paragraphs on a page, counting per Word's restart rule; empty when the section has none.</summary>
+        private (ImmutableArray<LineNumber> Numbers, double X) CountLines(PageBuilder page, int sectionIndex)
+        {
+            SectionProperties props = _document.Sections[sectionIndex].Properties;
+            if (props.LineNumbers is not { } numbering)
+            {
+                _lineNumberSection = sectionIndex;
+                return (ImmutableArray<LineNumber>.Empty, 0);
+            }
+
+            if (_lineNumberSection != sectionIndex || numbering.Restart == LineNumberRestart.EachPage)
+            {
+                _lineNumber = numbering.Start - 1;
+            }
+
+            _lineNumberSection = sectionIndex;
+            var numbers = ImmutableArray.CreateBuilder<LineNumber>();
+            foreach (BlockFragment block in page.Fragments)
+            {
+                if (block is not ParagraphFragment fragment || !fragment.Path.IsTopLevel)
+                {
+                    continue;
+                }
+
+                bool suppressed = fragment.Layout.Properties.SuppressLineNumbers;
+                for (int i = fragment.FirstLine; i <= fragment.LastLine; i++)
+                {
+                    if (suppressed)
+                    {
+                        continue;
+                    }
+
+                    _lineNumber++;
+                    if (_lineNumber % Math.Max(1, numbering.CountBy) == 0)
+                    {
+                        numbers.Add(new LineNumber(fragment.LineTop(i) + fragment.Layout.LineBaselines[i], _lineNumber, fragment.Layout.Input.MarkProperties.FontSize.ToDips()));
+                    }
+                }
+            }
+
+            return (numbers.ToImmutable(), page.BodyArea.Left - numbering.Distance.ToDips());
+        }
+
         private void FinishPage(PageBuilder page, int pageNumber, int sectionIndex)
         {
             (ImmutableArray<StoryLayout> notes, double? separator) = PlaceFootnotes(page);
+            (ImmutableArray<LineNumber> lineNumbers, double lineNumberX) = CountLines(page, sectionIndex);
+
             _pages.Add(new PageLayout(
                 _pages.Count,
                 sectionIndex,
@@ -667,7 +715,9 @@ public sealed class Paginator
                 page.EndnoteSeparatorY,
                 _document.Sections[sectionIndex].Properties.PageBorders,
                 _document.Settings.PageColor,
-                _document.Settings.Watermark));
+                _document.Settings.Watermark,
+                lineNumbers,
+                lineNumberX));
         }
 
 

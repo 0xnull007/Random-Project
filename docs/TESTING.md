@@ -158,6 +158,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 8. Pages, breaks, sections (Insert and Layout tabs)
 
+- [ ] Layout > Line Numbers > Continuous numbers every body line of the section in the left margin (Restart Each Page
+      starts at 1 on every page; Suppress for Current Paragraph leaves a paragraph out; None removes them); numbers
+      print, export to PDF and show in Word after a save **(new)**.
 - [ ] Insert > Pages > Cover Page puts a title page in front (Title, Subtitle, author from Options, today's date,
       then a page break) with the title selected so typing replaces it; the cover shows no header or footer
       (Different First Page is switched on). Blank Page inserts an empty page at the caret **(new)**.

@@ -373,3 +373,43 @@ public class AutoFieldLayoutTests
         Assert.Equal([DateTime.Now.Year.ToString(System.Globalization.CultureInfo.CurrentCulture), "Report"], texts);
     }
 }
+
+public class LineNumberLayoutTests
+{
+    [Fact]
+    public void Line_numbers_count_body_lines_and_restart_per_page_when_asked()
+    {
+        LineNumbering Numbering(LineNumberRestart restart) => new() { Restart = restart };
+        SectionProperties Page(LineNumberRestart restart) => new()
+        {
+            PageWidth = Twips.FromDips(240),
+            PageHeight = Twips.FromDips(100),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(40),
+            MarginRight = Twips.FromDips(20),
+            LineNumbers = Numbering(restart),
+        };
+        // 60 DIP of body per page and 20 DIP lines: three lines per page; five one-line paragraphs span two pages.
+        ImmutableList<Block> blocks = ImmutableList.CreateRange<Block>(Enumerable.Range(1, 5).Select(i => (Block)Paragraph.FromText("line " + i)));
+        var continuous = new Document(ImmutableList.Create(new Section(Page(LineNumberRestart.Continuous), blocks)), StyleSheet.Empty);
+        LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(continuous, new StyleResolver(continuous.Styles));
+        Assert.Equal(2, layout.PageCount);
+        Assert.Equal([1, 2, 3], layout.Pages[0].LineNumbers.Select(n => n.Number));
+        Assert.Equal([4, 5], layout.Pages[1].LineNumbers.Select(n => n.Number));
+        Assert.Equal(40 - 24, layout.Pages[0].LineNumberX, 3);
+        Assert.True(layout.Pages[0].LineNumbers[1].Baseline > layout.Pages[0].LineNumbers[0].Baseline);
+
+        var perPage = new Document(ImmutableList.Create(new Section(Page(LineNumberRestart.EachPage), blocks)), StyleSheet.Empty);
+        LayoutDocument restarted = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(perPage, new StyleResolver(perPage.Styles));
+        Assert.Equal([1, 2], restarted.Pages[1].LineNumbers.Select(n => n.Number));
+
+        ImmutableList<Block> suppressed = blocks.SetItem(1, Paragraph.FromText("skip me").WithProperties(new ParagraphProperties { SuppressLineNumbers = true }));
+        var withSuppressed = new Document(ImmutableList.Create(new Section(Page(LineNumberRestart.Continuous), suppressed)), StyleSheet.Empty);
+        LayoutDocument skipped = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(withSuppressed, new StyleResolver(withSuppressed.Styles));
+        Assert.Equal([1, 2], skipped.Pages[0].LineNumbers.Select(n => n.Number));
+
+        var none = new Document(ImmutableList.Create(new Section(Page(LineNumberRestart.Continuous) with { LineNumbers = null }, blocks)), StyleSheet.Empty);
+        Assert.Empty(new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(none, new StyleResolver(none.Styles)).Pages[0].LineNumbers);
+    }
+}
