@@ -725,6 +725,9 @@ public sealed class DocxReader
             .ToImmutableArray() ?? ImmutableArray<Twips>.Empty;
         Twips indent = tblPr?.TableIndentation is { Width.Value: { } tw } ind && (ind.Type is null || ind.Type.Value == W.TableWidthUnitValues.Dxa) ? new Twips(tw) : Twips.Zero;
         bool borders = HasTableBorders(tblPr);
+        TableAlignment alignment = tblPr?.TableJustification?.Val?.Value is { } jc
+            ? jc == W.TableRowAlignmentValues.Center ? TableAlignment.Center : jc == W.TableRowAlignmentValues.Right ? TableAlignment.Right : TableAlignment.Left
+            : TableAlignment.Left;
 
         var rows = ImmutableArray.CreateBuilder<TableRow>();
         foreach (W.TableRow tr in table.Elements<W.TableRow>())
@@ -767,7 +770,7 @@ public sealed class DocxReader
             rows.Add(new TableRow(cells.ToImmutable(), height, exact, isHeader));
         }
 
-        return new Table(rows.ToImmutable(), columns, borders, indent, table.OuterXml);
+        return new Table(rows.ToImmutable(), columns, borders, indent, table.OuterXml, alignment);
     }
 
     /// <summary>Borders set on the table itself win; otherwise the table style (e.g. "Table Grid") decides.</summary>

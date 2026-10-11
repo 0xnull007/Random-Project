@@ -503,7 +503,20 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnAutoFitTable(object sender, RoutedEventArgs e)
+    {
+        ViewModel.Session.AutoFitTable(Editor.TextColumnWidth());
+        Editor.Focus();
+    }
+
+    private void OnConvertTextToTable(object sender, RoutedEventArgs e)
+    {
+        ViewModel.Session.ConvertTextToTable(Editor.TextColumnWidth());
+        Editor.Focus();
+    }
+
     private void OnInsertTable(object sender, RoutedEventArgs e)
+
 
     {
         var dialog = new InsertTableWindow { Owner = this };

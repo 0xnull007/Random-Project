@@ -180,4 +180,21 @@ public class DocxTableTests
         Assert.True(read.Rows[0].IsHeader);
         Assert.False(read.Rows[1].IsHeader);
     }
+
+    [Fact]
+    public void Table_alignment_round_trips()
+    {
+        var table = new Table([new TableRow([new TableCell(ImmutableList.Create<Block>(Paragraph.FromText("c")))])], [Twips.FromInches(2)], hasBorders: true, Twips.Zero, alignment: TableAlignment.Center);
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(table, Paragraph.FromText("after")))), DefaultStyleSheet.Create());
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+        }
+
+        var read = Assert.IsType<Table>(DocxReader.Read(new MemoryStream(bytes)).Document.Sections[0].Body[0]);
+        Assert.Equal(TableAlignment.Center, read.Alignment);
+    }
 }

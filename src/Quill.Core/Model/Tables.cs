@@ -10,6 +10,14 @@ public enum VerticalMerge
     Continue,
 }
 
+/// <summary>Where a table narrower than the text column sits (Word's table alignment, w:jc).</summary>
+public enum TableAlignment
+{
+    Left,
+    Center,
+    Right,
+}
+
 /// <summary>A table cell: block content plus the grid properties that matter for display.</summary>
 public sealed class TableCell
 {
@@ -60,8 +68,9 @@ public sealed class TableRow
 /// </summary>
 public sealed class Table : Block
 {
-    public Table(ImmutableArray<TableRow> rows, ImmutableArray<Twips> columnWidths, bool hasBorders, Twips indent, string? outerXml = null)
+    public Table(ImmutableArray<TableRow> rows, ImmutableArray<Twips> columnWidths, bool hasBorders, Twips indent, string? outerXml = null, TableAlignment alignment = TableAlignment.Left)
     {
+        Alignment = alignment;
         Rows = rows.IsDefault ? ImmutableArray<TableRow>.Empty : rows;
         ColumnWidths = columnWidths.IsDefault ? ImmutableArray<Twips>.Empty : columnWidths;
         HasBorders = hasBorders;
@@ -81,6 +90,9 @@ public sealed class Table : Block
     public Twips Indent { get; }
 
     public string? OuterXml { get; }
+
+    /// <summary>Left, centred or right within the text column (applies when the table is narrower than the column).</summary>
+    public TableAlignment Alignment { get; }
 
     public int ColumnCount => Math.Max(ColumnWidths.Length, Rows.IsEmpty ? 0 : Rows.Max(r => r.GridWidth));
 
@@ -119,12 +131,16 @@ public sealed class Table : Block
         TableCell old = target.Cells[cell];
         var updatedCell = new TableCell(blocks, old.GridSpan, old.VerticalMerge, old.Shading);
         var updatedRow = new TableRow(target.Cells.SetItem(cell, updatedCell), target.Height, target.ExactHeight, target.IsHeader);
-        return new Table(Rows.SetItem(row, updatedRow), ColumnWidths, HasBorders, Indent, outerXml: null);
+        return new Table(Rows.SetItem(row, updatedRow), ColumnWidths, HasBorders, Indent, outerXml: null, Alignment);
     }
 
-    public Table WithRows(ImmutableArray<TableRow> rows) => new(rows, ColumnWidths, HasBorders, Indent, outerXml: null);
+    public Table WithRows(ImmutableArray<TableRow> rows) => new(rows, ColumnWidths, HasBorders, Indent, outerXml: null, Alignment);
 
-    public Table WithColumnWidths(ImmutableArray<Twips> widths) => new(Rows, widths, HasBorders, Indent, outerXml: null);
+    public Table WithColumnWidths(ImmutableArray<Twips> widths) => new(Rows, widths, HasBorders, Indent, outerXml: null, Alignment);
+
+    public Table WithAlignment(TableAlignment alignment) => new(Rows, ColumnWidths, HasBorders, Indent, outerXml: null, alignment);
+
+    public Table WithBorders(bool hasBorders) => new(Rows, ColumnWidths, hasBorders, Indent, outerXml: null, Alignment);
 
     public override string ToString() => $"Table({Rows.Length}x{ColumnCount})";
 

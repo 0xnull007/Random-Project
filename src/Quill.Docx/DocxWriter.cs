@@ -207,6 +207,11 @@ public static class DocxWriter
 
         var element = new W.Table();
         var tblPr = new W.TableProperties(new W.TableWidth { Width = "0", Type = W.TableWidthUnitValues.Auto });
+        if (table.Alignment != TableAlignment.Left)
+        {
+            tblPr.Append(new W.TableJustification { Val = table.Alignment == TableAlignment.Center ? W.TableRowAlignmentValues.Center : W.TableRowAlignmentValues.Right });
+        }
+
         if (table.Indent.Value != 0)
         {
             tblPr.Append(new W.TableIndentation { Width = table.Indent.Value, Type = W.TableWidthUnitValues.Dxa });

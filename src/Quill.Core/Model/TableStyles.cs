@@ -41,7 +41,7 @@ public sealed record TableStylePreset(string Name, bool Borders, DocColor? Heade
             rows.Add(new TableRow(cells.MoveToImmutable(), row.Height, row.ExactHeight, isHeader: header));
         }
 
-        return new Table(rows.MoveToImmutable(), table.ColumnWidths, Borders, table.Indent);
+        return new Table(rows.MoveToImmutable(), table.ColumnWidths, Borders, table.Indent, alignment: table.Alignment);
     }
 
     private Paragraph Restyle(Paragraph paragraph, bool header)

@@ -320,8 +320,14 @@
           </HeaderedContentControl>
 
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Tables">
-            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Table" Click="OnInsertTable" ToolTip="Insert a table with the given number of rows and columns" />
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Table" Click="OnInsertTable" ToolTip="Insert a table with the given number of rows and columns" />
+              <StackPanel Style="{StaticResource Quill.RibbonStack}">
+                <Button Style="{StaticResource Quill.StackButton}" Content="Text to Table" Click="OnConvertTextToTable" ToolTip="Turn the selected paragraphs into a table: one row each, cells split at tabs (or commas)" />
+              </StackPanel>
+            </StackPanel>
           </HeaderedContentControl>
+
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Illustrations">
             <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8B9;" Content="Pictures" Click="OnInsertPicture" ToolTip="Insert a picture from a file (you can also paste or drop one)" />
           </HeaderedContentControl>
@@ -623,13 +629,33 @@
               </StackPanel>
             </StackPanel>
           </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Cell Size">
+            <StackPanel Orientation="Horizontal">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x21D4;" Content="Distribute Columns" Command="{Binding DistributeColumnsCommand}" ToolTip="Make every column the same width (the table keeps its width)" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#x2194;" Content="AutoFit Window" Click="OnAutoFitTable" ToolTip="Stretch the columns in proportion so the table fills the text column" />
+            </StackPanel>
+          </HeaderedContentControl>
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Alignment">
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E4;" Command="{Binding AlignCommand}" CommandParameter="Left" ToolTip="Align cell text left" />
               <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E3;" Command="{Binding AlignCommand}" CommandParameter="Center" ToolTip="Center cell text" />
               <Button Style="{StaticResource Quill.IconButton}" Content="&#xE8E2;" Command="{Binding AlignCommand}" CommandParameter="Right" ToolTip="Align cell text right" />
+              <Border Style="{StaticResource Quill.CommandDivider}" />
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xF0E2;" Content="Table Position" Click="OnCaseMenu" ToolTip="Where a table narrower than the text column sits">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="Align Table Left" Command="{Binding SetTableAlignmentCommand}" CommandParameter="Left" />
+                    <MenuItem Header="Center Table" Command="{Binding SetTableAlignmentCommand}" CommandParameter="Center" />
+                    <MenuItem Header="Align Table Right" Command="{Binding SetTableAlignmentCommand}" CommandParameter="Right" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
             </StackPanel>
           </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Data">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8D2;" Content="Convert to Text" Command="{Binding ConvertTableToTextCommand}" ToolTip="Replace the table with one paragraph per row, cells separated by tabs" />
+          </HeaderedContentControl>
+
         </WrapPanel>
       </TabItem>
       <!-- Contextual tab: appears while a header or footer is being edited, like Word's Header & Footer tab. -->

@@ -298,3 +298,28 @@ public class PageBorderLayoutTests
         Assert.Equal(300 - 30 + 24, fromText.Right, 3);
     }
 }
+
+public class TableAlignmentLayoutTests
+{
+    [Fact]
+    public void Centred_and_right_aligned_tables_are_offset_within_the_column()
+    {
+        var page = new SectionProperties
+        {
+            PageWidth = Twips.FromDips(240),
+            PageHeight = Twips.FromDips(400),
+            MarginTop = Twips.FromDips(20),
+            MarginBottom = Twips.FromDips(20),
+            MarginLeft = Twips.FromDips(20),
+            MarginRight = Twips.FromDips(20),
+        };
+        Table Grid(TableAlignment alignment) => new([new TableRow([new TableCell(ImmutableList.Create<Block>(Paragraph.FromText("a")))])], [Twips.FromDips(100)], hasBorders: true, Twips.Zero, alignment: alignment);
+        foreach ((TableAlignment alignment, double expectedLeft) in new[] { (TableAlignment.Left, 20.0), (TableAlignment.Center, 70.0), (TableAlignment.Right, 120.0) })
+        {
+            var document = new Document(ImmutableList.Create(new Section(page, ImmutableList.Create<Block>(Grid(alignment)))), StyleSheet.Empty);
+            LayoutDocument layout = new Paginator(new FakeLineFormatter(), new LayoutCache()).Layout(document, new StyleResolver(document.Styles));
+            var fragment = Assert.IsType<TableFragment>(layout.Pages[0].Body[0]);
+            Assert.Equal(expectedLeft, fragment.Bounds.Left, 3);
+        }
+    }
+}

@@ -336,4 +336,51 @@ public class TableCommandTests
         Assert.Equal(DocColor.Parse("4472C4"), TableOf(session).Rows[0].Cells[0].Shading);
         Assert.Equal(8, TableStylePreset.All.Length);
     }
+
+    [Fact]
+    public void Alignment_distribute_and_autofit_change_the_grid_without_touching_content()
+    {
+        EditingSession session = SessionWithGrid();
+        session.InsertText("a");
+        session.SetTableAlignment(TableAlignment.Center);
+        Assert.Equal(TableAlignment.Center, TableOf(session).Alignment);
+        session.InsertColumn(right: true);
+        Assert.Equal(TableAlignment.Center, TableOf(session).Alignment);
+        session.ToggleTableBorders();
+        Assert.Equal(TableAlignment.Center, TableOf(session).Alignment);
+        session.ApplyTableStyle("Table Grid");
+        Assert.Equal(TableAlignment.Center, TableOf(session).Alignment);
+
+        session.SetColumnWidths(Body, BlockPath.Of(1), [Twips.FromInches(1), Twips.FromInches(2), Twips.FromInches(3), Twips.FromInches(2)]);
+        session.DistributeColumns();
+        Assert.All(TableOf(session).ColumnWidths, w => Assert.Equal(Twips.FromInches(2), w));
+
+        session.AutoFitTable(Twips.FromInches(4));
+        Assert.Equal(Twips.FromInches(4).Value, TableOf(session).ColumnWidths.Sum(w => w.Value));
+        Assert.Equal("a", CellText(TableOf(session), 0, 0));
+    }
+
+    [Fact]
+    public void Text_converts_to_a_table_and_back()
+    {
+        var session = new EditingSession(WithParagraphs("Before", "a\tb\tc", "d\te", "After"));
+        session.MoveCaret(Pos(1, 0), extend: false);
+        session.MoveCaret(Pos(2, 1), extend: true);
+        session.ConvertTextToTable(Twips.FromInches(6));
+        Assert.Equal(["Before", "<Table(2x3)>", "After"], session.Document.BodyTexts());
+        Table table = TableOf(session);
+        Assert.Equal(["a", "b", "c"], table.Rows[0].Cells.Select(c => ((Paragraph)c.Blocks[0]).FlatText));
+        Assert.Equal(["d", "e", ""], table.Rows[1].Cells.Select(c => ((Paragraph)c.Blocks[0]).FlatText));
+        Assert.Equal(Twips.FromInches(2), table.ColumnWidths[0]);
+        Assert.Equal(Cell(1, 0, 0), session.Selection.Active);
+
+        session.ConvertTableToText();
+        Assert.Equal(["Before", "a\tb\tc", "d\te\t", "After"], session.Document.BodyTexts());
+        Assert.Equal(Pos(1, 0), session.Selection.Active);
+
+        var commas = new EditingSession(WithParagraphs("x, y"));
+        commas.ConvertTextToTable(Twips.FromInches(6));
+        Assert.Equal(["<Table(1x2)>", ""], commas.Document.BodyTexts());
+        Assert.Equal("y", CellText(TableOf(commas, 0), 0, 1));
+    }
 }

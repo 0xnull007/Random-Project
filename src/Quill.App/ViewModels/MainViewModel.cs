@@ -730,6 +730,16 @@ public sealed partial class MainViewModel : ObservableObject
         RefreshFormatState();
     }
 
+    [RelayCommand]
+    private void SetTableAlignment(string alignment) => Session.SetTableAlignment(Enum.Parse<TableAlignment>(alignment));
+
+    [RelayCommand]
+    private void DistributeColumns() => Session.DistributeColumns();
+
+    [RelayCommand]
+    private void ConvertTableToText() => Session.ConvertTableToText();
+
+
 
     [RelayCommand]
     private void MergeCellRight() => Session.MergeCellRight();

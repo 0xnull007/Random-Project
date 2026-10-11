@@ -122,7 +122,7 @@ public sealed partial class EditingSession
         scaled.Insert(Math.Min(boundary, scaled.Count), new Twips(newWidth));
 
         ImmutableArray<TableRow> rows = at.Table.Rows.Select(r => InsertCellAtGrid(r, boundary)).ToImmutableArray();
-        var updated = new Table(rows, scaled.ToImmutableArray(), at.Table.HasBorders, at.Table.Indent);
+        var updated = new Table(rows, scaled.ToImmutableArray(), at.Table.HasBorders, at.Table.Indent, alignment: at.Table.Alignment);
         CommitTable(at.Path, updated, at.Path.Child(at.Row, right ? at.Cell + 1 : at.Cell, 0));
     }
 
@@ -179,7 +179,7 @@ public sealed partial class EditingSession
             widths = widths.RemoveRange(start, Math.Min(span, widths.Length - start));
         }
 
-        var updated = new Table(rows.ToImmutable(), widths, at.Table.HasBorders, at.Table.Indent);
+        var updated = new Table(rows.ToImmutable(), widths, at.Table.HasBorders, at.Table.Indent, alignment: at.Table.Alignment);
         int newRow = Math.Min(at.Row, updated.Rows.Length - 1);
         int newCell = Math.Min(at.Cell, updated.Rows[newRow].Cells.Length - 1);
         CommitTable(at.Path, updated, at.Path.Child(newRow, newCell, 0));
@@ -347,7 +347,147 @@ public sealed partial class EditingSession
         return -1;
     }
 
+    /// <summary>Left, centre or right placement of the caret's table within the text column.</summary>
+    public void SetTableAlignment(TableAlignment alignment)
+    {
+        if (TableAtCaret() is { } at && at.Table.Alignment != alignment)
+        {
+            CommitTableFormat(at.Path, at.Table.WithAlignment(alignment));
+        }
+    }
+
+    /// <summary>Gives every column the same width, keeping the table's total width.</summary>
+    public void DistributeColumns()
+    {
+        if (TableAtCaret() is not { } at)
+        {
+            return;
+        }
+
+        ImmutableArray<Twips> widths = GridWidths(at.Table);
+        var each = new Twips(Math.Max(144, widths.Sum(w => w.Value) / widths.Length));
+        CommitTableFormat(at.Path, at.Table.WithColumnWidths(Enumerable.Repeat(each, widths.Length).ToImmutableArray()));
+    }
+
+    /// <summary>Scales the columns so the table spans the text column (Word's AutoFit Window).</summary>
+    public void AutoFitTable(Twips columnWidth)
+    {
+        if (TableAtCaret() is not { } at)
+        {
+            return;
+        }
+
+        ImmutableArray<Twips> widths = GridWidths(at.Table);
+        int total = Math.Max(1, widths.Sum(w => w.Value));
+        int target = Math.Max(widths.Length * 144, columnWidth.Value - Math.Max(0, at.Table.Indent.Value));
+        ImmutableArray<Twips> scaled = widths.Select(w => new Twips((int)Math.Round(w.Value * (double)target / total))).ToImmutableArray();
+        CommitTableFormat(at.Path, at.Table.WithColumnWidths(scaled));
+    }
+
+    /// <summary>Replaces the caret's table with one paragraph per row, cells separated by tabs (Word's Convert to Text).</summary>
+    public void ConvertTableToText()
+    {
+        if (TableAtCaret() is not { } at)
+        {
+            return;
+        }
+
+        var paragraphs = new List<Block>();
+        foreach (TableRow row in at.Table.Rows)
+        {
+            var inlines = new List<Inline>();
+            for (int c = 0; c < row.Cells.Length; c++)
+            {
+                if (c > 0)
+                {
+                    inlines.Add(new Run("\t"));
+                }
+
+                bool first = true;
+                foreach (Paragraph paragraph in row.Cells[c].Blocks.OfType<Paragraph>())
+                {
+                    if (!first && paragraph.Length > 0)
+                    {
+                        inlines.Add(new Run(" "));
+                    }
+
+                    inlines.AddRange(paragraph.Inlines);
+                    first = false;
+                }
+            }
+
+            paragraphs.Add(new Paragraph(InlineOps.Normalize(inlines)));
+        }
+
+        if (paragraphs.Count == 0)
+        {
+            paragraphs.Add(Paragraph.Empty());
+        }
+
+        StoryId story = Selection.Story;
+        ImmutableList<Block> blocks = Document.GetContainer(story, at.Path);
+        ImmutableList<Block> updated = blocks.RemoveAt(at.Path.Last).InsertRange(at.Path.Last, paragraphs);
+        Commit(new EditResult(Document.WithContainer(story, at.Path, updated), Selection.Caret(new TextPosition(story, at.Path, 0)), ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
+    }
+
+    /// <summary>
+    /// Turns the selected paragraphs (the caret's paragraph when nothing is selected) into a table: one row per
+    /// paragraph, cells split at tabs, or at commas when no paragraph has a tab (Word's Convert Text to Table).
+    /// </summary>
+    public void ConvertTextToTable(Twips columnWidth)
+    {
+        TextRange range = Selection.Range;
+        if (!range.Start.Block.SameContainer(range.End.Block))
+        {
+            return;
+        }
+
+        StoryId story = range.Story;
+        ImmutableList<Block> blocks = Document.GetContainer(story, range.Start.Block);
+        int first = range.Start.Block.Last;
+        int last = range.End.Block.Last;
+        if (last > first && range.End.Offset == 0)
+        {
+            last--;
+        }
+
+        var sources = new List<Paragraph>();
+        for (int i = first; i <= last; i++)
+        {
+            if (blocks[i] is not Paragraph paragraph)
+            {
+                return;
+            }
+
+            sources.Add(paragraph);
+        }
+
+        char separator = sources.Any(p => p.FlatText.Contains('\t', StringComparison.Ordinal)) ? '\t' : ',';
+        List<string[]> rowsText = sources.Select(p => p.FlatText.Split(separator)).ToList();
+        int columns = Math.Clamp(rowsText.Max(r => r.Length), 1, MaxTableColumns);
+        var width = new Twips(Math.Max(144, Math.Max(columnWidth.Value, 1440) / columns));
+        Paragraph template = CellParagraphLike(sources[0]);
+        var rows = ImmutableArray.CreateBuilder<TableRow>(rowsText.Count);
+        foreach (string[] cells in rowsText)
+        {
+            rows.Add(new TableRow(Enumerable.Range(0, columns)
+                .Select(c => new TableCell(ImmutableList.Create<Block>(template.WithInlines(c < cells.Length && cells[c].Trim().Length > 0 ? [new Run(cells[c].Trim())] : ImmutableArray<Inline>.Empty))))
+                .ToImmutableArray()));
+        }
+
+        var table = new Table(rows.MoveToImmutable(), Enumerable.Repeat(width, columns).ToImmutableArray(), hasBorders: true, Twips.Zero);
+        ImmutableList<Block> updated = blocks.RemoveRange(first, last - first + 1).Insert(first, table);
+        if (first == updated.Count - 1)
+        {
+            updated = updated.Add(Paragraph.Empty());
+        }
+
+        BlockPath tablePath = range.Start.Block.WithLast(first);
+        Commit(new EditResult(Document.WithContainer(story, range.Start.Block, updated), Selection.Caret(new TextPosition(story, tablePath.Child(0, 0, 0), 0)), ChangeSet.Structural()), EditKind.Other, startsNewGroup: true);
+    }
+
     /// <summary>Applies one of the built-in table looks to the caret's table; one undo step.</summary>
+
     public void ApplyTableStyle(string presetName)
     {
         if (TableAtCaret() is not { } at || TableStylePreset.Find(presetName) is not { } preset)
@@ -368,7 +508,7 @@ public sealed partial class EditingSession
             return;
         }
 
-        CommitTableFormat(at.Path, new Table(at.Table.Rows, at.Table.ColumnWidths, !at.Table.HasBorders, at.Table.Indent));
+        CommitTableFormat(at.Path, at.Table.WithBorders(!at.Table.HasBorders));
     }
 
     /// <summary>True when the caret's row is a header row (repeated at the top of every page the table continues on).</summary>

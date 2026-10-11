@@ -897,7 +897,15 @@ public sealed class Paginator
                 }
             }
 
-            return new TableLayout(table, indent, ImmutableArray.Create(widths), built, scale);
+            double tableWidth = widths.Sum();
+            double tableLeft = table.Alignment switch
+            {
+                TableAlignment.Center => indent + Math.Max(0, (available - tableWidth) / 2),
+                TableAlignment.Right => indent + Math.Max(0, available - tableWidth),
+                _ => indent,
+            };
+            return new TableLayout(table, tableLeft, ImmutableArray.Create(widths), built, scale);
+
 
         }
 
