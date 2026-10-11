@@ -11,6 +11,7 @@ using Quill.Core.Editing;
 using Quill.Core.Model;
 using Quill.Core.Text;
 using Quill.Core.Units;
+using Quill.Docx;
 
 namespace Quill.App.Views;
 
@@ -686,6 +687,30 @@ public partial class MainWindow : Window
     private static bool s_recoveryOffered;
 
     private void OnNewWindow(object sender, RoutedEventArgs e) => new MainWindow().Show();
+
+    /// <summary>Review > Compare: this document is the original; the chosen file is the revised one; the result opens in a new window.</summary>
+    private void OnCompare(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Filter = "Word documents (*.docx)|*.docx|All files (*.*)|*.*", Title = "Compare with revised document" };
+        if (dialog.ShowDialog(this) != true)
+        {
+            Editor.Focus();
+            return;
+        }
+
+        try
+        {
+            LoadResult revised = DocxReader.ReadFile(dialog.FileName);
+            Document result = DocumentComparer.Compare(ViewModel.Session.Document, revised.Document, ViewModel.Session.Author, DateTime.Now);
+            var window = new MainWindow();
+            window.Show();
+            window.ViewModel.ShowGeneratedDocument(result, "Compare Result", $"Compared {ViewModel.DocumentName} with {Path.GetFileName(dialog.FileName)}: differences are shown as tracked changes");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FileFormatException or DocumentFormat.OpenXml.Packaging.OpenXmlPackageException)
+        {
+            MessageBox.Show(this, "Could not compare the documents." + Environment.NewLine + Environment.NewLine + ex.Message, "Quill", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 
     private void OnExit(object sender, RoutedEventArgs e) => Close();
 

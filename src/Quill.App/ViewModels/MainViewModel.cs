@@ -1388,6 +1388,19 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Shows a compare result (or any generated document) as a new, unsaved document in this window.</summary>
+    public void ShowGeneratedDocument(Document document, string name, string status)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        Session.LoadDocument(document, isDirty: true);
+        _documentPath = null;
+        _documentName = name;
+        _loadWasLossy = false;
+        StartNewRecoverySession();
+        StatusMessage = status;
+        UpdateTitle();
+    }
+
     private void NewFromTemplateFile(string path)
     {
         LoadResult result = DocxReader.ReadFile(path);

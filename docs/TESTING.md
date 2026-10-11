@@ -322,6 +322,11 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       follows the choice; the document is not modified (title bar shows no unsaved mark, Ctrl+Z unaffected).
 - [ ] (new) In No Markup, typing with Track Changes on shows plain text and deleting text makes it disappear as
       usual; switch to All Markup to see the recorded changes. Print Preview and PDF export follow the chosen view.
+- [ ] (new) Review > Compare: with the original open, pick a revised copy of it (save a copy, change some words,
+      add and delete paragraphs, change a table cell): a new window "Compare Result" opens, unsaved, with the
+      revised text where old words are struck through and new ones underlined, removed paragraphs struck, added
+      ones underlined, a changed table shown as old (struck) then new; Accept All turns it into the revised
+      document. Pictures only in the original still show in the deleted text.
 - [ ] Review > Track Changes (or Ctrl+Shift+E): the toggle lights up and "Track Changes" appears in the status bar.
       Type: new text is underlined in a colour; select text and press Delete: it stays, struck through in the same
       colour; type over a selection: the old text is struck and the new text follows underlined; Backspace over

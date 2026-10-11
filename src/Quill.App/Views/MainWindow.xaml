@@ -571,7 +571,7 @@
           <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Tracking">
             <StackPanel Orientation="Horizontal">
               <ToggleButton Style="{StaticResource Quill.RibbonToggle}" views:Ribbon.Icon="&#xEF60;" Content="Track Changes" IsChecked="{Binding TrackChanges}" ToolTip="Record insertions and deletions as tracked changes (Ctrl+Shift+E); insertions are underlined and deletions struck through in the author's colour" />
-              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7B3;" Content="{Binding RevisionViewLabel}" Click="OnCaseMenu" ToolTip="Display for Review: show changes as markup, the final text (with or without change bars) or the original text">
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE890;" Content="{Binding RevisionViewLabel}" Click="OnCaseMenu" ToolTip="Display for Review: show changes as markup, the final text (with or without change bars) or the original text">
                 <Button.ContextMenu>
                   <ContextMenu Closed="OnMenuClosed">
                     <MenuItem Header="All Markup" Command="{Binding SetRevisionViewCommand}" CommandParameter="AllMarkup" />
@@ -596,6 +596,9 @@
                 <Button Style="{StaticResource Quill.StackButton}" Content="Reject All" Command="{Binding RejectAllChangesCommand}" ToolTip="Remove every insertion and restore every deletion" />
               </StackPanel>
             </StackPanel>
+          </HeaderedContentControl>
+          <HeaderedContentControl Style="{StaticResource Quill.RibbonGroup}" Header="Compare">
+            <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Compare" Click="OnCompare" ToolTip="Compare this document (the original) with a revised .docx: the differences open in a new window as tracked changes" />
           </HeaderedContentControl>
         </WrapPanel>
       </TabItem>
