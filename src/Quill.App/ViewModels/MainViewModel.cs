@@ -143,6 +143,47 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsOvertype { get; set; }
 
+    /// <summary>Matches of the navigation pane's search box, in document order.</summary>
+    public ObservableCollection<SearchResultEntry> SearchResults { get; } = [];
+
+    [ObservableProperty]
+    public partial string ResultCountText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool HasNoResults { get; set; }
+
+    /// <summary>Runs the navigation pane search and returns the matched ranges for highlighting (empty for an empty query).</summary>
+    public IReadOnlyList<TextRange> UpdateSearchResults(string query)
+    {
+        SearchResults.Clear();
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            ResultCountText = string.Empty;
+            HasNoResults = false;
+            return [];
+        }
+
+        IReadOnlyList<TextRange> matches = TextSearch.FindAll(Session.Document, query.Trim());
+        foreach (TextRange match in matches.Take(500))
+        {
+            if (Session.Document.TryGetParagraph(match.Start) is not { } paragraph)
+            {
+                continue;
+            }
+
+            string text = paragraph.FlatText;
+            int from = Math.Max(0, match.Start.Offset - 30);
+            int to = Math.Min(text.Length, match.End.Offset + 40);
+            string context = (from > 0 ? "…" : string.Empty) + text[from..to].Replace('￼', ' ').Replace('\t', ' ') + (to < text.Length ? "…" : string.Empty);
+            SearchResults.Add(new SearchResultEntry(match, context));
+        }
+
+        ResultCountText = matches.Count == 0 ? "No results" : matches.Count == 1 ? "1 result" : matches.Count.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) + " results";
+        HasNoResults = matches.Count == 0;
+        return matches;
+    }
+
+
 
     [ObservableProperty]
     public partial bool DifferentFirstPage { get; set; }
@@ -1771,3 +1812,6 @@ public sealed record StyleEntry(Style Style, string FontFamily, double FontSize,
 
     public bool HasColor => Foreground is not null;
 }
+
+/// <summary>One match in the navigation pane's Results list: where it is and the text around it.</summary>
+public sealed record SearchResultEntry(TextRange Range, string Context);

@@ -55,6 +55,6 @@ inline pictures, hyperlinks, tables (editable cells, rows and columns, draggable
 comments, track changes (Review tab), heading numbering, symbols and date/time, cover and blank pages, paragraph sorting, .docx
 open and save, RTF and plain-text import/export, rich clipboard and drag-and-drop (tables included, HTML tables from Excel and browsers), find and replace, spell
 checking (Windows Spell Checking API), IME input, print, print preview, PDF export, recent files, autosave
-recovery, formatting marks, navigation pane, word count, light/dark theme, document properties, and a UI
+recovery, formatting marks, navigation pane with document search, word count, light/dark theme, document properties, and a UI
 Automation text pattern. Next: packaging as MSIX. The full manual
 checklist is in [docs/TESTING.md](docs/TESTING.md).

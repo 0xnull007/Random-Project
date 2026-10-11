@@ -34,6 +34,13 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ViewModel.CurrentSectionProvider = () => Editor.CurrentSectionIndex();
+        ViewModel.Session.DocumentChanged += (_, _) =>
+        {
+            if (NavSearchBox.Text.Length > 0 && ViewModel.ShowNavigation)
+            {
+                Dispatcher.BeginInvoke(RunNavSearch, System.Windows.Threading.DispatcherPriority.Background);
+            }
+        };
         Loaded += (_, _) => ApplyRibbonCollapse();
         Editor.GotKeyboardFocus += (_, _) =>
         {
@@ -932,7 +939,99 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private IReadOnlyList<TextRange> _navMatches = [];
+
+    private void OnNavSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        NavSearchHint.Visibility = NavSearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        RunNavSearch();
+    }
+
+    private void RunNavSearch()
+    {
+        _navMatches = ViewModel.UpdateSearchResults(NavSearchBox.Text);
+        Editor.HighlightedRanges = _navMatches;
+        if (NavSearchBox.Text.Length > 0)
+        {
+            NavTabs.SelectedIndex = 1;
+        }
+        else if (NavTabs.SelectedIndex == 1)
+        {
+            NavTabs.SelectedIndex = 0;
+        }
+    }
+
+    /// <summary>Enter selects the next match after the caret (Shift+Enter the previous), Esc clears the search.</summary>
+    private void OnNavSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            NavSearchBox.Text = string.Empty;
+            Editor.Focus();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key != Key.Enter || _navMatches.Count == 0)
+        {
+            return;
+        }
+
+        bool backward = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        TextPosition caret = ViewModel.Session.Selection.Active;
+        int index = -1;
+        if (backward)
+        {
+            for (int i = _navMatches.Count - 1; i >= 0 && index < 0; i--)
+            {
+                if (_navMatches[i].Story == caret.Story && _navMatches[i].End < caret)
+                {
+                    index = i;
+                }
+            }
+
+            if (index < 0)
+            {
+                index = _navMatches.Count - 1;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _navMatches.Count && index < 0; i++)
+            {
+                if (_navMatches[i].Story == caret.Story && _navMatches[i].Start > caret)
+                {
+                    index = i;
+                }
+            }
+
+            if (index < 0)
+            {
+                index = 0;
+            }
+        }
+
+        TextRange match = _navMatches[index];
+        ViewModel.Session.MoveCaret(match.Start, extend: false);
+        ViewModel.Session.MoveCaret(match.End, extend: true);
+        e.Handled = true;
+    }
+
+
+    private void OnResultSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (ResultList.SelectedItem is not SearchResultEntry result || !ViewModel.Session.Document.IsValid(result.Range.Start))
+        {
+            return;
+        }
+
+        ViewModel.Session.MoveCaret(result.Range.Start, extend: false);
+        ViewModel.Session.MoveCaret(result.Range.End, extend: true);
+        Editor.Focus();
+    }
+
     private void OnHeadingSelected(object sender, SelectionChangedEventArgs e)
+
 
     {
         if (ViewModel.IsSyncingHeading || NavList.SelectedItem is not HeadingEntry heading || !ViewModel.Session.Document.IsValid(heading.Position))

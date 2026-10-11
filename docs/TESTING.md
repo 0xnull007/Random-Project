@@ -344,6 +344,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 14. View tab and status bar
 
+- [ ] Navigation pane: the search box at the top highlights every match in the document and lists them under a
+      Results tab with their context; clicking a result or pressing Enter (Shift+Enter backwards) selects the match;
+      Esc clears; the list refreshes as you edit; the Headings tab is still there **(new)**.
 - [ ] Zoom 50-200% buttons, slider, +/- buttons, Ctrl+Plus/Minus, Ctrl+mouse wheel (zooms around the pointer);
       Fit Page and Fit Width.
 - [ ] ¶ toggle shows paragraph marks, tab arrows, space dots and break markers; the setting is remembered.
