@@ -19,12 +19,13 @@ namespace Quill.Docx;
 /// </summary>
 public static class DocxWriter
 {
-    public static void Write(Document document, Stream stream)
+    /// <summary>Writes the document as a .docx, or as a .dotx template when <paramref name="template"/> is set (same content, template package type).</summary>
+    public static void Write(Document document, Stream stream, bool template = false)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(stream);
 
-        using WordprocessingDocument package = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document);
+        using WordprocessingDocument package = WordprocessingDocument.Create(stream, template ? WordprocessingDocumentType.Template : WordprocessingDocumentType.Document);
         MainDocumentPart main = package.AddMainDocumentPart();
         var body = new W.Body();
         main.Document = document.Settings.PageColor is { IsAuto: false } pageColor
@@ -130,13 +131,14 @@ public static class DocxWriter
     public static void WriteFile(Document document, string path)
     {
         ArgumentNullException.ThrowIfNull(path);
+        bool template = Path.GetExtension(path).Equals(".dotx", StringComparison.OrdinalIgnoreCase);
         string directory = Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".";
         string temp = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
         try
         {
             using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
             {
-                Write(document, stream);
+                Write(document, stream, template);
             }
 
             File.Move(temp, path, overwrite: true);

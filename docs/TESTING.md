@@ -377,6 +377,9 @@ Items marked **(new)** were written overnight and have not been tried on Windows
 
 ## 15. File tab
 
+- [ ] Save As with "Word Template (*.dotx)" writes a template; File > New from Template... (or opening a .dotx) starts
+      an untitled "Document1" with the template's content and styles, leaving the template file untouched; Word opens
+      the .dotx as a template **(new)**.
 - [ ] New (Ctrl+N) asks to save when there are unsaved changes (Yes / No / Cancel).
 - [ ] Open (Ctrl+O), drag-and-drop of a .docx, Recent list (last 10; a missing file is reported and removed).
 - [ ] Open (or drop) a .rtf or .txt file: it is imported into a new document ("Imported ..." in the status bar);

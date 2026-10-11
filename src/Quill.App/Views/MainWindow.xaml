@@ -162,7 +162,8 @@
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE8E5;" Content="Open" Command="{Binding OpenCommand}" ToolTip="Open a .docx (Ctrl+O)" />
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE74E;" Content="Save" Command="{Binding SaveCommand}" ToolTip="Save (Ctrl+S)" />
               <StackPanel Style="{StaticResource Quill.RibbonStack}">
-                <Button Style="{StaticResource Quill.StackButton}" Content="Save As..." Command="{Binding SaveAsCommand}" ToolTip="Save under a new name (F12)" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="New from Template..." Command="{Binding NewFromTemplateCommand}" ToolTip="Start an untitled document from a .dotx template (Save As... can save one)" />
+                <Button Style="{StaticResource Quill.StackButton}" Content="Save As..." Command="{Binding SaveAsCommand}" ToolTip="Save under a new name (F12); choose Word Template to make a .dotx" />
                 <Button Style="{StaticResource Quill.StackButton}" Content="New Window" Click="OnNewWindow" ToolTip="Open another Quill window (for a second document)" />
                 <Button Style="{StaticResource Quill.StackButton}" Content="Properties..." Click="OnProperties" ToolTip="Title, author, subject and comments stored in the file" />
               </StackPanel>

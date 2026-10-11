@@ -24,8 +24,8 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private static readonly double[] StandardSizes = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
 
-    private const string FileFilter = "All supported (*.docx;*.rtf;*.txt)|*.docx;*.rtf;*.txt|Word Documents (*.docx)|*.docx|Rich Text Format (*.rtf)|*.rtf|Text files (*.txt)|*.txt|All files (*.*)|*.*";
-    private const string SaveFilter = "Word Document (*.docx)|*.docx|Rich Text Format (*.rtf)|*.rtf|Plain Text (*.txt)|*.txt";
+    private const string FileFilter = "All supported (*.docx;*.dotx;*.rtf;*.txt)|*.docx;*.dotx;*.rtf;*.txt|Word Documents (*.docx)|*.docx|Word Templates (*.dotx)|*.dotx|Rich Text Format (*.rtf)|*.rtf|Text files (*.txt)|*.txt|All files (*.*)|*.*";
+    private const string SaveFilter = "Word Document (*.docx)|*.docx|Word Template (*.dotx)|*.dotx|Rich Text Format (*.rtf)|*.rtf|Plain Text (*.txt)|*.txt";
 
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly DispatcherTimer _autosaveTimer;
@@ -1276,6 +1276,14 @@ public sealed partial class MainViewModel : ObservableObject
                 return;
             }
 
+            if (extension.Equals(".dotx", StringComparison.OrdinalIgnoreCase))
+            {
+                NewFromTemplateFile(path); // opening a template starts a new document from it, like Word
+                return;
+            }
+
+
+
             LoadResult result = DocxReader.ReadFile(path);
 
             Session.LoadDocument(result.Document);
@@ -1295,7 +1303,43 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>File > New from Template: pick a .dotx and start an untitled document with its content and styles.</summary>
+    [RelayCommand]
+    private void NewFromTemplate()
+    {
+        if (!ConfirmDiscard())
+        {
+            return;
+        }
+
+        var dialog = new OpenFileDialog { Filter = "Word Templates (*.dotx)|*.dotx|All files (*.*)|*.*", DefaultExt = ".dotx" };
+        if (dialog.ShowDialog() == true)
+        {
+            try
+            {
+                NewFromTemplateFile(dialog.FileName);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FileFormatException or DocumentFormat.OpenXml.Packaging.OpenXmlPackageException)
+            {
+                MessageBox.Show($"Could not open {dialog.FileName}.\n\n{ex.Message}", "Quill", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void NewFromTemplateFile(string path)
+    {
+        LoadResult result = DocxReader.ReadFile(path);
+        Session.LoadDocument(result.Document);
+        _documentPath = null;
+        _documentName = "Document1";
+        _loadWasLossy = result.HasLossyContent;
+        StartNewRecoverySession();
+        StatusMessage = "New document from template " + Path.GetFileName(path) + (result.HasLossyContent ? " (with limitations: " + string.Join(" ", result.Warnings.Select(w => w.Message)) + ")" : string.Empty);
+        UpdateTitle();
+    }
+
     /// <summary>Imports RTF or plain text into a new document; Save As keeps it as .docx.</summary>
+
     private void OpenConverted(string path, string extension)
     {
         string text = File.ReadAllText(path);
@@ -1418,7 +1462,7 @@ public sealed partial class MainViewModel : ObservableObject
             RecoveryStore.Delete(_recoveryId);
             _lastAutosaved = Session.Document;
             RememberFile(path);
-            StatusMessage = $"Saved {Path.GetFileName(path)}";
+            StatusMessage = extension.Equals(".dotx", StringComparison.OrdinalIgnoreCase) ? $"Saved template {Path.GetFileName(path)}; File > New from Template starts documents from it" : $"Saved {Path.GetFileName(path)}";
             UpdateTitle();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

@@ -103,4 +103,32 @@ public class DocxDesignTests
         Assert.True(((Paragraph)reread.Document.Sections[0].Body[0]).Properties.SuppressLineNumbers);
         Assert.Null(((Paragraph)reread.Document.Sections[0].Body[1]).Properties.SuppressLineNumbers);
     }
+
+    [Fact]
+    public void Templates_are_written_with_the_template_package_type_and_read_back()
+    {
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(Paragraph.FromText("Letterhead")))), DefaultStyleSheet.Create());
+        using var memory = new MemoryStream();
+        DocxWriter.Write(document, memory, template: true);
+        memory.Position = 0;
+        using (WordprocessingDocument package = WordprocessingDocument.Open(memory, false))
+        {
+            Assert.Equal(WordprocessingDocumentType.Template, package.DocumentType);
+        }
+
+        LoadResult reread = DocxReader.Read(new MemoryStream(memory.ToArray()));
+        Assert.Equal("Letterhead", ((Paragraph)reread.Document.Sections[0].Body[0]).FlatText);
+
+        string path = Path.Combine(Path.GetTempPath(), "quill-" + Guid.NewGuid().ToString("N") + ".dotx");
+        try
+        {
+            DocxWriter.WriteFile(document, path);
+            using WordprocessingDocument file = WordprocessingDocument.Open(path, false);
+            Assert.Equal(WordprocessingDocumentType.Template, file.DocumentType);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }
