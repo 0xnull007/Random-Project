@@ -603,7 +603,20 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
+    private void OnCustomWatermark(object sender, RoutedEventArgs e)
+    {
+        EditingSession session = ViewModel.Session;
+        var dialog = new WatermarkWindow(session.Document.Settings.Watermark) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            session.SetWatermark(dialog.Result);
+        }
+
+        Editor.Focus();
+    }
+
     private void OnPageBorders(object sender, RoutedEventArgs e)
+
     {
         EditingSession session = ViewModel.Session;
         var dialog = new PageBordersWindow(session.PageBordersAtCaret, session.Document.Sections.Count > 1) { Owner = this };

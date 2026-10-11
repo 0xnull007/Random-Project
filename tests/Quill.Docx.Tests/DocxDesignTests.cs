@@ -61,4 +61,26 @@ public class DocxDesignTests
         Assert.True(second.Properties.Shading!.Value.IsAuto);
         Assert.True(second.Properties.Borders!.IsNone);
     }
+
+    [Fact]
+    public void Watermark_round_trips_as_a_vml_shape_in_the_header()
+    {
+        var document = new Document(ImmutableList.Create(new Section(SectionProperties.Letter, ImmutableList.Create<Block>(Paragraph.FromText("x")))), DefaultStyleSheet.Create(), new DocumentSettings { Watermark = new Watermark("CONFIDENTIAL", DocColor.Parse("FF0000")) });
+        byte[] bytes = DocxWriter.ToBytes(document);
+        using (var stream = new MemoryStream(bytes))
+        using (WordprocessingDocument package = WordprocessingDocument.Open(stream, false))
+        {
+            List<ValidationErrorInfo> errors = new OpenXmlValidator(FileFormatVersions.Office2019).Validate(package).ToList();
+            Assert.True(errors.Count == 0, string.Join("\n", errors.Select(e => e.Description + " @ " + e.Path?.XPath)));
+            HeaderPart header = Assert.Single(package.MainDocumentPart!.HeaderParts);
+            DocumentFormat.OpenXml.Vml.TextPath path = header.Header!.Descendants<DocumentFormat.OpenXml.Vml.TextPath>().Single(p => p.String is not null);
+            Assert.Equal("CONFIDENTIAL", path.String!.Value);
+            Assert.Equal("#ff0000", header.Header.Descendants<DocumentFormat.OpenXml.Vml.Shape>().Single().FillColor!.Value);
+        }
+
+        LoadResult reread = DocxReader.Read(new MemoryStream(bytes));
+        Assert.Equal(new Watermark("CONFIDENTIAL", DocColor.Parse("FF0000")), reread.Document.Settings.Watermark);
+        Assert.Empty(reread.Warnings);
+        Assert.NotNull(reread.Document.Sections[0].Headers.Default);
+    }
 }

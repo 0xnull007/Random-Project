@@ -227,7 +227,28 @@ public static class PdfExporter
             }
         }
 
+        public void DrawWatermark(string text, DocColor color, double opacity, SizeD page)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return;
+            }
+
+            XFont probe = _fonts.Get("Calibri", 100, XFontStyleEx.Regular);
+            double diagonal = Math.Sqrt(page.Width * page.Width + page.Height * page.Height);
+            double size = Math.Clamp(100 * diagonal * 0.65 / Math.Max(1, _gfx.MeasureString(text, probe).Width), 12, page.Height * 0.3);
+            XFont font = _fonts.Get("Calibri", size, XFontStyleEx.Regular);
+            XColor fill = ToColor(color);
+            fill.A = opacity;
+            XGraphicsState state = _gfx.Save();
+            var center = new XPoint(page.Width / 2, page.Height / 2);
+            _gfx.RotateAtTransform(-45, center);
+            _gfx.DrawString(text, font, new XSolidBrush(fill), center, XStringFormats.Center);
+            _gfx.Restore(state);
+        }
+
         public void DrawTextSegments(IEnumerable<TextSegment> segments, PointD origin)
+
         {
             ArgumentNullException.ThrowIfNull(segments);
             List<TextSegment> list = segments as List<TextSegment> ?? segments.ToList();

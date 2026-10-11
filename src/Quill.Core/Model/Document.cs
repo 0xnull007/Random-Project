@@ -21,6 +21,9 @@ public sealed record DocumentSettings
 
     /// <summary>Background colour of every page (<c>w:background</c>); shown on screen, not printed, like Word.</summary>
     public DocColor? PageColor { get; init; }
+
+    /// <summary>Diagonal text behind every page, or null.</summary>
+    public Watermark? Watermark { get; init; }
 }
 
 public sealed record DocumentMetadata

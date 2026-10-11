@@ -134,10 +134,12 @@ public sealed class PageLayout
         double? footnoteSeparatorY = null,
         double? endnoteSeparatorY = null,
         PageBorders? borders = null,
-        DocColor? pageColor = null)
+        DocColor? pageColor = null,
+        Watermark? watermark = null)
     {
         Borders = borders;
         PageColor = pageColor;
+        Watermark = watermark;
         EndnoteSeparatorY = endnoteSeparatorY;
         Footnotes = footnotes.IsDefault ? ImmutableArray<StoryLayout>.Empty : footnotes;
         FootnoteSeparatorY = footnoteSeparatorY;
@@ -159,6 +161,9 @@ public sealed class PageLayout
 
     /// <summary>The document's page colour, or null for white.</summary>
     public DocColor? PageColor { get; }
+
+    /// <summary>The document's watermark, or null.</summary>
+    public Watermark? Watermark { get; }
 
     /// <summary>Where the page border is drawn: inside the page edge or around the text area, by the border's distance.</summary>
     public RectD? BorderRect()

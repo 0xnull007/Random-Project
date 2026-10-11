@@ -25,7 +25,20 @@ public sealed partial class EditingSession
         Commit(new EditResult(Document.WithSettings(Document.Settings with { PageColor = value }), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
     }
 
+    /// <summary>Sets or (with null) removes the watermark drawn behind every page; one undo step.</summary>
+    public void SetWatermark(Watermark? watermark)
+    {
+        Watermark? value = watermark is { Text.Length: > 0 } ? watermark with { Text = watermark.Text.Trim() } : null;
+        if (Equals(value, Document.Settings.Watermark))
+        {
+            return;
+        }
+
+        Commit(new EditResult(Document.WithSettings(Document.Settings with { Watermark = value }), Selection, ChangeSet.Structural()), EditKind.Formatting, startsNewGroup: true);
+    }
+
     /// <summary>Sets (or with null removes) the page border of the caret's section, or of every section; one undo step.</summary>
+
     public void SetPageBorders(PageBorders? borders, bool wholeDocument)
     {
         Document document = Document;

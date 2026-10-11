@@ -172,7 +172,25 @@ public static class DocxWriter
         }
     }
 
+    /// <summary>The VML WordArt shape Word uses for a watermark: diagonal, centred on the margins, half transparent.</summary>
+    private static W.Run WatermarkRun(Watermark watermark, int ordinal)
+    {
+        string text = System.Security.SecurityElement.Escape(watermark.Text) ?? string.Empty;
+        string fill = "#" + watermark.EffectiveColor.ToHex().ToLowerInvariant();
+        string xml =
+            "<w:pict xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\">"
+            + "<v:shapetype id=\"_x0000_t136\" coordsize=\"21600,21600\" o:spt=\"136\" adj=\"10800\" path=\"m@7,l@8,m@5,21600l@6,21600e\">"
+            + "<v:formulas><v:f eqn=\"sum #0 0 10800\"/><v:f eqn=\"prod #0 2 1\"/><v:f eqn=\"sum 21600 0 @1\"/><v:f eqn=\"sum 0 0 @2\"/><v:f eqn=\"sum 21600 0 @3\"/><v:f eqn=\"if @0 @3 0\"/><v:f eqn=\"if @0 21600 @1\"/><v:f eqn=\"if @0 0 @2\"/><v:f eqn=\"if @0 @4 21600\"/><v:f eqn=\"mid @5 @6\"/><v:f eqn=\"mid @8 @5\"/><v:f eqn=\"mid @7 @8\"/><v:f eqn=\"mid @6 @7\"/><v:f eqn=\"sum @6 0 @5\"/></v:formulas>"
+            + "<v:path textpathok=\"t\" o:connecttype=\"custom\" o:connectlocs=\"@9,0;@10,10800;@11,21600;@12,10800\" o:connectangles=\"270,180,90,0\"/><v:textpath on=\"t\" fitshape=\"t\"/>"
+            + "<v:handles><v:h position=\"#0,bottomRight\" xrange=\"6629,14971\"/></v:handles><o:lock v:ext=\"edit\" text=\"t\" shapetype=\"t\"/></v:shapetype>"
+            + "<v:shape id=\"PowerPlusWaterMarkObject" + ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\" o:spid=\"_x0000_s" + (2048 + ordinal).ToString(System.Globalization.CultureInfo.InvariantCulture) + "\" type=\"#_x0000_t136\""
+            + " style=\"position:absolute;margin-left:0;margin-top:0;width:527.85pt;height:131.95pt;rotation:315;z-index:-251658752;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin\""
+            + " o:allowincell=\"f\" fillcolor=\"" + fill + "\" stroked=\"f\"><v:fill opacity=\".5\"/><v:textpath style=\"font-family:&quot;Calibri&quot;;font-size:1pt\" string=\"" + text + "\"/></v:shape></w:pict>";
+        return new W.Run(new W.RunProperties(new W.NoProof()), new W.Picture(xml));
+    }
+
     /// <summary>Tables are read-only, so a table read from a file is written back from its original XML; tables built in code get a plain grid.</summary>
+
     private static OpenXmlElement BuildTable(PartContext context, Table table)
     {
         if (table.OuterXml is { } xml)
@@ -725,16 +743,30 @@ public static class DocxWriter
 
         foreach (HeaderFooterVariant variant in Enum.GetValues<HeaderFooterVariant>())
         {
-            if (section.Headers.Get(variant) is { } header)
+            ImmutableList<Block>? header = section.Headers.Get(variant);
+            if (header is null && context.State.Watermark is not null && variant == HeaderFooterVariant.Default && section.Headers.IsEmpty && sectionIndex == 0)
+            {
+                header = ImmutableList.Create<Block>(Paragraph.Empty()); // a header to carry the watermark shape
+            }
+
+            if (header is { } headerBlocks)
             {
                 HeaderPart part = context.Main.AddNewPart<HeaderPart>();
                 var headerContext = new PartContext(context.State, context.Main, part);
                 var element = new W.Header();
-                element.Append(header.Select(b => BuildBlock(headerContext, b)));
+                element.Append(headerBlocks.Select(b => BuildBlock(headerContext, b)));
+                if (context.State.Watermark is { } watermark)
+                {
+                    W.Paragraph host = element.Elements<W.Paragraph>().FirstOrDefault() ?? element.AppendChild(new W.Paragraph());
+                    OpenXmlElement? pPr = host.GetFirstChild<W.ParagraphProperties>();
+                    host.InsertAfter(WatermarkRun(watermark, context.State.NextWatermarkId()), pPr);
+                }
+
                 part.Header = element;
                 sectPr.Append(new W.HeaderReference { Type = VariantTo(variant), Id = context.Main.GetIdOfPart(part) });
             }
         }
+
 
         foreach (HeaderFooterVariant variant in Enum.GetValues<HeaderFooterVariant>())
         {
@@ -1031,6 +1063,7 @@ public static class DocxWriter
             NoteIds = noteIds;
             EndnoteIds = FootnoteSupport.ReferencedEndnoteIds(document);
             Sequences = SequenceFields.Numbers(document);
+            Watermark = document.Settings.Watermark;
             Comments = document.Comments;
             foreach ((StoryId story, BlockPath path, Paragraph paragraph) in DocumentEditor.AllParagraphs(document))
             {
@@ -1052,6 +1085,12 @@ public static class DocxWriter
 
         /// <summary>Running numbers of the SEQ fields, so saved captions show the right number without a field update.</summary>
         public IReadOnlyDictionary<Field, int> Sequences { get; }
+
+        public Watermark? Watermark { get; }
+
+        private int _nextWatermarkId;
+
+        public int NextWatermarkId() => ++_nextWatermarkId;
 
         public ImmutableDictionary<int, Comment> Comments { get; }
 

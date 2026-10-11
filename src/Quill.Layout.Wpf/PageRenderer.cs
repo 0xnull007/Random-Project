@@ -14,6 +14,11 @@ public static class PageRenderer
     {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(target);
+        if (page.Watermark is { } watermark)
+        {
+            target.DrawWatermark(watermark.Text, watermark.EffectiveColor, Watermark.Opacity, page.Size);
+        }
+
         if (page.Borders is { } borders && page.BorderRect() is { } borderRect)
         {
             DrawPageBorder(borderRect, borders, target);

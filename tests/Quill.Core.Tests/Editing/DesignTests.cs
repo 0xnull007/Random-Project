@@ -45,4 +45,17 @@ public class DesignTests
         session.Undo();
         Assert.Equal(box, session.Document.Sections[0].Properties.PageBorders);
     }
+
+    [Fact]
+    public void Watermark_is_an_undoable_document_setting()
+    {
+        var session = new EditingSession(WithParagraphs("a"));
+        session.SetWatermark(new Watermark(" DRAFT "));
+        Assert.Equal(new Watermark("DRAFT"), session.Document.Settings.Watermark);
+        Assert.Equal(Watermark.DefaultColor, session.Document.Settings.Watermark!.EffectiveColor);
+        session.SetWatermark(new Watermark(""));
+        Assert.Null(session.Document.Settings.Watermark);
+        session.Undo();
+        Assert.Equal("DRAFT", session.Document.Settings.Watermark!.Text);
+    }
 }

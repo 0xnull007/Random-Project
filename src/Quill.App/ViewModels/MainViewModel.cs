@@ -247,6 +247,11 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void InsertCoverPage() => Session.InsertCoverPage(AuthorName());
 
+    /// <summary>Design > Watermark presets; an empty text removes the watermark.</summary>
+    [RelayCommand]
+    private void SetWatermark(string text) => Session.SetWatermark(string.IsNullOrWhiteSpace(text) ? null : new Watermark(text));
+
+
 
 
     /// <summary>Applies a page colour from the picker: "auto" clears it, otherwise an RRGGBB hex.</summary>

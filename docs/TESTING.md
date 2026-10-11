@@ -169,6 +169,10 @@ Items marked **(new)** were written overnight and have not been tried on Windows
       double blue frame; "Text" measures from the text area instead; "This section" limits it; None removes it;
       undo reverts in one step; the border prints and exports to PDF; Word shows the same frame.
 - [ ] Design > Document Formatting repeats the style picker, Modify Style and Number Headings from Home/References.
+- [ ] Design > Watermark > DRAFT: light-grey "DRAFT" runs diagonally across every page behind the text, on screen, in
+      Print Preview and in the PDF; Custom Watermark lets you type the text and pick a colour; Remove Watermark
+      clears it; after save and reload Word shows the same watermark (it is written as Word's own WordArt shape in the
+      header) and opening a Word document with a watermark shows it here **(new)**.
 
 ## 9. Headers and footers
 

@@ -82,7 +82,7 @@ public sealed class DocxReader
             Created = package.PackageProperties.Created,
             Modified = package.PackageProperties.Modified,
         };
-        return new LoadResult(new Document(sections, styles, settings, metadata, lists, new ImageStore(_images.ToImmutable()), _footnotes.ToImmutable(), _comments.ToImmutable(), _endnotes.ToImmutable()), _warnings);
+        return new LoadResult(new Document(sections, styles, _watermark is null ? settings : settings with { Watermark = _watermark }, metadata, lists, new ImageStore(_images.ToImmutable()), _footnotes.ToImmutable(), _comments.ToImmutable(), _endnotes.ToImmutable()), _warnings);
     }
 
     // ------------------------------------------------------------------ sections and stories
@@ -421,7 +421,35 @@ public sealed class DocxReader
         builder.CurrentRevision = outer;
     }
 
+    private Watermark? _watermark;
+
+    /// <summary>Word's watermark is a VML WordArt shape in the header: keep its text and colour as the document watermark.</summary>
+    private bool TryReadWatermark(W.Picture picture)
+    {
+        DocumentFormat.OpenXml.Vml.TextPath? path = picture.Descendants<DocumentFormat.OpenXml.Vml.TextPath>().FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.String?.Value));
+        if (path?.String?.Value is not { } text)
+        {
+            return false;
+        }
+
+        string? fill = picture.Descendants<DocumentFormat.OpenXml.Vml.Shape>().FirstOrDefault()?.FillColor?.Value;
+        DocColor? color = fill switch
+        {
+            null => null,
+            _ when fill.StartsWith('#') && fill.Length == 7 => DocColor.Parse(fill[1..]),
+            _ when fill.Equals("silver", StringComparison.OrdinalIgnoreCase) => DocColor.Parse("C0C0C0"),
+            _ when fill.Equals("gray", StringComparison.OrdinalIgnoreCase) || fill.Equals("grey", StringComparison.OrdinalIgnoreCase) => DocColor.Parse("808080"),
+            _ when fill.Equals("red", StringComparison.OrdinalIgnoreCase) => DocColor.Parse("FF0000"),
+            _ when fill.Equals("blue", StringComparison.OrdinalIgnoreCase) => DocColor.Parse("0000FF"),
+            _ when fill.Equals("black", StringComparison.OrdinalIgnoreCase) => DocColor.Parse("000000"),
+            _ => null,
+        };
+        _watermark ??= new Watermark(text.Trim(), color);
+        return true;
+    }
+
     private void ReadRun(W.Run run, InlineBuilder builder)
+
 
     {
         RunProperties properties = ReadRunProperties(run.RunProperties);
@@ -489,6 +517,8 @@ public sealed class DocxReader
                 case W.Drawing drawing:
                     Flush();
                     ReadDrawing(drawing, builder, properties, styleId);
+                    break;
+                case W.Picture picture when TryReadWatermark(picture):
                     break;
                 case W.Picture or W.EmbeddedObject:
                     Warn("Legacy (VML) pictures and embedded objects are not supported and were dropped.");

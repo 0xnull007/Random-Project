@@ -78,5 +78,29 @@ public sealed class WpfRenderTarget : IRenderTarget
         ImageEmbeddedObject.DrawInto(Context, image, ToRect(bounds));
     }
 
+    /// <summary>Word's watermark: the text sized to span about two thirds of the page diagonal, rotated 45 degrees, half transparent.</summary>
+    public void DrawWatermark(string text, DocColor color, double opacity, SizeD page)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        Brush brush = _fonts.GetBrush(color).Clone();
+        brush.Opacity = opacity;
+        brush.Freeze();
+        Typeface typeface = _fonts.GetTypeface("Calibri", bold: false, italic: false);
+        var probe = new FormattedText(text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, typeface, 100, brush, 1.0);
+        double diagonal = Math.Sqrt(page.Width * page.Width + page.Height * page.Height);
+        double size = Math.Clamp(100 * diagonal * 0.65 / Math.Max(1, probe.WidthIncludingTrailingWhitespace), 12, page.Height * 0.3);
+        var formatted = new FormattedText(text, CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, typeface, size, brush, 1.0);
+        double cx = page.Width / 2;
+        double cy = page.Height / 2;
+        Context.PushTransform(new RotateTransform(-45, cx, cy));
+        Context.DrawText(formatted, new Point(cx - formatted.WidthIncludingTrailingWhitespace / 2, cy - formatted.Height / 2));
+        Context.Pop();
+    }
+
+
     private static Rect ToRect(RectD rect) => new(rect.X, rect.Y, Math.Max(0, rect.Width), Math.Max(0, rect.Height));
 }

@@ -234,4 +234,9 @@ public interface IRenderTarget
 
     /// <summary>Draws an encoded picture into <paramref name="bounds"/>.</summary>
     void DrawImage(ImageData image, RectD bounds);
+
+    /// <summary>Diagonal translucent text across the page (a watermark); targets that cannot rotate text may ignore it.</summary>
+    void DrawWatermark(string text, DocColor color, double opacity, SizeD page)
+    {
+    }
 }

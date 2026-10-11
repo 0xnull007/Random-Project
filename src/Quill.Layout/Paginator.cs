@@ -638,7 +638,8 @@ public sealed class Paginator
                 separator,
                 page.EndnoteSeparatorY,
                 _document.Sections[sectionIndex].Properties.PageBorders,
-                _document.Settings.PageColor));
+                _document.Settings.PageColor,
+                _document.Settings.Watermark));
         }
 
 
@@ -658,7 +659,8 @@ public sealed class Paginator
                 isBlankFiller: true,
                 page.Variant,
                 borders: _document.Sections[sectionIndex].Properties.PageBorders,
-                pageColor: _document.Settings.PageColor));
+                pageColor: _document.Settings.PageColor,
+                watermark: _document.Settings.Watermark));
         }
 
         private (StoryLayout? Header, StoryLayout? Footer, HeaderFooterVariant Variant) LayoutHeaderFooter(int sectionIndex, int pageNumber, bool isFirstOfSection, SizeD pageSize)

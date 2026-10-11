@@ -370,7 +370,21 @@
                 <TextBlock Text="Page Color" FontSize="11" Opacity="0.8" Margin="2,0,0,2" HorizontalAlignment="Center" />
                 <views:ColorPickerButton x:Name="PageColorPicker" GlyphText="&#x25A3;" ToggleToolTip="Page color (shown on screen, not printed, like Word)" CurrentColor="{Binding PageColorSwatch}" ColorSelected="OnPageColorSelected" HorizontalAlignment="Center" />
               </StackPanel>
+              <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7E6;" Content="Watermark" Click="OnCaseMenu" ToolTip="Diagonal text behind every page (DRAFT, CONFIDENTIAL...); shown on screen, in print and PDF, and kept in Word files">
+                <Button.ContextMenu>
+                  <ContextMenu Closed="OnMenuClosed">
+                    <MenuItem Header="DRAFT" Command="{Binding SetWatermarkCommand}" CommandParameter="DRAFT" />
+                    <MenuItem Header="CONFIDENTIAL" Command="{Binding SetWatermarkCommand}" CommandParameter="CONFIDENTIAL" />
+                    <MenuItem Header="DO NOT COPY" Command="{Binding SetWatermarkCommand}" CommandParameter="DO NOT COPY" />
+                    <MenuItem Header="SAMPLE" Command="{Binding SetWatermarkCommand}" CommandParameter="SAMPLE" />
+                    <MenuItem Header="Custom Watermark..." Click="OnCustomWatermark" />
+                    <Separator />
+                    <MenuItem Header="Remove Watermark" Command="{Binding SetWatermarkCommand}" CommandParameter="" />
+                  </ContextMenu>
+                </Button.ContextMenu>
+              </Button>
               <Button Style="{StaticResource Quill.RibbonButton}" views:Ribbon.Icon="&#xE7C3;" Content="Page Borders" Click="OnPageBorders" ToolTip="A border around every page of the section or document: style, width, colour and distance" />
+
             </StackPanel>
           </HeaderedContentControl>
         </WrapPanel>
